@@ -113,6 +113,7 @@ http://www.opensource.org/licenses/bsd-license.php
 
 -----------------------------------------------------------------------------
 <History>
+2011/Mar/25 exp, exp_ps support avx
 2010/Feb/16 add fmath::exp_ps, log_ps and optimize functions
 2010/Jan/10 add fmath::PowGenerator
 2009/Dec/28 add fmath::log()
