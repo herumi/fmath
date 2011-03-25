@@ -22,6 +22,9 @@
 	if FMATH_USE_XBYAK is defined then Xbyak version are used
 */
 //#define FMATH_USE_XBYAK
+#if defined(_MSC_VER) && (_MSC_VER >= 1600)
+	#define FMATH_USE_AVX
+#endif
 
 #include <math.h>
 #include <limits>
@@ -176,17 +179,24 @@ struct LogVar {
 struct ExpCode : public Xbyak::CodeGenerator {
 	float (*exp_)(float);
 	__m128 (*exp_ps_)(__m128);
+#ifdef FMATH_USE_AVX
+	__m256 (*exp_ps256_)(__m256);
+#endif
 	template<size_t N>
 	ExpCode(const ExpVar<N> *self)
 	{
 		Xbyak::util::Cpu cpu;
-		bool useSSE41 = cpu.has(Xbyak::util::Cpu::tSSE41);
 		try {
-			makeExp(self, useSSE41);
+			makeExp(self, cpu);
 			exp_ = (float(*)(float))getCode();
 			align(16);
 			exp_ps_ = (__m128(*)(__m128))getCurr();
-			makeExpPs(self, useSSE41);
+			makeExpPs(self, cpu);
+#ifdef FMATH_USE_AVX
+			align(16);
+			exp_ps256_ = (__m256(*)(__m256))getCurr();
+			makeExpPs256(self);
+#endif
 			return;
 		} catch (Xbyak::Error err) {
 			fprintf(stderr, "ExpCode ERR:%s(%d)\n", Xbyak::ConvertErrorToString(err), err);
@@ -196,7 +206,7 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		::exit(1);
 	}
 	template<size_t N>
-	void makeExp(const ExpVar<N> *self, bool /*useSSE41*/)
+	void makeExp(const ExpVar<N> *self, const Xbyak::util::Cpu& cpu)
 	{
 		using namespace local;
 		using namespace Xbyak;
@@ -204,71 +214,145 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		inLocalLabel();
 #ifdef XBYAK64
 		const Reg64& base = rcx;
-		const Reg64& idx = rax;
+		const Reg64& a = rax;
 #else
 		const Reg32& base = ecx;
-		const Reg32& idx = eax;
-		movss(xm0, ptr [esp + 4]);
+		const Reg32& a = eax;
 #endif
+
 		mov(base, (size_t)self);
 
-	L(".retry");
-		movaps(xm1, xm0);
-		movd(edx, xm0);
-		mulss(xm1, ptr [base + FMATH_OFFSET_OF(self, a)]); // t
-		and(edx, 0x7fffffff);
-		cvtss2si(eax, xm1);
-		cmp(edx, ExpVar<N>::f88);
-		jg(".overflow");
-		lea(edx, ptr [eax + (127 << self->s)]);
-		cvtsi2ss(xm1, eax);
-		and(eax, mask(self->s)); // v
-		mov(eax, ptr [base + idx * 4 + FMATH_OFFSET_OF(self, tbl)]); // expVar.tbl[v]
-		shr(edx, self->s);
-		mulss(xm1, ptr [base + FMATH_OFFSET_OF(self, b)]);
-		shl(edx, 23); // u
-		subss(xm0, xm1); // t
-		or(eax, edx); // fi.f
-		addss(xm0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
-		movd(xm1, eax);
-		mulss(xm0, xm1);
+		if (cpu.has(Xbyak::util::Cpu::tAVX)) {
 #ifdef XBYAK32
-		movss(ptr[esp + 4], xm0);
-		fld(dword[esp + 4]);
+			vmovss(xm0, ptr [esp + 4]);
 #endif
-		ret();
-	L(".overflow");
-		minps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
-		maxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
-		jmp(".retry");
+		L(".retry");
+			vmovd(edx, xm0);
+			vmulss(xm1, xm0, ptr [base + FMATH_OFFSET_OF(self, a)]); // t
+			and(edx, 0x7fffffff);
+			vcvtss2si(eax, xm1);
+			cmp(edx, ExpVar<N>::f88);
+			jg(".overflow");
+			lea(edx, ptr [eax + (127 << self->s)]);
+			vcvtsi2ss(xm1, eax);
+			and(eax, mask(self->s)); // v
+			mov(eax, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]); // expVar.tbl[v]
+			shr(edx, self->s);
+			vmulss(xm1, ptr [base + FMATH_OFFSET_OF(self, b)]);
+			shl(edx, 23); // u
+			vsubss(xm0, xm1); // t
+			or(eax, edx); // fi.f
+			vaddss(xm0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
+			vmovd(xm1, eax);
+			vmulss(xm0, xm1);
+#ifdef XBYAK32
+			vmovss(ptr[esp + 4], xm0);
+			fld(dword[esp + 4]);
+#endif
+			ret();
+		L(".overflow");
+			vminps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+			vmaxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+			jmp(".retry");
+		} else {
+#ifdef XBYAK32
+			movss(xm0, ptr [esp + 4]);
+#endif
+		L(".retry");
+			movaps(xm1, xm0);
+			movd(edx, xm0);
+			mulss(xm1, ptr [base + FMATH_OFFSET_OF(self, a)]); // t
+			and(edx, 0x7fffffff);
+			cvtss2si(eax, xm1);
+			cmp(edx, ExpVar<N>::f88);
+			jg(".overflow");
+			lea(edx, ptr [eax + (127 << self->s)]);
+			cvtsi2ss(xm1, eax);
+			and(eax, mask(self->s)); // v
+			mov(eax, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]); // expVar.tbl[v]
+			shr(edx, self->s);
+			mulss(xm1, ptr [base + FMATH_OFFSET_OF(self, b)]);
+			shl(edx, 23); // u
+			subss(xm0, xm1); // t
+			or(eax, edx); // fi.f
+			addss(xm0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
+			movd(xm1, eax);
+			mulss(xm0, xm1);
+#ifdef XBYAK32
+			movss(ptr[esp + 4], xm0);
+			fld(dword[esp + 4]);
+#endif
+			ret();
+		L(".overflow");
+			minps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+			maxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+			jmp(".retry");
+		}
 		outLocalLabel();
 	}
 	template<size_t N>
-	void makeExpPs(const ExpVar<N> *self, bool useSSE41)
+	void makeExpPs(const ExpVar<N> *self, const Xbyak::util::Cpu& cpu)
 	{
 		using namespace local;
 		using namespace Xbyak;
-//			const ExpVar<>& expVar = C<>::expVar;
 
 		inLocalLabel();
 #ifdef XBYAK64
 		const Reg64& base = rcx;
-		const Reg64& idx = rax;
-		const Reg64& idx2 = rdx;
-#if defined(XBYAK64_WIN) && !defined(__INTEL_COMPILER)
-		movaps(xm0, ptr [rcx]);
-#endif
+		const Reg64& a = rax;
+		const Reg64& d = rdx;
 #else
 		const Reg32& base = ecx;
-		const Reg32& idx = eax;
-		const Reg32& idx2 = edx;
+		const Reg32& a = eax;
+		const Reg32& d = edx;
 #endif
-		mov(base, (size_t)self);
 
 /*
 	if abs(x) >= maxX then x = max(min(x, maxX), -maxX) and try
 	minps, maxps are very slow then avoid them
 */
+	if (cpu.has(Xbyak::util::Cpu::tAVX)) {
+#if defined(XBYAK64_WIN) && !defined(__INTEL_COMPILER)
+		vmovaps(xm0, ptr [rcx]);
+#endif
+		mov(base, (size_t)self);
+	L(".retry");
+		vandps(xm5, xm0, ptr [base + FMATH_OFFSET_OF(self, i7fffffff)]);
+		vmulps(xm3, xm0, ptr [base + FMATH_OFFSET_OF(self, a)]);
+		vpcmpgtd(xm5, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+		vcvtps2dq(xm2, xm3);
+		vpmovmskb(eax, xm5);
+		vpand(xm5, xm2, ptr [base + FMATH_OFFSET_OF(self, mask_s)]);
+		vcvtdq2ps(xm3, xm2);
+		test(eax, eax);
+		jnz(".overflow");
+		vpaddd(xm1, xm2, ptr [base + FMATH_OFFSET_OF(self, i127s)]);
+		vmovd(eax, xm5);
+		vmulps(xm4, xm3, ptr [base + FMATH_OFFSET_OF(self, b)]);
+		vpextrw(edx, xm5, 2);
+		vsubps(xm0, xm4);
+		vmovd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]);
+		vaddps(xm0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
+		vpextrw(eax, xm5, 4);
+		vpinsrd(xm4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 1);
+		vpextrw(edx, xm5, 6);
+		vpsrld(xm1, self->s);
+		vpslld(xm1, 23);
+		vpinsrd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)], 2);
+		vpinsrd(xm4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 3);
+		vpor(xm1, xm4);
+		vmulps(xm0, xm1);
+		ret();
+	L(".overflow");
+		vminps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+		vmaxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+		jmp(".retry");
+	} else {
+		const bool useSSE41 = cpu.has(Xbyak::util::Cpu::tSSE41);
+#if defined(XBYAK64_WIN) && !defined(__INTEL_COMPILER)
+		movaps(xm0, ptr [rcx]);
+#endif
+		mov(base, (size_t)self);
 	L(".retry");
 		movaps(xm5, xm0);
 		andps(xm5, ptr [base + FMATH_OFFSET_OF(self, i7fffffff)]);
@@ -289,24 +373,24 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		mulps(xm4, xm3);
 		pextrw(edx, xm5, 2);
 		subps(xm0, xm4);
-		movd(xm4, ptr [base + idx * 4 + FMATH_OFFSET_OF(self, tbl)]);
+		movd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]);
 		addps(xm0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
 		pextrw(eax, xm5, 4);
 		if (useSSE41) {
-			pinsrd(xm4, ptr [base + idx2 * 4 + FMATH_OFFSET_OF(self, tbl)], 1);
+			pinsrd(xm4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 1);
 		} else {
-			movd(xm3, ptr [base + idx2 * 4 + FMATH_OFFSET_OF(self, tbl)]);
+			movd(xm3, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)]);
 			movlhps(xm4, xm3);
 		}
 		pextrw(edx, xm5, 6);
 		psrld(xm1, self->s);
 		pslld(xm1, 23);
 		if (useSSE41) {
-			pinsrd(xm4, ptr [base + idx * 4 + FMATH_OFFSET_OF(self, tbl)], 2);
-			pinsrd(xm4, ptr [base + idx2 * 4 + FMATH_OFFSET_OF(self, tbl)], 3);
+			pinsrd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)], 2);
+			pinsrd(xm4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 3);
 		} else {
-			movd(xm2, ptr [base + idx * 4 + FMATH_OFFSET_OF(self, tbl)]);
-			movd(xm3, ptr [base + idx2 * 4 + FMATH_OFFSET_OF(self, tbl)]);
+			movd(xm2, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]);
+			movd(xm3, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)]);
 			movlhps(xm2, xm3);
 			shufps(xm4, xm2, MIE_PACK(2, 0, 2, 0));
 		}
@@ -317,7 +401,78 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		minps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
 		maxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
 		jmp(".retry");
+		}
 		outLocalLabel();
+	}
+	template<size_t N>
+	void makeExpPs256(const ExpVar<N> *self)
+	{
+#if 0
+		using namespace local;
+		using namespace Xbyak;
+
+		inLocalLabel();
+#ifdef XBYAK64
+		const Reg64& base = rcx;
+		const Reg64& a = rax;
+		const Reg64& d = rdx;
+#if defined(XBYAK64_WIN) && !defined(__INTEL_COMPILER)
+		vmovaps(ym0, ptr [rcx]);
+#endif
+#else
+		const Reg32& base = ecx;
+		const Reg32& a = eax;
+		const Reg32& d = edx;
+#endif
+		mov(base, (size_t)self);
+
+/*
+	if abs(x) >= maxX then x = max(min(x, maxX), -maxX) and try
+	minps, maxps are very slow then avoid them
+*/
+	L(".retry");
+		vandps(ym5, ym0, ptr [base + FMATH_OFFSET_OF(self, i7fffffff)]);
+		vmulps(ym3, ym0, ptr [base + FMATH_OFFSET_OF(self, a)]);
+		vcmpgtps(ym5, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+		vmovaps(ym1, ptr [base + FMATH_OFFSET_OF(self, i127s)]);
+		vpmovmskb(eax, xm5);
+		vperm2f128(ym5, ym5, ym5, 1); // [*:ym5>>128]
+		vpmovmskb(edx, xm5);
+		shl(edx, 16);
+		add(eax, edx);
+		vcvtps2dq(ym2, ym3);
+		vandps(ym5, ym2, ptr [base + FMATH_OFFSET_OF(self, mask_s)]);
+		test(eax, eax);
+		jnz(".overflow");
+		vperm2f128(ym3, ym1, ym1, 1); // ym3 = [*:ym1>>128]
+		vperm2f128(ym4, ym2, ym2, 1); // ym4 = [*:ym2>>128]
+		vpaddd(xm4, xm3); // H
+		vpaddd(xm3, xm1, xm2); // L
+		vperm2f128(ym4, ym3, ym4, 2 << 4); // [H:L]
+		vcvtdq2ps(ym3, ym2);
+		vmulps(ym4, ym3, ptr [base + FMATH_OFFSET_OF(self, b)]);
+
+		vmovd(eax, xm5);
+		vpextrw(edx, ym5, 2);
+		vsubps(ym0, ym4);
+		vmovd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)]);
+		vaddps(ym0, ptr [base + FMATH_OFFSET_OF(self, f1)]);
+		vpextrw(eax, ym5, 4);
+		vpinsrd(ym4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 1);
+		vpextrw(edx, ym5, 6);
+		vpsrld(xm1, self->s);
+		vpslld(xm1, 23);
+		vpinsrd(xm4, ptr [base + a * 4 + FMATH_OFFSET_OF(self, tbl)], 2);
+		vpinsrd(xm4, ptr [base + d * 4 + FMATH_OFFSET_OF(self, tbl)], 3);
+		vpor(ym1, ym4);
+		vmulps(ym0, ym1);
+		ret();
+	L(".overflow");
+		vminps(ym0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+		vmaxps(ym0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+		jmp(".retry");
+		outLocalLabel();
+#endif
 	}
 };
 #endif
@@ -564,6 +719,9 @@ public:
 #ifdef FMATH_USE_XBYAK
 float (*const exp)(float) = local::C<>::getInstance().exp_;
 __m128 (*const exp_ps)(__m128) = local::C<>::getInstance().exp_ps_;
+#ifdef FMATH_USE_AVX
+//__m256 (*const exp_ps256)(__m256) = local::C<>::getInstance().exp_ps256_;
+#endif
 #endif
 
 // exp2(x) = pow(2, x)

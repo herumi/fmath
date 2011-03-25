@@ -449,6 +449,7 @@ int main(int argc, char *argv[])
 	MIE_ALIGN(16) float in[] = { 1.234, 4.342, -3.234, 0.122 };
 //	MIE_ALIGN(16) float in[] = { 12, -20, 10000, -100000 };
 	__m128 out;
+	fmath::exp(in[0]);
 	printf("in {%e, %e, %e, %e}\n", in[0], in[1], in[2], in[3]);
 	printf("std    {%e, %e, %e, %e}\n", ::exp(in[0]), ::exp(in[1]), ::exp(in[2]), ::exp(in[3]));
 	printf("fmath  {%e, %e, %e, %e}\n", fmath::exp(in[0]), fmath::exp(in[1]), fmath::exp(in[2]), fmath::exp(in[3]));

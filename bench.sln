@@ -1,7 +1,17 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB9-8B4A-11D0-8D11-00A0C91BC942}") = "bench.exe", "bench.exe", "{75E9A18B-AF31-470A-A383-35499F162243}"
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "bench", "bench.exe", "{75E9A18B-AF31-470A-A383-35499F162243}"
+	ProjectSection(DebuggerProjectSystem) = preProject
+		PortSupplier = 00000000-0000-0000-0000-000000000000
+		Executable = c:\prog\fmath\bench.exe
+		RemoteMachine = AVX
+		StartingDirectory = c:\prog\fmath
+		Environment = 既定
+		LaunchingEngine = 00000000-0000-0000-0000-000000000000
+		LaunchSQLEngine = No
+		AttachLaunchAction = No
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
