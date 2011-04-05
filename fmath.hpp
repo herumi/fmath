@@ -8,7 +8,7 @@
 	http://www.opensource.org/licenses/bsd-license.php
 
 	cl /Ox /Ob2 /arch:SSE2 /fp:fast bench.cpp -I../xbyak /EHsc /DNOMINMAX
-	g++ -O3 -fomit-frame-pointer -fno-operator-names -mssse3 -mfpmath=sse -ffast-math
+	g++ -O3 -fomit-frame-pointer -fno-operator-names -march=core2 -mssse3 -mfpmath=sse -ffast-math -fexcess-precision=fast
 */
 /*
 	function prototype list
