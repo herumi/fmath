@@ -166,4 +166,5 @@ http://www.opensource.org/licenses/bsd-license.php
 -----------------------------------------------------------------------------
 <Author>
 
+http://homepage1.nifty.com/herumi/soft/fmath.html
 MITSUNARI Shigeo(herumi at nifty dot com)

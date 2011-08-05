@@ -251,8 +251,8 @@ struct ExpCode : public Xbyak::CodeGenerator {
 #endif
 			ret();
 		L(".overflow");
-			vminps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
-			vmaxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+			vminss(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+			vmaxss(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
 			jmp(".retry");
 		} else {
 #ifdef XBYAK32
@@ -284,8 +284,8 @@ struct ExpCode : public Xbyak::CodeGenerator {
 #endif
 			ret();
 		L(".overflow");
-			minps(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
-			maxps(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
+			minss(xm0, ptr [base + FMATH_OFFSET_OF(self, maxX)]);
+			maxss(xm0, ptr [base + FMATH_OFFSET_OF(self, minX)]);
 			jmp(".retry");
 		}
 		outLocalLabel();
