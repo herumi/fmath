@@ -2,7 +2,7 @@
     cl /Ox /Ob2 /arch:SSE2 /fp:fast bench.cpp -I../xbyak /EHsc /DNOMINMAX
     g++ -O3 -fomit-frame-pointer -fno-operator-names -mssse3 -mfpmath=sse -ffast-math
 */
-#define FMATH_USE_XBYAK
+//#define FMATH_USE_XBYAK
 
 #include <stdio.h>
 #include <string.h>
@@ -60,7 +60,7 @@ static inline float std_log4(float x)
 
 static inline float fmath_exp4(float x)
 {
-	return func4(fmath::exp, x);
+	return func4<float (float)>(fmath::exp, x);
 }
 
 static inline float fmath_log4(float x)

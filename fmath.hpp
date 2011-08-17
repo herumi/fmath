@@ -27,6 +27,7 @@
 #endif
 
 #include <math.h>
+#include <assert.h>
 #include <limits>
 #include <stdlib.h>
 #include <float.h>
@@ -69,6 +70,7 @@ namespace fmath {
 namespace local {
 
 const size_t EXP_TABLE_SIZE = 10;
+const size_t EXPD_TABLE_SIZE = 11;
 /**
 	table size for log
 */
@@ -129,6 +131,103 @@ struct ExpVar {
 			fi fi;
 			fi.f = y;
 			tbl[i] = fi.i & mask(23);
+		}
+	}
+};
+
+template<size_t sbit = EXPD_TABLE_SIZE>
+struct ExpdVar {
+	typedef unsigned long long uint64_t;
+	enum {
+		s = 1ULL << sbit,
+		c1 = (1ULL << (sbit + 10)) - (1ULL << sbit)
+	};
+	const double a;
+	const double ra;
+	uint64_t tbl[s];
+	union di {
+		double d;
+		uint64_t i;
+	};
+	uint64_t mask(int bit) const
+	{
+		return (1ULL << bit) - 1;
+	}
+	ExpdVar()
+		: a(s / ::log(2.0))
+		, ra(1 / a)
+	{
+		init();
+	}
+	void init()
+	{
+		for (int i = 0; i < s; i++) {
+			di di;
+			di.d = ::pow(2.0, i * (1.0 / s));
+			tbl[i] = di.i & mask(52);
+		}
+	}
+	double getC(double x) const
+	{
+		const uint64_t b = 3ULL << 51;
+		di di;
+		di.d = x * a + b;
+		uint64_t iax = tbl[di.i & mask(sbit)];
+
+		double t = x - (di.d - b) * ra;
+		uint64_t u = ((di.i + c1) >> sbit) << 52;
+		double y = (t + 3) * t * t * (1.0/6) + t + 1;
+
+		di.i = u | iax;
+		return y * di.d;
+	}
+	double get(double x) const
+	{
+		const uint64_t b = 3ULL << 51;
+		__m128d d = _mm_set_sd(x);
+		d = _mm_mul_sd(d, _mm_set_sd(a));
+		d = _mm_add_sd(d, _mm_set_sd(b));
+		__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[_mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(sbit)]));
+		__m128d t = _mm_sub_sd(_mm_set_sd(x), _mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(ra)));
+		__m128i u = _mm_castpd_si128(d);
+		u = _mm_add_epi64(u, _mm_set1_epi32(c1));
+		u = _mm_srli_epi64(u, sbit);
+		u = _mm_slli_epi64(u, 52);
+		u = _mm_or_si128(u, iax);
+		__m128d y = _mm_mul_sd(_mm_add_sd(t, _mm_set1_pd(3)), _mm_mul_sd(t, t));
+		y = _mm_mul_sd(y, _mm_set1_pd(1.0/6));
+		y = _mm_add_sd(y, _mm_add_sd(t, _mm_set1_pd(1)));
+		double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
+		return ret;
+	}
+	void vec_get(double *px, int n) const
+	{
+		assert((n % 2) == 0);
+		const uint64_t b = 3ULL << 51;
+		for (int i = 0; i < n; i += 2) {
+			__m128d x = _mm_load_pd(px);
+
+			__m128d d = x;
+			d = _mm_mul_pd(d, _mm_set1_pd(a));
+			d = _mm_add_pd(d, _mm_set1_pd(b));
+			int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(sbit);
+			int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(sbit);
+
+			__m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[adr0]));
+			__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[adr1]));
+			iax = _mm_unpacklo_epi64(iaxL, iax);
+
+			__m128d t = _mm_sub_pd(x, _mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), _mm_set1_pd(ra)));
+			__m128i u = _mm_castpd_si128(d);
+			u = _mm_add_epi64(u, _mm_set1_epi32(c1));
+			u = _mm_srli_epi64(u, sbit);
+			u = _mm_slli_epi64(u, 52);
+			u = _mm_or_si128(u, iax);
+			__m128d y = _mm_mul_pd(_mm_add_pd(t, _mm_set1_pd(3)), _mm_mul_pd(t, t));
+			y = _mm_mul_pd(y, _mm_set1_pd(1.0/6));
+			y = _mm_add_pd(y, _mm_add_pd(t, _mm_set1_pd(1)));
+			_mm_store_pd(px, _mm_mul_pd(y, _mm_castsi128_pd(u)));
+			px += 2;
 		}
 	}
 };
@@ -478,10 +577,11 @@ struct ExpCode : public Xbyak::CodeGenerator {
 #endif
 
 /* to define static variables in fmath.hpp */
-template<size_t EXP_N = EXP_TABLE_SIZE, size_t LOG_N = LOG_TABLE_SIZE>
+template<size_t EXP_N = EXP_TABLE_SIZE, size_t LOG_N = LOG_TABLE_SIZE, size_t EXPD_N = EXPD_TABLE_SIZE>
 struct C {
 	static const ExpVar<EXP_N> expVar;
 	static const LogVar<LOG_N> logVar;
+	static const ExpdVar<EXPD_N> expdVar;
 #ifdef FMATH_USE_XBYAK
 	static const ExpCode& getInstance() {
 		static const ExpCode expCode(&expVar);
@@ -490,11 +590,14 @@ struct C {
 #endif
 };
 
-template<size_t EXP_N, size_t LOG_N>
-MIE_ALIGN(16) const ExpVar<EXP_N> C<EXP_N, LOG_N>::expVar;
+template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
+MIE_ALIGN(16) const ExpVar<EXP_N> C<EXP_N, LOG_N, EXPD_N>::expVar;
 
-template<size_t EXP_N, size_t LOG_N>
-MIE_ALIGN(16) const LogVar<LOG_N> C<EXP_N, LOG_N>::logVar;
+template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
+MIE_ALIGN(16) const LogVar<LOG_N> C<EXP_N, LOG_N, EXPD_N>::logVar;
+
+template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
+MIE_ALIGN(16) const ExpdVar<EXPD_N> C<EXP_N, LOG_N, EXPD_N>::expdVar;
 
 } // end of fmath::local
 
@@ -539,6 +642,27 @@ static inline float exp(float x)
 //	return (1 + t) * pow(2, (float)u) * pow(2, (float)v / n);
 #endif
 }
+
+#ifndef FMATH_USE_XBYAK
+static inline double expdC(double x)
+{
+	using namespace local;
+	const ExpdVar<>& expdVar = C<>::expdVar;
+	return expdVar.getC(x);
+}
+static inline double expd(double x)
+{
+	using namespace local;
+	const ExpdVar<>& expdVar = C<>::expdVar;
+	return expdVar.get(x);
+}
+static inline void vec_expd(double *px, int n)
+{
+	using namespace local;
+	const ExpdVar<>& expdVar = C<>::expdVar;
+	expdVar.vec_get(px, n);
+}
+#endif
 
 #ifdef FMATH_USE_XBYAK
 static inline __m128 exp_psC(__m128 x)
