@@ -51,6 +51,7 @@ Simply create a console project, and add this file to the project.
 
 #include <emmintrin.h>
 
+#include "fmath.hpp"
 #include "xbyak/xbyak_util.h"
 /*
     Useful macro definitions for memory alignment:
@@ -1541,50 +1542,11 @@ void measure(performance_t *perf, double *values, int n)
     }
 }
 
-void err()
-{
-	double max = 0;
-	double ave = 0;
-	int count = 0;
-	for (double x = 1.999999; x < 2.00001; x += 1e-7) {
-		double a = exp(x);
-		double b = x;
-		remez13_0_log2(&b, 1);
-//		vecexp_taylor5(&b, 1);
-//		printf("%e, %.15e, %.15e, %e\n", x, a, b, a - b);
-		double d = abs(a - b);
-		if (d > max) {
-			max = d;
-		}
-		ave += d;
-		count++;
-	}
-	printf("ave=%e, max=%e\n", ave / count, max);
-}
-
-#include "fmath.hpp"
-void err2()
-{
-	double max = 0;
-	double ave = 0;
-	int count = 0;
-	for (double x = 1.999999; x < 2.00001; x += 1e-7) {
-		double a = exp(x);
-		double b = fmath::expd(x);
-		double d = abs(a - b);
-		if (d > max) {
-			max = d;
-		}
-		ave += d;
-		count++;
-	}
-	printf("ave=%e, max=%e\n", ave / count, max);
-}
 void fmath_expd(double *values, int n)
 {
     int i;
     for (i = 0;i < n;++i) {
-        values[i] = fmath::expd(values[i]);
+        values[i] = fmath::expdC(values[i]);
     }
 }
 
@@ -1596,6 +1558,7 @@ int main(int argc, char *argv[])
 
     performance_t perf[] = {
         {"libc", vecexp_libc, 0., 0., 0, NULL},
+#if 0
         {"Cephes", vecexp_cephes, 0., 0., 0, NULL},
         {"Taylor 5th", vecexp_taylor5, 0., 0., 0, NULL},
         {"Taylor 7th", vecexp_taylor7, 0., 0., 0, NULL},
@@ -1610,6 +1573,7 @@ int main(int argc, char *argv[])
         {"Remez 5th [0,log2]", remez5_0_log2, 0., 0., 0, NULL},
         {"Remez 7th [0,log2]", remez7_0_log2, 0., 0., 0, NULL},
         {"Remez 9th [0,log2]", remez9_0_log2, 0., 0., 0, NULL},
+#endif
         {"Remez 11th [0,log2]", remez11_0_log2, 0., 0., 0, NULL},
         {"Remez 13th [0,log2]", remez13_0_log2, 0., 0., 0, NULL},
         {"Remez 5th [0,log2] SSE", remez5_0_log2_sse, 0., 0., 0, NULL},
@@ -1636,3 +1600,4 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
