@@ -589,7 +589,9 @@ static inline float exp(float x)
 #endif
 }
 
-static inline double expdC(double x)
+#if defined(__x86_64__) || defined(_WIN64)
+// for 64bit
+static inline double expd(double x)
 {
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
@@ -605,25 +607,8 @@ static inline double expdC(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
-#if 0
-static inline double expd_SSE41(double x)
-{
-	using namespace local;
-	const ExpdVar<>& c = C<>::expdVar;
-
-	__m128d ax = _mm_set_sd(x * c.a);
-	ax = _mm_round_sd(ax, ax, 0);
-	uint64_t u = _mm_cvttsd_si64(ax);
-	uint64_t iax = c.tbl[u & mask(c.sbit)];
-	double t = _mm_cvtsd_f64(ax) * c.ra - x;
-	u = ((u + c.adj) >> c.sbit) << 52;
-	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
-
-	di di;
-	di.i = u | iax;
-	return y * di.d;
-}
-#endif
+#else
+// for 32bit
 static inline double expd(double x)
 {
 	using namespace local;
@@ -645,7 +630,8 @@ static inline double expd(double x)
 	double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
 	return ret;
 }
-static inline void vec_expd(double *px, int n)
+#endif
+static inline void expd_v(double *px, int n)
 {
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
@@ -660,8 +646,7 @@ static inline void vec_expd(double *px, int n)
 	for (unsigned int i = 0; i < (unsigned int)n; i += 2) {
 		__m128d x = _mm_load_pd(px);
 
-		__m128d d = x;
-		d = _mm_mul_pd(d, ma);
+		__m128d d = _mm_mul_pd(x, ma);
 		d = _mm_add_pd(d, _mm_set1_pd(b));
 		int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit);
 		int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(c.sbit);
