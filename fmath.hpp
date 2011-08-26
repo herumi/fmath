@@ -605,6 +605,7 @@ static inline double expdC(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
+#if 0
 static inline double expd_SSE41(double x)
 {
 	using namespace local;
@@ -622,6 +623,7 @@ static inline double expd_SSE41(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
+#endif
 static inline double expd(double x)
 {
 	using namespace local;
