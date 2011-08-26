@@ -12,13 +12,16 @@ LD=g++
 
 HEADER= fmath.hpp
 
-TARGET=bench
+TARGET=bench fastexp
 all:$(TARGET)
 
 .SUFFIXES: .cpp
 
 bench: bench.o
-	$(LD) -o $@ bench.o
+	$(LD) -o $@ $<
+
+fastexp: fastexp.o
+	$(LD) -o $@ $<
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)

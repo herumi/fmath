@@ -1,7 +1,92 @@
 /*
 	This original source code is from http://www.chokkan.org/blog/archives/352
 	this modified version requires Xbyak(http://homepage1.nifty.com/herumi/soft/xbyak_e.html)
-	g++ -O3 -fomit-frame-pointer -fno-operator-names -Wall -march=core2 -msse4 fastexp.cpp
+
+	g++ -O3 -fomit-frame-pointer -march=core2 -msse4 -fno-operator-names fastexp.cpp -mfpmath=sse fastexp.cpp
+
+iCore i7-2600 3.4GHz + 64-bit Linux + gcc 4.4.5
+libc                    69.727989       0.000000e+00    0.000000e+00
+Cephes                  28.108806       3.138050e-16    5.773642e-17
+Taylor 11th             37.420158       8.792517e-15    1.371401e-15
+Taylor 13th             44.630643       2.217491e-16    4.996169e-17
+Remez 11th [-0.5,+0.5]  38.316696       4.710272e-16    1.951105e-16
+Remez 13th [-0.5,+0.5]  46.325773       2.217491e-16    4.995304e-17
+Remez 11th [0,log2]     40.168989       2.533939e-16    6.173062e-17
+Remez 13th [0,log2]     46.512843       2.556012e-16    6.116149e-17
+Remez 9th [0,log2] SSE  17.352396       1.909583e-14    9.913412e-15
+Remez 11th [0,log2]SSE  19.411662       2.533939e-16    6.173062e-17
+fmath_expd              12.280758       1.428600e-15    1.975741e-16
+fmath_expd_v            8.251824        1.428600e-15    1.975741e-16
+
+iCore i7-2600 3.4GHz + 64-bit Linux + gcc 4.4.5 with -m32 option(32bit)
+libc                    123.076662      0.000000e+00    0.000000e+00
+Cephes                  27.363089       3.138050e-16    5.770947e-17
+Taylor 11th             38.031134       8.792517e-15    1.371398e-15
+Taylor 13th             43.390949       2.217491e-16    4.992098e-17
+Remez 11th [-0.5,+0.5]  36.322139       4.710272e-16    1.951173e-16
+Remez 13th [-0.5,+0.5]  43.206516       2.217491e-16    4.991248e-17
+Remez 11th [0,log2]     39.987357       2.533939e-16    6.169882e-17
+Remez 13th [0,log2]     45.752392       2.556012e-16    6.113105e-17
+Remez 9th [0,log2] SSE  15.644248       1.909583e-14    9.913415e-15
+Remez 11th [0,log2]SSE  19.195733       2.533939e-16    6.169882e-17
+fmath_expd              13.999156       1.428600e-15    1.975386e-16
+fmath_expd_v            8.040986        1.428600e-15    1.975386e-16
+
+iCore i7-2600 3.4GHz + 64-bit Window7 + VC10(64bit)
+libc                    36.619008       0.000000e+000   0.000000e+000
+Cephes                  34.320176       3.138050e-016   5.759651e-017
+Taylor 11th             43.530741       8.792517e-015   1.371386e-015
+Taylor 13th             47.441615       2.214418e-016   4.973385e-017
+Remez 11th [-0.5,+0.5]  43.680804       4.710272e-016   1.951249e-016
+Remez 13th [-0.5,+0.5]  48.345357       2.214418e-016   4.972299e-017
+Remez 11th [0,log2]     46.543978       2.533939e-016   6.156347e-017
+Remez 13th [0,log2]     50.559198       2.556012e-016   6.099413e-017
+Remez 9th [0,log2] SSE  15.613279       1.909583e-014   9.913422e-015
+Remez 11th [0,log2]SSE  18.955482       2.533939e-016   6.156347e-017
+fmath_expd              14.952087       1.428600e-015   1.975642e-016
+fmath_expd_v            7.454778        1.428600e-015   1.975642e-016
+
+Xeon X5650 2.67GHz + 64-bit Linux + gcc 4.6.0
+libc                    128.940514      0.000000e+00    0.000000e+00
+Cephes                  63.418840       3.138050e-16    5.773642e-17
+Taylor 11th             87.182588       8.792517e-15    1.371401e-15
+Taylor 13th             105.504632      2.217491e-16    4.996169e-17
+Remez 11th [-0.5,+0.5]  87.234126       4.710272e-16    1.951105e-16
+Remez 13th [-0.5,+0.5]  105.533474      2.217491e-16    4.995304e-17
+Remez 11th [0,log2]     88.823906       2.533939e-16    6.173062e-17
+Remez 13th [0,log2]     107.152866      2.556012e-16    6.116149e-17
+Remez 9th [0,log2] SSE  30.701092       1.909583e-14    9.913412e-15
+Remez 11th [0,log2]SSE  39.844668       2.533939e-16    6.173062e-17
+fmath_expd              27.349006       1.428600e-15    1.975741e-16
+fmath_expd_v            17.804392       1.428600e-15    1.975741e-16
+
+Core2Duo 1.8GHz + 64-bit Windows 7 + VC10 (64bit)
+libc                    42.017490       0.000000e+000   0.000000e+000
+Cephes                  68.525865       3.138050e-016   5.759651e-017
+Taylor 11th             79.283205       8.792517e-015   1.371386e-015
+Taylor 13th             91.123146       2.214418e-016   4.973385e-017
+Remez 11th [-0.5,+0.5]  82.227969       4.710272e-016   1.951249e-016
+Remez 13th [-0.5,+0.5]  91.575990       2.214418e-016   4.972299e-017
+Remez 11th [0,log2]     85.826943       2.533939e-016   6.156347e-017
+Remez 13th [0,log2]     99.420201       2.556012e-016   6.099413e-017
+Remez 9th [0,log2] SSE  23.974965       1.909583e-014   9.913422e-015
+Remez 11th [0,log2]SSE  27.973548       2.533939e-016   6.156347e-017
+fmath_expd              18.776961       1.428600e-015   1.975642e-016
+fmath_expd_v            11.116926       1.428600e-015   1.975642e-016
+
+Core2Duo 1.8GHz + 64-bit Windows 7 + VC10 (32bit)
+libc                    58.542588       0.000000e+000   0.000000e+000
+Cephes                  76.474764       3.138050e-016   5.767009e-017
+Taylor 11th             84.910194       8.792517e-015   1.371421e-015
+Taylor 13th             99.376101       2.217209e-016   4.980208e-017
+Remez 11th [-0.5,+0.5]  90.699210       4.710272e-016   1.951097e-016
+Remez 13th [-0.5,+0.5]  96.427836       2.217209e-016   4.979764e-017
+Remez 11th [0,log2]     89.646984       2.533939e-016   6.157164e-017
+Remez 13th [0,log2]     100.524879      2.556012e-016   6.105095e-017
+Remez 9th [0,log2] SSE  20.887218       1.909583e-014   9.913397e-015
+Remez 11th [0,log2]SSE  25.367427       2.533939e-016   6.157164e-017
+fmath_expd              25.465275       1.435085e-015   1.975629e-016
+fmath_expd_v            11.823507       1.435085e-015   1.975629e-016
 */
 /*
  *      Fast exp(x) computation (with SSE2 optimizations).
@@ -51,6 +136,7 @@ Simply create a console project, and add this file to the project.
 
 #include <emmintrin.h>
 
+#include "fmath.hpp"
 #include "xbyak/xbyak_util.h"
 /*
     Useful macro definitions for memory alignment:
@@ -1328,7 +1414,7 @@ void vecexp_taylor13(double *values, int num)
         x -= px * C2;
 
         /* Compute e^x using a polynomial approximation. */
-        a = 1. / 6227020800;
+        a = 1. / 6227020800LL;
         a *= x;
         a += 2.08767569878680989792100903212014323125434236545349e-9;
         a *= x;
@@ -1541,45 +1627,6 @@ void measure(performance_t *perf, double *values, int n)
     }
 }
 
-void err()
-{
-	double max = 0;
-	double ave = 0;
-	int count = 0;
-	for (double x = 1.999999; x < 2.00001; x += 1e-7) {
-		double a = exp(x);
-		double b = x;
-		remez13_0_log2(&b, 1);
-//		vecexp_taylor5(&b, 1);
-//		printf("%e, %.15e, %.15e, %e\n", x, a, b, a - b);
-		double d = abs(a - b);
-		if (d > max) {
-			max = d;
-		}
-		ave += d;
-		count++;
-	}
-	printf("ave=%e, max=%e\n", ave / count, max);
-}
-
-#include "fmath.hpp"
-void err2()
-{
-	double max = 0;
-	double ave = 0;
-	int count = 0;
-	for (double x = 1.999999; x < 2.00001; x += 1e-7) {
-		double a = exp(x);
-		double b = fmath::expd(x);
-		double d = abs(a - b);
-		if (d > max) {
-			max = d;
-		}
-		ave += d;
-		count++;
-	}
-	printf("ave=%e, max=%e\n", ave / count, max);
-}
 void fmath_expd(double *values, int n)
 {
     int i;
@@ -1595,29 +1642,37 @@ int main(int argc, char *argv[])
     performance_t *p = NULL;
 
     performance_t perf[] = {
-        {"libc", vecexp_libc, 0., 0., 0, NULL},
-        {"Cephes", vecexp_cephes, 0., 0., 0, NULL},
+        {"libc                  ", vecexp_libc, 0., 0., 0, NULL},
+        {"Cephes                ", vecexp_cephes, 0., 0., 0, NULL},
+#if 0
         {"Taylor 5th", vecexp_taylor5, 0., 0., 0, NULL},
         {"Taylor 7th", vecexp_taylor7, 0., 0., 0, NULL},
         {"Taylor 9th", vecexp_taylor9, 0., 0., 0, NULL},
-        {"Taylor 11th", vecexp_taylor11, 0., 0., 0, NULL},
-        {"Taylor 13th", vecexp_taylor13, 0., 0., 0, NULL},
+#endif
+        {"Taylor 11th           ", vecexp_taylor11, 0., 0., 0, NULL},
+        {"Taylor 13th           ", vecexp_taylor13, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [-0.5,+0.5]", vecexp_remez5_05_05, 0., 0., 0, NULL},
         {"Remez 7th [-0.5,+0.5]", vecexp_remez7_05_05, 0., 0., 0, NULL},
         {"Remez 9th [-0.5,+0.5]", vecexp_remez9_05_05, 0., 0., 0, NULL},
+#endif
         {"Remez 11th [-0.5,+0.5]", vecexp_remez11_05_05, 0., 0., 0, NULL},
         {"Remez 13th [-0.5,+0.5]", vecexp_remez13_05_05, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [0,log2]", remez5_0_log2, 0., 0., 0, NULL},
         {"Remez 7th [0,log2]", remez7_0_log2, 0., 0., 0, NULL},
         {"Remez 9th [0,log2]", remez9_0_log2, 0., 0., 0, NULL},
-        {"Remez 11th [0,log2]", remez11_0_log2, 0., 0., 0, NULL},
-        {"Remez 13th [0,log2]", remez13_0_log2, 0., 0., 0, NULL},
+#endif
+        {"Remez 11th [0,log2]   ", remez11_0_log2, 0., 0., 0, NULL},
+        {"Remez 13th [0,log2]   ", remez13_0_log2, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [0,log2] SSE", remez5_0_log2_sse, 0., 0., 0, NULL},
         {"Remez 7th [0,log2] SSE", remez7_0_log2_sse, 0., 0., 0, NULL},
+#endif
         {"Remez 9th [0,log2] SSE", remez9_0_log2_sse, 0., 0., 0, NULL},
-        {"Remez 11th [0,log2] SSE", remez11_0_log2_sse, 0., 0., 0, NULL},
-        {"fmath_expd", fmath_expd, 0., 0., 0, NULL},
-        {"fmath_vec_expd", fmath::vec_expd, 0., 0., 0, NULL},
+        {"Remez 11th [0,log2]SSE", remez11_0_log2_sse, 0., 0., 0, NULL},
+        {"fmath_expd            ", fmath_expd, 0., 0., 0, NULL},
+        {"fmath_expd_v          ", fmath::expd_v, 0., 0., 0, NULL},
         {NULL, NULL, 0., 0., 0},
     };
 
@@ -1636,3 +1691,4 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
