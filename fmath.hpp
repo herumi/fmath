@@ -177,58 +177,6 @@ struct ExpdVar {
 			tbl[i] = di.i & mask64(52);
 		}
 	}
-	double get(double x) const
-	{
-		const uint64_t b = 3ULL << 51;
-		__m128d d = _mm_set_sd(x);
-		d = _mm_mul_sd(d, _mm_set_sd(a));
-		d = _mm_add_sd(d, _mm_set_sd(b));
-		__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[_mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(sbit)]));
-		__m128d t = _mm_sub_sd(_mm_set_sd(x), _mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(ra)));
-		__m128i u = _mm_castpd_si128(d);
-		u = _mm_add_epi64(u, _mm_set1_epi32(adj));
-		u = _mm_srli_epi64(u, sbit);
-		u = _mm_slli_epi64(u, 52);
-		u = _mm_or_si128(u, iax);
-		__m128d y = _mm_mul_sd(_mm_add_sd(t, *(const __m128d*)C3), _mm_mul_sd(t, t));
-		y = _mm_mul_sd(y, *(const __m128d*)C2);
-		y = _mm_add_sd(_mm_add_sd(y, t), *(const __m128d*)C1);
-		double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
-		return ret;
-	}
-	void vec_get(double *px, int n) const
-	{
-		const double C1 = 0.999999999999999997071;
-		const double C2 = 0.166666666852278350641;
-		const double C3 = 3.000000002795539238619;
-		assert((n % 2) == 0);
-		const uint64_t b = 3ULL << 51;
-		for (int i = 0; i < n; i += 2) {
-			__m128d x = _mm_load_pd(px);
-
-			__m128d d = x;
-			d = _mm_mul_pd(d, _mm_set1_pd(a));
-			d = _mm_add_pd(d, _mm_set1_pd(b));
-			int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(sbit);
-			int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(sbit);
-
-			__m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[adr0]));
-			__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&tbl[adr1]));
-			iax = _mm_unpacklo_epi64(iaxL, iax);
-
-			__m128d t = _mm_sub_pd(x, _mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), _mm_set1_pd(ra)));
-			__m128i u = _mm_castpd_si128(d);
-			u = _mm_add_epi64(u, _mm_set1_epi32(adj));
-			u = _mm_srli_epi64(u, sbit);
-			u = _mm_slli_epi64(u, 52);
-			u = _mm_or_si128(u, iax);
-			__m128d y = _mm_mul_pd(_mm_add_pd(t, _mm_set1_pd(C3)), _mm_mul_pd(t, t));
-			y = _mm_mul_pd(y, _mm_set1_pd(C2));
-			y = _mm_add_pd(_mm_add_pd(y, t), _mm_set1_pd(C1));
-			_mm_store_pd(px, _mm_mul_pd(y, _mm_castsi128_pd(u)));
-			px += 2;
-		}
-	}
 };
 
 template<size_t N = LOG_TABLE_SIZE>
@@ -652,9 +600,9 @@ static inline double expdC(double x)
 	di.d = x * c.a + b;
 	uint64_t iax = c.tbl[di.i & mask(c.sbit)];
 
-	double t = x - (di.d - b) * c.ra;
+	double t = (di.d - b) * c.ra - x;
 	uint64_t u = ((di.i + c.adj) >> c.sbit) << 52;
-	double y = (t + c.C3[0]) * (t * t) * c.C2[0] + t + c.C1[0];
+	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
 
 	di.i = u | iax;
 	return y * di.d;
@@ -668,23 +616,49 @@ static inline double expd(double x)
 	d = _mm_mul_sd(d, _mm_set_sd(c.a));
 	d = _mm_add_sd(d, _mm_set_sd(b));
 	__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[_mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit)]));
-	__m128d t = _mm_sub_sd(_mm_set_sd(x), _mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(c.ra)));
+	__m128d t = _mm_sub_sd(_mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(c.ra)), _mm_set_sd(x));
 	__m128i u = _mm_castpd_si128(d);
 	u = _mm_add_epi64(u, _mm_set1_epi32(c.adj));
 	u = _mm_srli_epi64(u, c.sbit);
 	u = _mm_slli_epi64(u, 52);
 	u = _mm_or_si128(u, iax);
-	__m128d y = _mm_mul_sd(_mm_add_sd(t, *(const __m128d*)c.C3), _mm_mul_sd(t, t));
+	__m128d y = _mm_mul_sd(_mm_sub_sd(*(const __m128d*)c.C3, t), _mm_mul_sd(t, t));
 	y = _mm_mul_sd(y, *(const __m128d*)c.C2);
-	y = _mm_add_sd(_mm_add_sd(y, t), *(const __m128d*)c.C1);
+	y = _mm_add_sd(_mm_sub_sd(y, t), *(const __m128d*)c.C1);
 	double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
 	return ret;
 }
 static inline void vec_expd(double *px, int n)
 {
 	using namespace local;
-	const ExpdVar<>& expdVar = C<>::expdVar;
-	expdVar.vec_get(px, n);
+	const ExpdVar<>& c = C<>::expdVar;
+	const uint64_t b = 3ULL << 51;
+	assert((n % 2) == 0);
+	for (int i = 0; i < n; i += 2) {
+		__m128d x = _mm_load_pd(px);
+
+		__m128d d = x;
+		d = _mm_mul_pd(d, _mm_set1_pd(c.a));
+		d = _mm_add_pd(d, _mm_set1_pd(b));
+		int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit);
+		int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(c.sbit);
+
+		__m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
+		__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr1]));
+		iax = _mm_unpacklo_epi64(iaxL, iax);
+
+		__m128d t = _mm_sub_pd(_mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), _mm_set1_pd(c.ra)), x);
+		__m128i u = _mm_castpd_si128(d);
+		u = _mm_add_epi64(u, _mm_set1_epi32(c.adj));
+		u = _mm_srli_epi64(u, c.sbit);
+		u = _mm_slli_epi64(u, 52);
+		u = _mm_or_si128(u, iax);
+		__m128d y = _mm_mul_pd(_mm_sub_pd(*(const __m128d*)c.C3, t), _mm_mul_pd(t, t));
+		y = _mm_mul_pd(y, *(const __m128d*)c.C2);
+		y = _mm_add_pd(_mm_sub_pd(y, t), *(const __m128d*)c.C1);
+		_mm_store_pd(px, _mm_mul_pd(y, _mm_castsi128_pd(u)));
+		px += 2;
+	}
 }
 #endif
 
