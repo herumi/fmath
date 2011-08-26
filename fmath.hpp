@@ -605,6 +605,7 @@ static inline double expdC(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
+#if 0
 static inline double expd_SSE41(double x)
 {
 	using namespace local;
@@ -622,6 +623,7 @@ static inline double expd_SSE41(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
+#endif
 static inline double expd(double x)
 {
 	using namespace local;
@@ -652,11 +654,14 @@ static inline void vec_expd(double *px, int n)
 	const __m128d mC1 = *(const __m128d*)c.C1;
 	const __m128d mC2 = *(const __m128d*)c.C2;
 	const __m128d mC3 = *(const __m128d*)c.C3;
-	for (int i = 0; i < n; i += 2) {
+	const __m128d ma = _mm_set1_pd(c.a);
+	const __m128d mra = _mm_set1_pd(c.ra);
+	const __m128i madj = _mm_set1_epi32(c.adj);
+	for (unsigned int i = 0; i < (unsigned int)n; i += 2) {
 		__m128d x = _mm_load_pd(px);
 
 		__m128d d = x;
-		d = _mm_mul_pd(d, _mm_set1_pd(c.a));
+		d = _mm_mul_pd(d, ma);
 		d = _mm_add_pd(d, _mm_set1_pd(b));
 		int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit);
 		int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(c.sbit);
@@ -665,13 +670,12 @@ static inline void vec_expd(double *px, int n)
 		__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr1]));
 		iax = _mm_unpacklo_epi64(iaxL, iax);
 
-		__m128d t = _mm_sub_pd(_mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), _mm_set1_pd(c.ra)), x);
+		__m128d t = _mm_sub_pd(_mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), mra), x);
 		__m128i u = _mm_castpd_si128(d);
-		u = _mm_add_epi64(u, _mm_set1_epi32(c.adj));
+		u = _mm_add_epi64(u, madj);
 		u = _mm_srli_epi64(u, c.sbit);
 		u = _mm_slli_epi64(u, 52);
 		u = _mm_or_si128(u, iax);
-//		__m128d y = _mm_mul_pd(_mm_sub_pd(*(const __m128d*)c.C3, t), _mm_mul_pd(t, t));
 		__m128d y = _mm_mul_pd(_mm_sub_pd(mC3, t), _mm_mul_pd(t, t));
 		y = _mm_mul_pd(y, mC2);
 		y = _mm_add_pd(_mm_sub_pd(y, t), mC1);
