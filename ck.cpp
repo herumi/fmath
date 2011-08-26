@@ -68,7 +68,7 @@ void benchmark(const char *str, double f(double))
 	printf("%s %.3fclk, a=%f\n", str, clk.getClock() / double(n), a);
 }
 
-void benchmark_vec()
+void benchmark_v()
 {
 	const int n = 1024;
 	MIE_ALIGN(16) double org[n], px[n];
@@ -79,10 +79,10 @@ void benchmark_vec()
 	for (int i = 0; i < 100; i++) {
 		std::copy(org, org + n, px);
 		clk.begin();
-		fmath::vec_expd(px, n);
+		fmath::expd_v(px, n);
 		clk.end();
 	}
-	printf("vec_expd:%.3fclk\n", clk.getClock() / double(n) / clk.getCount());
+	printf("expd_v:%.3fclk\n", clk.getClock() / double(n) / clk.getCount());
 }
 
 int main()
@@ -90,15 +90,15 @@ int main()
 	puts("IN");
 	printf("exp  : %.17f\n",         exp(2.0000314));
 	printf("expd : %.17f\n", fmath::expd(2.0000314));
-	printf("expdC: %.17f\n", fmath::expdC(2.0000314));
+//	printf("expdC: %.17f\n", fmath::expdC(2.0000314));
 	MIE_ALIGN(16) double px[] = { 2.0000314, 1.0 };
-	fmath::vec_expd(px, 2);
+	fmath::expd_v(px, 2);
 	printf("%.17f %.17f\n", px[0], px[1]);
 	err();
 	benchmark("std::exp    ", ::exp);
-	benchmark("fmath::expdC", fmath::expdC);
+//	benchmark("fmath::expdC", fmath::expdC);
 	benchmark("fmath::expd ", fmath::expd);
-	benchmark_vec();
+	benchmark_v();
 #if 0
 	const double tbl[] = {
 		0, 0.4, 0.5, 0.6, 1.2, 1.5, 1.9, 2.5, 3.5, 123.456,

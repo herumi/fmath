@@ -1546,7 +1546,7 @@ void fmath_expd(double *values, int n)
 {
     int i;
     for (i = 0;i < n;++i) {
-        values[i] = fmath::expdC(values[i]);
+        values[i] = fmath::expd(values[i]);
     }
 }
 
@@ -1557,31 +1557,37 @@ int main(int argc, char *argv[])
     performance_t *p = NULL;
 
     performance_t perf[] = {
-        {"libc", vecexp_libc, 0., 0., 0, NULL},
+        {"libc                  ", vecexp_libc, 0., 0., 0, NULL},
+        {"Cephes                ", vecexp_cephes, 0., 0., 0, NULL},
 #if 0
-        {"Cephes", vecexp_cephes, 0., 0., 0, NULL},
         {"Taylor 5th", vecexp_taylor5, 0., 0., 0, NULL},
         {"Taylor 7th", vecexp_taylor7, 0., 0., 0, NULL},
         {"Taylor 9th", vecexp_taylor9, 0., 0., 0, NULL},
-        {"Taylor 11th", vecexp_taylor11, 0., 0., 0, NULL},
-        {"Taylor 13th", vecexp_taylor13, 0., 0., 0, NULL},
+#endif
+        {"Taylor 11th           ", vecexp_taylor11, 0., 0., 0, NULL},
+        {"Taylor 13th           ", vecexp_taylor13, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [-0.5,+0.5]", vecexp_remez5_05_05, 0., 0., 0, NULL},
         {"Remez 7th [-0.5,+0.5]", vecexp_remez7_05_05, 0., 0., 0, NULL},
         {"Remez 9th [-0.5,+0.5]", vecexp_remez9_05_05, 0., 0., 0, NULL},
+#endif
         {"Remez 11th [-0.5,+0.5]", vecexp_remez11_05_05, 0., 0., 0, NULL},
         {"Remez 13th [-0.5,+0.5]", vecexp_remez13_05_05, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [0,log2]", remez5_0_log2, 0., 0., 0, NULL},
         {"Remez 7th [0,log2]", remez7_0_log2, 0., 0., 0, NULL},
         {"Remez 9th [0,log2]", remez9_0_log2, 0., 0., 0, NULL},
 #endif
-        {"Remez 11th [0,log2]", remez11_0_log2, 0., 0., 0, NULL},
-        {"Remez 13th [0,log2]", remez13_0_log2, 0., 0., 0, NULL},
+        {"Remez 11th [0,log2]   ", remez11_0_log2, 0., 0., 0, NULL},
+        {"Remez 13th [0,log2]   ", remez13_0_log2, 0., 0., 0, NULL},
+#if 0
         {"Remez 5th [0,log2] SSE", remez5_0_log2_sse, 0., 0., 0, NULL},
         {"Remez 7th [0,log2] SSE", remez7_0_log2_sse, 0., 0., 0, NULL},
+#endif
         {"Remez 9th [0,log2] SSE", remez9_0_log2_sse, 0., 0., 0, NULL},
-        {"Remez 11th [0,log2] SSE", remez11_0_log2_sse, 0., 0., 0, NULL},
-        {"fmath_expd", fmath_expd, 0., 0., 0, NULL},
-        {"fmath_vec_expd", fmath::vec_expd, 0., 0., 0, NULL},
+        {"Remez 11th [0,log2]SSE", remez11_0_log2_sse, 0., 0., 0, NULL},
+        {"fmath_expd            ", fmath_expd, 0., 0., 0, NULL},
+        {"fmath_expd_v          ", fmath::expd_v, 0., 0., 0, NULL},
         {NULL, NULL, 0., 0., 0},
     };
 
