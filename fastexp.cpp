@@ -1329,7 +1329,7 @@ void vecexp_taylor13(double *values, int num)
         x -= px * C2;
 
         /* Compute e^x using a polynomial approximation. */
-        a = 1. / 6227020800;
+        a = 1. / 6227020800LL;
         a *= x;
         a += 2.08767569878680989792100903212014323125434236545349e-9;
         a *= x;

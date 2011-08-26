@@ -37,8 +37,7 @@
 		#define MIE_ALIGN(x) __declspec(align(x))
 	#endif
 #else
-	#include <xmmintrin.h>
-//	#include <nmmintrin.h>
+	#include <x86intrin.h>
 	#ifndef MIE_ALIGN
 		#define MIE_ALIGN(x) __attribute__((aligned(x)))
 	#endif
@@ -590,7 +589,6 @@ static inline float exp(float x)
 #endif
 }
 
-#ifndef FMATH_USE_XBYAK
 static inline double expdC(double x)
 {
 	using namespace local;
@@ -604,6 +602,23 @@ static inline double expdC(double x)
 	uint64_t u = ((di.i + c.adj) >> c.sbit) << 52;
 	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
 
+	di.i = u | iax;
+	return y * di.d;
+}
+static inline double expd_SSE41(double x)
+{
+	using namespace local;
+	const ExpdVar<>& c = C<>::expdVar;
+
+	__m128d ax = _mm_set_sd(x * c.a);
+	ax = _mm_round_sd(ax, ax, 0);
+	uint64_t u = _mm_cvttsd_si64(ax);
+	uint64_t iax = c.tbl[u & mask(c.sbit)];
+	double t = _mm_cvtsd_f64(ax) * c.ra - x;
+	u = ((u + c.adj) >> c.sbit) << 52;
+	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
+
+	di di;
 	di.i = u | iax;
 	return y * di.d;
 }
@@ -634,6 +649,9 @@ static inline void vec_expd(double *px, int n)
 	const ExpdVar<>& c = C<>::expdVar;
 	const uint64_t b = 3ULL << 51;
 	assert((n % 2) == 0);
+	const __m128d mC1 = *(const __m128d*)c.C1;
+	const __m128d mC2 = *(const __m128d*)c.C2;
+	const __m128d mC3 = *(const __m128d*)c.C3;
 	for (int i = 0; i < n; i += 2) {
 		__m128d x = _mm_load_pd(px);
 
@@ -653,14 +671,14 @@ static inline void vec_expd(double *px, int n)
 		u = _mm_srli_epi64(u, c.sbit);
 		u = _mm_slli_epi64(u, 52);
 		u = _mm_or_si128(u, iax);
-		__m128d y = _mm_mul_pd(_mm_sub_pd(*(const __m128d*)c.C3, t), _mm_mul_pd(t, t));
-		y = _mm_mul_pd(y, *(const __m128d*)c.C2);
-		y = _mm_add_pd(_mm_sub_pd(y, t), *(const __m128d*)c.C1);
+//		__m128d y = _mm_mul_pd(_mm_sub_pd(*(const __m128d*)c.C3, t), _mm_mul_pd(t, t));
+		__m128d y = _mm_mul_pd(_mm_sub_pd(mC3, t), _mm_mul_pd(t, t));
+		y = _mm_mul_pd(y, mC2);
+		y = _mm_add_pd(_mm_sub_pd(y, t), mC1);
 		_mm_store_pd(px, _mm_mul_pd(y, _mm_castsi128_pd(u)));
 		px += 2;
 	}
 }
-#endif
 
 #ifdef FMATH_USE_XBYAK
 static inline __m128 exp_psC(__m128 x)
