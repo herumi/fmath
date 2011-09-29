@@ -589,8 +589,9 @@ static inline float exp(float x)
 #endif
 }
 
-#if defined(__x86_64__) || defined(_WIN64)
-// for 64bit
+/*
+	remark : -ffast-math option of gcc may generate bad code for fmath::expd
+*/
 static inline double expd(double x)
 {
 	using namespace local;
@@ -607,30 +608,7 @@ static inline double expd(double x)
 	di.i = u | iax;
 	return y * di.d;
 }
-#else
-// for 32bit
-static inline double expd(double x)
-{
-	using namespace local;
-	const ExpdVar<>& c = C<>::expdVar;
-	const uint64_t b = 3ULL << 51;
-	__m128d d = _mm_set_sd(x);
-	d = _mm_mul_sd(d, _mm_set_sd(c.a));
-	d = _mm_add_sd(d, _mm_set_sd(b));
-	__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[_mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit)]));
-	__m128d t = _mm_sub_sd(_mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(c.ra)), _mm_set_sd(x));
-	__m128i u = _mm_castpd_si128(d);
-	u = _mm_add_epi64(u, _mm_set1_epi32(c.adj));
-	u = _mm_srli_epi64(u, c.sbit);
-	u = _mm_slli_epi64(u, 52);
-	u = _mm_or_si128(u, iax);
-	__m128d y = _mm_mul_sd(_mm_sub_sd(*(const __m128d*)c.C3, t), _mm_mul_sd(t, t));
-	y = _mm_mul_sd(y, *(const __m128d*)c.C2);
-	y = _mm_add_sd(_mm_sub_sd(y, t), *(const __m128d*)c.C1);
-	double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
-	return ret;
-}
-#endif
+
 static inline void expd_v(double *px, int n)
 {
 	using namespace local;
