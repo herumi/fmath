@@ -42,6 +42,8 @@ gcc puts warnings such as "dereferencing type-punned pointer will break strict-a
 It is no problem.
 Please change #if 1 in fmath.hpp:423 if you worry about it. But it causes a little slower.
 
+-ffast-math option of gcc may generate bad code for fmath::expd.
+
 License
 -----------
 
@@ -51,6 +53,7 @@ License
 History
 -----------
 
+* 2011/Aug/26 add fmath::expd_v
 * 2011/Mar/25 exp supports AVX
 * 2011/Mar/25 exp, exp_ps support avx
 * 2010/Feb/16 add fmath::exp_ps, log_ps and optimize functions
@@ -80,6 +83,6 @@ Benchmark
 >    /Ox /Ob2 /GS- /Zi /D_SECURE_SCL=0 /MD /Oy /arch:SSE2 /fp:fast /DNOMINMAX
 
 * gcc:
-> -O3 -fomit-frame-pointer -DNDEBUG -fno-operator-names -msse2 -mfpmath=sse -ffast-math -march=core2
+> -O3 -fomit-frame-pointer -DNDEBUG -fno-operator-names -msse2 -mfpmath=sse -march=native
 
 see fastexp.cpp or http://homepage1.nifty.com/herumi/soft/fmath.html
