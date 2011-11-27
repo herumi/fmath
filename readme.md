@@ -48,7 +48,7 @@ License
 -----------
 
 >modified new BSD License
->http://www.opensource.org/licenses/bsd-license.php
+>http://opensource.org/licenses/BSD-3-Clause
 
 History
 -----------
