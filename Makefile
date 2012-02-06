@@ -4,7 +4,8 @@ ifeq ($(shell expr $(GCC_VER) \>= 4.5),1)
 endif
 # ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak
-CFLAGS += $(INC_DIR) -O3 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -DNDEBUG -fno-operator-names -msse2 -mfpmath=sse -ffast-math -mtune=core2 $(ADD_OPT) 
+# -ffast-math option may generate bad code for fmath::expd
+CFLAGS += $(INC_DIR) -O3 -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -DNDEBUG -fno-operator-names -msse2 -mfpmath=sse -mtune=native $(ADD_OPT)
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 LD=g++

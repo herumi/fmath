@@ -5,7 +5,7 @@
 	@author herumi
 	@url http://homepage1.nifty.com/herumi/
 	@note modified new BSD license
-	http://www.opensource.org/licenses/bsd-license.php
+	http://opensource.org/licenses/BSD-3-Clause
 
 	cl /Ox /Ob2 /arch:SSE2 /fp:fast bench.cpp -I../xbyak /EHsc /DNOMINMAX
 	g++ -O3 -fomit-frame-pointer -fno-operator-names -march=core2 -mssse3 -mfpmath=sse -ffast-math -fexcess-precision=fast
@@ -166,9 +166,15 @@ struct ExpdVar {
 		for (int i = 0; i < 2; i++) {
 //			a[i] = s / ::log(2.0);
 //			ra[i] = ::log(2.0) / s;
+#if 0
 			C1[i] = 0.999999999999999997071;
 			C2[i] = 0.166666666852278350641;
 			C3[i] = 3.000000002795539238619;
+#else
+			C1[i] = 1.0;
+			C2[i] = 0.16666666685227835064;
+			C3[i] = 3.0000000027955394;
+#endif
 		}
 		for (int i = 0; i < s; i++) {
 			di di;
@@ -589,8 +595,9 @@ static inline float exp(float x)
 #endif
 }
 
-#if defined(__x86_64__) || defined(_WIN64)
-// for 64bit
+/*
+	remark : -ffast-math option of gcc may generate bad code for fmath::expd
+*/
 static inline double expd(double x)
 {
 	using namespace local;
@@ -603,34 +610,12 @@ static inline double expd(double x)
 	double t = (di.d - b) * c.ra - x;
 	uint64_t u = ((di.i + c.adj) >> c.sbit) << 52;
 	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
+//	double y = (2.999796930327879362111743 - t) * (t * t) * 0.166677948823102161853172 - t + 1.000000000000000000488181;
 
 	di.i = u | iax;
 	return y * di.d;
 }
-#else
-// for 32bit
-static inline double expd(double x)
-{
-	using namespace local;
-	const ExpdVar<>& c = C<>::expdVar;
-	const uint64_t b = 3ULL << 51;
-	__m128d d = _mm_set_sd(x);
-	d = _mm_mul_sd(d, _mm_set_sd(c.a));
-	d = _mm_add_sd(d, _mm_set_sd(b));
-	__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[_mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit)]));
-	__m128d t = _mm_sub_sd(_mm_mul_sd(_mm_sub_sd(d, _mm_set_sd(b)), _mm_set_sd(c.ra)), _mm_set_sd(x));
-	__m128i u = _mm_castpd_si128(d);
-	u = _mm_add_epi64(u, _mm_set1_epi32(c.adj));
-	u = _mm_srli_epi64(u, c.sbit);
-	u = _mm_slli_epi64(u, 52);
-	u = _mm_or_si128(u, iax);
-	__m128d y = _mm_mul_sd(_mm_sub_sd(*(const __m128d*)c.C3, t), _mm_mul_sd(t, t));
-	y = _mm_mul_sd(y, *(const __m128d*)c.C2);
-	y = _mm_add_sd(_mm_sub_sd(y, t), *(const __m128d*)c.C1);
-	double ret = _mm_cvtsd_f64(_mm_mul_sd(y, _mm_castsi128_pd(u)));
-	return ret;
-}
-#endif
+
 static inline void expd_v(double *px, int n)
 {
 	using namespace local;
