@@ -37,7 +37,16 @@
 		#define MIE_ALIGN(x) __declspec(align(x))
 	#endif
 #else
-	#include <x86intrin.h>
+	#ifndef __GNUC_PREREQ
+	#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC__MINOR__)) >= (((major) << 16) + (minor)))
+	#endif
+	#if __GNUC_PREREQ(4, 4) || !defined(__GNUC__)
+		/* GCC >= 4.4 and non-GCC compilers */
+		#include <x86intrin.h>
+	#elif __GNUC_PREREQ(4, 1)
+		/* GCC 4.1, 4.2, and 4.3 do not have x86intrin.h, directly include SSE2 header */
+		#include <emmintrin.h>
+	#endif
 	#ifndef MIE_ALIGN
 		#define MIE_ALIGN(x) __attribute__((aligned(x)))
 	#endif
