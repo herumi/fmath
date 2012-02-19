@@ -1,6 +1,6 @@
-GCC_VER=$(shell gcc --version|head -1|awk '{print $$NF}')
+GCC_VER=$(shell gcc -dumpversion)
 ifeq ($(shell expr $(GCC_VER) \>= 4.5),1)
-    ADD_OPT=-fexcess-precision=fast
+    ADD_OPT+=-fexcess-precision=fast
 endif
 # ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak
