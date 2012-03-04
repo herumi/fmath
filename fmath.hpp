@@ -31,7 +31,7 @@
 #include <limits>
 #include <stdlib.h>
 #include <float.h>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__GNUC__)
 	#include <intrin.h>
 	#ifndef MIE_ALIGN
 		#define MIE_ALIGN(x) __declspec(align(x))
