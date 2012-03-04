@@ -31,14 +31,14 @@
 #include <limits>
 #include <stdlib.h>
 #include <float.h>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__GNUC__)
 	#include <intrin.h>
 	#ifndef MIE_ALIGN
 		#define MIE_ALIGN(x) __declspec(align(x))
 	#endif
 #else
 	#ifndef __GNUC_PREREQ
-	#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC__MINOR__)) >= (((major) << 16) + (minor)))
+	#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
 	#endif
 	#if __GNUC_PREREQ(4, 4) || !defined(__GNUC__)
 		/* GCC >= 4.4 and non-GCC compilers */
