@@ -37,9 +37,9 @@ float func_ps(Func f, float x)
 		0, 0.1f, 0.2f, 0.3f
 	};
 	__m128 in = _mm_set_ps(x, x, x, x);
-	in = _mm_add_ps(in, *(const __m128*)c);
+	in = _mm_add_ps(in, *fmath::local::cast_to<__m128>(c));
 	MIE_ALIGN(16) float out[4];
-	*(__m128*)out = f(in);
+	*reinterpret_cast<__m128*>(out) = f(in);
 	return out[0] + out[1] + out[2] + out[3];
 }
 

@@ -99,6 +99,12 @@ inline uint64_t mask64(int x)
 	return (1ULL << x) - 1;
 }
 
+template<class T>
+inline const T* cast_to(const void *p)
+{
+	return reinterpret_cast<const T*>(p);
+}
+
 template<class T, size_t N>
 size_t NumOfArray(const T (&)[N]) { return N; }
 
@@ -547,9 +553,9 @@ inline void expd_v(double *px, int n)
 	const ExpdVar<>& c = C<>::expdVar;
 	const uint64_t b = 3ULL << 51;
 	assert((n % 2) == 0);
-	const __m128d mC1 = *(const __m128d*)c.C1;
-	const __m128d mC2 = *(const __m128d*)c.C2;
-	const __m128d mC3 = *(const __m128d*)c.C3;
+	const __m128d mC1 = *cast_to<__m128d>(c.C1);
+	const __m128d mC2 = *cast_to<__m128d>(c.C2);
+	const __m128d mC3 = *cast_to<__m128d>(c.C3);
 	const __m128d ma = _mm_set1_pd(c.a);
 	const __m128d mra = _mm_set1_pd(c.ra);
 	const __m128i madj = _mm_set1_epi32(c.adj);
@@ -588,19 +594,19 @@ inline __m128 exp_ps(__m128 x)
 	using namespace local;
 	const ExpVar<>& expVar = C<>::expVar;
 
-	__m128i limit = _mm_castps_si128(_mm_and_ps(x, *(const __m128*)expVar.i7fffffff));
-	int over = _mm_movemask_epi8(_mm_cmpgt_epi32(limit, *(const __m128i*)expVar.maxX));
+	__m128i limit = _mm_castps_si128(_mm_and_ps(x, *cast_to<__m128>(expVar.i7fffffff)));
+	int over = _mm_movemask_epi8(_mm_cmpgt_epi32(limit, *cast_to<__m128i>(expVar.maxX)));
 	if (over) {
 		x = _mm_min_ps(x, _mm_load_ps(expVar.maxX));
 		x = _mm_max_ps(x, _mm_load_ps(expVar.minX));
 	}
 
-	__m128i r = _mm_cvtps_epi32(_mm_mul_ps(x, *(const __m128*)expVar.a));
-	__m128 t = _mm_sub_ps(x, _mm_mul_ps(_mm_cvtepi32_ps(r), *(const __m128*)expVar.b));
-	t = _mm_add_ps(t, *(const __m128*)expVar.f1);
+	__m128i r = _mm_cvtps_epi32(_mm_mul_ps(x, *cast_to<__m128>(expVar.a)));
+	__m128 t = _mm_sub_ps(x, _mm_mul_ps(_mm_cvtepi32_ps(r), *cast_to<__m128>(expVar.b)));
+	t = _mm_add_ps(t, *cast_to<__m128>(expVar.f1));
 
-	__m128i v4 = _mm_and_si128(r, *(const __m128i*)expVar.mask_s);
-	__m128i u4 = _mm_add_epi32(r, *(const __m128i*)expVar.i127s);
+	__m128i v4 = _mm_and_si128(r, *cast_to<__m128i>(expVar.mask_s));
+	__m128i u4 = _mm_add_epi32(r, *cast_to<__m128i>(expVar.i127s));
 	u4 = _mm_srli_epi32(u4, expVar.s);
 	u4 = _mm_slli_epi32(u4, 23);
 
@@ -664,11 +670,11 @@ inline __m128 log_ps(__m128 x)
 	const LogVar<>& logVar = C<>::logVar;
 
 	__m128i xi = _mm_castps_si128(x);
-	__m128i idx = _mm_srli_epi32(_mm_and_si128(xi, *(const __m128i*)logVar.m2), (23 - logVar.LEN));
-	__m128 a  = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_and_si128(xi, *(const __m128i*)logVar.m1), *(const __m128i*)logVar.m5));
-	__m128 b2 = _mm_cvtepi32_ps(_mm_and_si128(xi, *(const __m128i*)logVar.m3));
+	__m128i idx = _mm_srli_epi32(_mm_and_si128(xi, *cast_to<__m128i>(logVar.m2)), (23 - logVar.LEN));
+	__m128 a  = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_and_si128(xi, *cast_to<__m128i>(logVar.m1)), *cast_to<__m128i>(logVar.m5)));
+	__m128 b2 = _mm_cvtepi32_ps(_mm_and_si128(xi, *cast_to<__m128i>(logVar.m3)));
 
-	a = _mm_mul_ps(a, *(const __m128*)logVar.m4); // c_log2
+	a = _mm_mul_ps(a, *cast_to<__m128>(logVar.m4)); // c_log2
 
 	unsigned int i0 = _mm_cvtsi128_si32(idx);
 
@@ -688,11 +694,11 @@ inline __m128 log_ps(__m128 x)
 #endif
 
 	__m128 app, rev;
-	__m128i L = _mm_loadl_epi64((const __m128i *)&logVar.tbl[i0].app);
-	__m128i H = _mm_loadl_epi64((const __m128i *)&logVar.tbl[i1].app);
+	__m128i L = _mm_loadl_epi64(cast_to<__m128i>(&logVar.tbl[i0].app));
+	__m128i H = _mm_loadl_epi64(cast_to<__m128i>(&logVar.tbl[i1].app));
 	__m128 t = _mm_castsi128_ps(_mm_unpacklo_epi64(L, H));
-	L = _mm_loadl_epi64((const __m128i *)&logVar.tbl[i2].app);
-	H = _mm_loadl_epi64((const __m128i *)&logVar.tbl[i3].app);
+	L = _mm_loadl_epi64(cast_to<__m128i>(&logVar.tbl[i2].app));
+	H = _mm_loadl_epi64(cast_to<__m128i>(&logVar.tbl[i3].app));
 	rev = _mm_castsi128_ps(_mm_unpacklo_epi64(L, H));
 	app = _mm_shuffle_ps(t, rev, MIE_PACK(2, 0, 2, 0));
 	rev = _mm_shuffle_ps(t, rev, MIE_PACK(3, 1, 3, 1));
