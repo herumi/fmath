@@ -37,4 +37,5 @@ clean:
 	$(RM) *.o $(TARGET)
 
 bench.o: bench.cpp $(HEADER)
+fastexp.o: fastexp.cpp $(HEADER)
 
