@@ -344,7 +344,7 @@ void test2()
 }
 #endif
 
-static float g_y = 1.234;
+static float g_y = 1.234f;
 static fmath::PowGenerator p(g_y);
 
 static inline float powa(float x)
@@ -445,8 +445,8 @@ int main(int argc, char *argv[])
 		argc--, argv++;
 	}
 	printf("verifyAll=%d\n", verifyAll);
-#ifdef DEBUG
-	MIE_ALIGN(16) float in[] = { 1.234, 4.342, -3.234, 0.122 };
+#if 1 // #ifdef DEBUG
+	MIE_ALIGN(16) float in[] = { 1.234f, 4.342f, -3.234f, 0.122f };
 //	MIE_ALIGN(16) float in[] = { 12, -20, 10000, -100000 };
 	__m128 out;
 	fmath::exp(in[0]);
