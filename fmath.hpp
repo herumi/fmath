@@ -488,8 +488,12 @@ inline void expd_v(double *px, int n)
 	const __m128d ma = _mm_set1_pd(c.a);
 	const __m128d mra = _mm_set1_pd(c.ra);
 	const __m128i madj = _mm_set1_epi32(c.adj);
+	MIE_ALIGN(16) const double expMax[2] = { 709.78271289338397, 709.78271289338397 };
+	MIE_ALIGN(16) const double expMin[2] = { -708.39641853226408, -708.39641853226408 };
 	for (unsigned int i = 0; i < (unsigned int)n; i += 2) {
 		__m128d x = _mm_load_pd(px);
+		x = _mm_min_pd(x, *(const __m128d*)expMax);
+		x = _mm_max_pd(x, *(const __m128d*)expMin);
 
 		__m128d d = _mm_mul_pd(x, ma);
 		d = _mm_add_pd(d, _mm_set1_pd(b));
