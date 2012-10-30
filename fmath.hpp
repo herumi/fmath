@@ -20,7 +20,7 @@
 
 	if FMATH_USE_XBYAK is defined then Xbyak version are used
 */
-#define FMATH_USE_XBYAK
+//#define FMATH_USE_XBYAK
 
 #include <math.h>
 #include <stddef.h>
@@ -458,6 +458,8 @@ inline float exp(float x)
 */
 inline double expd(double x)
 {
+	if (x <= -708.39641853226408) return 0;
+	if (x >= 709.78271289338397) return std::numeric_limits<double>::infinity();
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
 	const uint64_t b = 3ULL << 51;

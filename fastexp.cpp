@@ -1677,8 +1677,32 @@ void benchmark(const char *str, double f(double))
 	printf("%s %.3fclk, a=%f\n", str, clk.getClock() / double(n), a);
 }
 
+void compare(double x)
+{
+	double a = exp(x);
+	double b = fmath::expd(x);
+	double diff = fabs(a - b);
+	if (diff > 1e-13 && fabs(a - b) / a > 1e-13) {
+		printf("x=%.17g a=%.17g b=%.17g\n", x, a, b);
+	}
+}
+
+void testLimits()
+{
+	const int N = 10000;
+	for (int i = 0; i < N; i++) {
+		double x = 709 + i / double(N);
+		compare(x);
+	}
+	for (int i = 0; i < N; i++) {
+		double x = -708 - i / double(N);
+		compare(x);
+	}
+}
+
 int main()
 {
+	testLimits();
 	benchmark("std::exp    ", ::exp);
 	benchmark("fmath::expd ", fmath::expd);
 
