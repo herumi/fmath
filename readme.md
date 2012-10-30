@@ -53,6 +53,7 @@ License
 History
 -----------
 
+* 2012/Oct/30 fix fmath::expd for small value
 * 2011/Aug/26 add fmath::expd_v
 * 2011/Mar/25 exp supports AVX
 * 2011/Mar/25 exp, exp_ps support avx
