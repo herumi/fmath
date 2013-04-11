@@ -52,6 +52,7 @@
 	#define MIE_PACK(x, y, z, w) ((x) * 64 + (y) * 16 + (z) * 4 + (w))
 #endif
 #ifdef FMATH_USE_XBYAK
+	#define XBYAK_NO_OP_NAMES
 	#include "xbyak/xbyak.h"
 	#include "xbyak/xbyak_util.h"
 #endif
@@ -279,13 +280,13 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		movaps(xm1, xm0);
 		movd(edx, xm0);
 		mulss(xm1, ptr [base + offsetof(Self, a)]); // t
-		and(edx, 0x7fffffff);
+		and_(edx, 0x7fffffff);
 		cvtss2si(eax, xm1);
 		cmp(edx, ExpVar<N>::f88);
 		jg(".overflow");
 		lea(edx, ptr [eax + (127 << self->s)]);
 		cvtsi2ss(xm1, eax);
-		and(eax, mask(self->s)); // v
+		and_(eax, mask(self->s)); // v
 		mov(eax, ptr [base + a * 4 + offsetof(Self, tbl)]); // expVar.tbl[v]
 		shr(edx, self->s);
 		mulss(xm1, ptr [base + offsetof(Self, b)]);
