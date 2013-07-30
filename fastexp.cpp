@@ -213,7 +213,7 @@ typedef struct {
     void (*func)(double *values, int n);
     double error_peak;
     double error_rms;
-    clock_t elapsed_time;
+    long long elapsed_time;
     double *values;
 } performance_t;
 
@@ -1629,11 +1629,9 @@ void measure(performance_t *perf, double *values, int n)
     }
 
     for (p = perf;p->func != NULL;++p) {
-		Xbyak::util::Clock clk;
-		clk.begin();
-//        p->elapsed_time = clock();
+        Xbyak::util::Clock clk;
+        clk.begin();
         p->func(p->values, n);
-//        p->elapsed_time = clock() - p->elapsed_time;
         clk.end();
         p->elapsed_time = clk.getClock();
     }

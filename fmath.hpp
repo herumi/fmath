@@ -166,8 +166,8 @@ struct ExpdVar {
 	double C2[2]; // D
 	double C3[2]; // C/D
 	uint64_t tbl[s];
-	const double a;
-	const double ra;
+	double a;
+	double ra;
 	ExpdVar()
 		: a(s / ::log(2.0))
 		, ra(1 / a)
@@ -481,7 +481,7 @@ inline void expd_v(double *px, int n)
 {
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
-	const uint64_t b = 3ULL << 51;
+	const double b = double(3ULL << 51);
 	assert((n % 2) == 0);
 	const __m128d mC1 = *cast_to<__m128d>(c.C1);
 	const __m128d mC2 = *cast_to<__m128d>(c.C2);
