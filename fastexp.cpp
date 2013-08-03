@@ -179,6 +179,7 @@ Simply create a console project, and add this file to the project.
 #include <emmintrin.h>
 
 #include "fmath.hpp"
+#define XBYAK_NO_OP_NAMES
 #include "xbyak/xbyak_util.h"
 /*
     Useful macro definitions for memory alignment:
