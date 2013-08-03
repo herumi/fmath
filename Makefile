@@ -22,10 +22,10 @@ all:$(TARGET)
 .SUFFIXES: .cpp
 
 bench: bench.o
-	$(LD) -o $@ $<
+	$(CXX) -o $@ $<
 
 fastexp: fastexp.o
-	$(LD) -o $@ $<
+	$(CXX) -o $@ $<
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
