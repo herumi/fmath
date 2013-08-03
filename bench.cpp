@@ -10,6 +10,7 @@
 #include <cmath>
 #include <algorithm>
 
+#define XBYAK_NO_OP_NAMES
 #include "xbyak/xbyak_util.h"
 
 static bool s_hasSSE41 = false;
