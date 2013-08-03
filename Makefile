@@ -11,7 +11,6 @@ INC_DIR= -I../src -I../xbyak
 CFLAGS += $(INC_DIR) -O3 -D_FILE_OFFSET_BITS=64 -DNDEBUG -fno-operator-names -msse2 -mfpmath=sse $(ADD_OPT)
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
-LD=g++
 # ----------------------------------------------------------------
 
 HEADER= fmath.hpp
