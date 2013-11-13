@@ -13,6 +13,18 @@
 #define XBYAK_NO_OP_NAMES
 #include "xbyak/xbyak_util.h"
 
+inline void put(const void *p)
+{
+	const float *f = (const float*)p;
+	printf("{%e, %e, %e, %e}\n", f[0], f[1], f[2], f[3]);
+}
+inline void puti(const void *p)
+{
+	const unsigned int *i = (const unsigned int *)p;
+	printf("{%d, %d, %d, %d}\n", i[0], i[1], i[2], i[3]);
+	printf("{%x, %x, %x, %x}\n", i[0], i[1], i[2], i[3]);
+}
+
 static bool s_hasSSE41 = false;
 
 float dummy(float x)
