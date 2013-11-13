@@ -211,7 +211,7 @@ Simply create a console project, and add this file to the project.
 
 typedef struct {
     const char *name;
-    void (*func)(double *values, int n);
+    void (*func)(double *values, size_t n);
     double error_peak;
     double error_rms;
     long long elapsed_time;
@@ -230,252 +230,9 @@ static const double LOG2E  =  1.4426950408889634073599;     /* 1/log(2) */
 static const double C1 = 6.93145751953125E-1;
 static const double C2 = 1.42860682030941723212E-6;
 
-void remez5_0_log2_sse(double *values, int num)
+void remez9_0_log2_sse(double *values, size_t num)
 {
-    int i;
-    CONST_128D(one, 1.);
-    CONST_128D(log2e, 1.4426950408889634073599);
-    CONST_128D(maxlog, 7.09782712893383996843e2);   // log(2**1024)
-    CONST_128D(minlog, -7.08396418532264106224e2);  // log(2**-1022)
-    CONST_128D(c1, 6.93145751953125E-1);
-    CONST_128D(c2, 1.42860682030941723212E-6);
-    CONST_128D(w5, 1.185268231308989403584147407056378360798378534739e-2);
-    CONST_128D(w4, 3.87412011356070379615759057344100690905653320886699e-2);
-    CONST_128D(w3, 0.16775408658617866431779970932853611481292418818223);
-    CONST_128D(w2, 0.49981934577169208735732248650232562589934399402426);
-    CONST_128D(w1, 1.00001092396453942157124178508842412412025643386873);
-    CONST_128D(w0, 0.99999989311082729779536722205742989232069120354073);
-    const __m128i offset = _mm_setr_epi32(1023, 1023, 0, 0);
-
-    for (i = 0;i < num;i += 4) {
-        __m128i k1, k2;
-        __m128d p1, p2;
-        __m128d a1, a2;
-        __m128d xmm0, xmm1;
-        __m128d x1, x2;
-
-        /* Load four double values. */
-        xmm0 = _mm_load_pd(maxlog);
-        xmm1 = _mm_load_pd(minlog);
-		x1 = _mm_load_pd(values+i);
-		x2 = _mm_load_pd(values+i+2);
-        x1 = _mm_min_pd(x1, xmm0);
-        x2 = _mm_min_pd(x2, xmm0);
-        x1 = _mm_max_pd(x1, xmm1);
-        x2 = _mm_max_pd(x2, xmm1);
-
-        /* a = x / log2; */
-        xmm0 = _mm_load_pd(log2e);
-        xmm1 = _mm_setzero_pd();
-        a1 = _mm_mul_pd(x1, xmm0);
-        a2 = _mm_mul_pd(x2, xmm0);
-
-        /* k = (int)floor(a); p = (float)k; */
-        p1 = _mm_cmplt_pd(a1, xmm1);
-        p2 = _mm_cmplt_pd(a2, xmm1);
-        xmm0 = _mm_load_pd(one);
-        p1 = _mm_and_pd(p1, xmm0);
-        p2 = _mm_and_pd(p2, xmm0);
-        a1 = _mm_sub_pd(a1, p1);
-        a2 = _mm_sub_pd(a2, p2);
-        k1 = _mm_cvttpd_epi32(a1);
-        k2 = _mm_cvttpd_epi32(a2);
-        p1 = _mm_cvtepi32_pd(k1);
-        p2 = _mm_cvtepi32_pd(k2);
-
-        /* x -= p * log2; */
-        xmm0 = _mm_load_pd(c1);
-        xmm1 = _mm_load_pd(c2);
-        a1 = _mm_mul_pd(p1, xmm0);
-        a2 = _mm_mul_pd(p2, xmm0);
-        x1 = _mm_sub_pd(x1, a1);
-        x2 = _mm_sub_pd(x2, a2);
-        a1 = _mm_mul_pd(p1, xmm1);
-        a2 = _mm_mul_pd(p2, xmm1);
-        x1 = _mm_sub_pd(x1, a1);
-        x2 = _mm_sub_pd(x2, a2);
-
-        /* Compute e^x using a polynomial approximation. */
-        xmm0 = _mm_load_pd(w5);
-        xmm1 = _mm_load_pd(w4);
-        a1 = _mm_mul_pd(x1, xmm0);
-        a2 = _mm_mul_pd(x2, xmm0);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        xmm0 = _mm_load_pd(w3);
-        xmm1 = _mm_load_pd(w2);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm0);
-        a2 = _mm_add_pd(a2, xmm0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        xmm0 = _mm_load_pd(w1);
-        xmm1 = _mm_load_pd(w0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm0);
-        a2 = _mm_add_pd(a2, xmm0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        /* p = 2^k; */
-        k1 = _mm_add_epi32(k1, offset);
-        k2 = _mm_add_epi32(k2, offset);
-        k1 = _mm_slli_epi32(k1, 20);
-        k2 = _mm_slli_epi32(k2, 20);
-        k1 = _mm_shuffle_epi32(k1, _MM_SHUFFLE(1,3,0,2));
-        k2 = _mm_shuffle_epi32(k2, _MM_SHUFFLE(1,3,0,2));
-        p1 = _mm_castsi128_pd(k1);
-        p2 = _mm_castsi128_pd(k2);
-
-        /* a *= 2^k. */
-        a1 = _mm_mul_pd(a1, p1);
-        a2 = _mm_mul_pd(a2, p2);
-
-        /* Store the results. */
-		_mm_store_pd(values+i, a1);
-		_mm_store_pd(values+i+2, a2);
-    }
-}
-
-void remez7_0_log2_sse(double *values, int num)
-{
-    int i;
-    CONST_128D(one, 1.);
-    CONST_128D(log2e, 1.4426950408889634073599);
-    CONST_128D(maxlog, 7.09782712893383996843e2);   // log(2**1024)
-    CONST_128D(minlog, -7.08396418532264106224e2);  // log(2**-1022)
-    CONST_128D(c1, 6.93145751953125E-1);
-    CONST_128D(c2, 1.42860682030941723212E-6);
-    CONST_128D(w7, 2.8177033701883768252768416240498659720165776534637e-4);
-    CONST_128D(w6, 1.2890480764261415880540047007217296074165060445915e-3);
-    CONST_128D(w5, 8.3937617380265463210782576208636760245107957044397e-3);
-    CONST_128D(w4, 4.16466393513638680290956986766301695821268933286258e-2);
-    CONST_128D(w3, 0.16667025104576204064704670601843171167692234960251);
-    CONST_128D(w2, 0.49999968588211828322575537372426392301459912262932);
-    CONST_128D(w1, 1.00000001047169007093329328214028329840435313172085);
-    CONST_128D(w0, 0.99999999994275232965232540108706952362552348759169);
-    const __m128i offset = _mm_setr_epi32(1023, 1023, 0, 0);
-
-    for (i = 0;i < num;i += 4) {
-        __m128i k1, k2;
-        __m128d p1, p2;
-        __m128d a1, a2;
-        __m128d xmm0, xmm1;
-        __m128d x1, x2;
-
-        /* Load four double values. */
-        xmm0 = _mm_load_pd(maxlog);
-        xmm1 = _mm_load_pd(minlog);
-		x1 = _mm_load_pd(values+i);
-		x2 = _mm_load_pd(values+i+2);
-        x1 = _mm_min_pd(x1, xmm0);
-        x2 = _mm_min_pd(x2, xmm0);
-        x1 = _mm_max_pd(x1, xmm1);
-        x2 = _mm_max_pd(x2, xmm1);
-
-        /* a = x / log2; */
-        xmm0 = _mm_load_pd(log2e);
-        xmm1 = _mm_setzero_pd();
-        a1 = _mm_mul_pd(x1, xmm0);
-        a2 = _mm_mul_pd(x2, xmm0);
-
-        /* k = (int)floor(a); p = (float)k; */
-        p1 = _mm_cmplt_pd(a1, xmm1);
-        p2 = _mm_cmplt_pd(a2, xmm1);
-        xmm0 = _mm_load_pd(one);
-        p1 = _mm_and_pd(p1, xmm0);
-        p2 = _mm_and_pd(p2, xmm0);
-        a1 = _mm_sub_pd(a1, p1);
-        a2 = _mm_sub_pd(a2, p2);
-        k1 = _mm_cvttpd_epi32(a1);
-        k2 = _mm_cvttpd_epi32(a2);
-        p1 = _mm_cvtepi32_pd(k1);
-        p2 = _mm_cvtepi32_pd(k2);
-
-        /* x -= p * log2; */
-        xmm0 = _mm_load_pd(c1);
-        xmm1 = _mm_load_pd(c2);
-        a1 = _mm_mul_pd(p1, xmm0);
-        a2 = _mm_mul_pd(p2, xmm0);
-        x1 = _mm_sub_pd(x1, a1);
-        x2 = _mm_sub_pd(x2, a2);
-        a1 = _mm_mul_pd(p1, xmm1);
-        a2 = _mm_mul_pd(p2, xmm1);
-        x1 = _mm_sub_pd(x1, a1);
-        x2 = _mm_sub_pd(x2, a2);
-
-        /* Compute e^x using a polynomial approximation. */
-        xmm0 = _mm_load_pd(w7);
-        xmm1 = _mm_load_pd(w6);
-        a1 = _mm_mul_pd(x1, xmm0);
-        a2 = _mm_mul_pd(x2, xmm0);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        xmm0 = _mm_load_pd(w5);
-        xmm1 = _mm_load_pd(w4);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm0);
-        a2 = _mm_add_pd(a2, xmm0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        xmm0 = _mm_load_pd(w3);
-        xmm1 = _mm_load_pd(w2);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm0);
-        a2 = _mm_add_pd(a2, xmm0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        xmm0 = _mm_load_pd(w1);
-        xmm1 = _mm_load_pd(w0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm0);
-        a2 = _mm_add_pd(a2, xmm0);
-        a1 = _mm_mul_pd(a1, x1);
-        a2 = _mm_mul_pd(a2, x2);
-        a1 = _mm_add_pd(a1, xmm1);
-        a2 = _mm_add_pd(a2, xmm1);
-
-        /* p = 2^k; */
-        k1 = _mm_add_epi32(k1, offset);
-        k2 = _mm_add_epi32(k2, offset);
-        k1 = _mm_slli_epi32(k1, 20);
-        k2 = _mm_slli_epi32(k2, 20);
-        k1 = _mm_shuffle_epi32(k1, _MM_SHUFFLE(1,3,0,2));
-        k2 = _mm_shuffle_epi32(k2, _MM_SHUFFLE(1,3,0,2));
-        p1 = _mm_castsi128_pd(k1);
-        p2 = _mm_castsi128_pd(k2);
-
-        /* a *= 2^k. */
-        a1 = _mm_mul_pd(a1, p1);
-        a2 = _mm_mul_pd(a2, p2);
-
-        /* Store the results. */
-		_mm_store_pd(values+i, a1);
-		_mm_store_pd(values+i+2, a2);
-    }
-}
-
-void remez9_0_log2_sse(double *values, int num)
-{
-    int i;
+    size_t i;
     CONST_128D(one, 1.);
     CONST_128D(log2e, 1.4426950408889634073599);
     CONST_128D(maxlog, 7.09782712893383996843e2);   // log(2**1024)
@@ -614,9 +371,9 @@ void remez9_0_log2_sse(double *values, int num)
     }
 }
 
-void remez11_0_log2_sse(double *values, int num)
+void remez11_0_log2_sse(double *values, size_t num)
 {
-    int i;
+    size_t i;
     CONST_128D(one, 1.);
     CONST_128D(log2e, 1.4426950408889634073599);
     CONST_128D(maxlog, 7.09782712893383996843e2);   // log(2**1024)
@@ -768,143 +525,9 @@ void remez11_0_log2_sse(double *values, int num)
     }
 }
 
-
-
-void remez5_0_log2(double *values, int num)
+void remez11_0_log2(double *values, size_t num)
 {
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = floor(x / log 2) */
-        a = LOG2E * x;
-        a -= (a < 0);
-        n = (int)a;
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 1.185268231308989403584147407056378360798378534739e-2;
-        a *= x;
-        a += 3.87412011356070379615759057344100690905653320886699e-2;
-        a *= x;
-        a += 0.16775408658617866431779970932853611481292418818223;
-        a *= x;
-        a += 0.49981934577169208735732248650232562589934399402426;
-        a *= x;
-        a += 1.00001092396453942157124178508842412412025643386873;
-        a *= x;
-        a += 0.99999989311082729779536722205742989232069120354073;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void remez7_0_log2(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = floor(x / log 2) */
-        a = LOG2E * x;
-        a -= (a < 0);
-        n = (int)a;
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 2.8177033701883768252768416240498659720165776534637e-4;
-        a *= x;
-        a += 1.2890480764261415880540047007217296074165060445915e-3;
-        a *= x;
-        a += 8.3937617380265463210782576208636760245107957044397e-3;
-        a *= x;
-        a += 4.16466393513638680290956986766301695821268933286258e-2;
-        a *= x;
-        a += 0.16667025104576204064704670601843171167692234960251;
-        a *= x;
-        a += 0.49999968588211828322575537372426392301459912262932;
-        a *= x;
-        a += 1.00000001047169007093329328214028329840435313172085;
-        a *= x;
-        a += 0.99999999994275232965232540108706952362552348759169;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void remez9_0_log2(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = floor(x / log 2) */
-        a = LOG2E * x;
-        a -= (a < 0);
-        n = (int)a;
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 3.9099787920346160288874633639268318097077213911751e-6;
-        a *= x;
-        a += 2.299608440919942766555719515783308016700833740918e-5;
-        a *= x;
-        a += 1.99930498409474044486498978862963995247838069436646e-4;
-        a *= x;
-        a += 1.38812674551586429265054343505879910146775323730237e-3;
-        a *= x;
-        a += 8.3335688409829575034112982839739473866857586300664e-3;
-        a *= x;
-        a += 4.1666622504201078708502686068113075402683415962893e-2;
-        a *= x;
-        a += 0.166666671414320541875332123507829990378055646330574;
-        a *= x;
-        a += 0.49999999974109940909767965915362308135415179642286;
-        a *= x;
-        a += 1.0000000000054730504284163017295863259125942049362;
-        a *= x;
-        a += 0.99999999999998091336479463057053516986466888462081;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void remez11_0_log2(double *values, int num)
-{
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -954,9 +577,9 @@ void remez11_0_log2(double *values, int num)
     }
 }
 
-void remez13_0_log2(double *values, int num)
+void remez13_0_log2(double *values, size_t num)
 {
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -1010,143 +633,9 @@ void remez13_0_log2(double *values, int num)
     }
 }
 
-
-
-void vecexp_remez5_05_05(double *values, int num)
+void vecexp_remez11_05_05(double *values, size_t num)
 {
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 8.4330373844473099813810362019505406631926085091323e-3;
-        a *= x;
-        a += 4.21902068347366333044988703875445200415500811946999e-2;
-        a *= x;
-        a += 0.166651841763284853673636070741102751158699113784309;
-        a *= x;
-        a += 0.499950835134960574061545109283769441275186262483568;
-        a *= x;
-        a += 1.00000058571014555295260592037508552163073364874505;
-        a *= x;
-        a += 1.00000068337676053288862820129773498043487842807125;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_remez7_05_05(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 2.00141610818912228248905083859257590733113260526108e-4;
-        a *= x;
-        a += 1.40133811518724818098307842775997566282188412967947e-3;
-        a *= x;
-        a += 8.3329654693594055317268781464679686290363549855757e-3;
-        a *= x;
-        a += 4.166471896964041208094102436547981534517053537243e-2;
-        a *= x;
-        a += 0.166666696439690960142075219571022911788612657807629;
-        a *= x;
-        a += 0.50000009744621522508878089211950835930852534338768;
-        a *= x;
-        a += 0.99999999932306797486003312890413784132553482368976;
-        a *= x;
-        a += 0.99999999923843009897272522306505037302103095520883;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_remez9_05_05(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 2.7745788375840179681283717651801389074131600858024e-6;
-        a *= x;
-        a += 2.4974359052778718615679108099578563503364071042705e-5;
-        a *= x;
-        a += 1.98407490538622509507316519103953447383315553069056e-4;
-        a *= x;
-        a += 1.38885105592078787329129443877314802341416378733678e-3;
-        a *= x;
-        a += 8.3333339723641809789104572730499312924226776107297e-3;
-        a *= x;
-        a += 4.16666700463431739324947223978815539635978032483308e-2;
-        a *= x;
-        a += 0.166666666634013689476902841482489499264356163708049;
-        a *= x;
-        a += 0.49999999989435323455294486871496414870608658630883;
-        a *= x;
-        a += 1.00000000000048028927516239905073191568245953555709;
-        a *= x;
-        a += 1.00000000000052833535680371242873466617726870356609;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_remez11_05_05(double *values, int num)
-{
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -1196,9 +685,9 @@ void vecexp_remez11_05_05(double *values, int num)
     }
 }
 
-void vecexp_remez13_05_05(double *values, int num)
+void vecexp_remez13_05_05(double *values, size_t num)
 {
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -1252,143 +741,9 @@ void vecexp_remez13_05_05(double *values, int num)
     }
 }
 
-
-
-void vecexp_taylor5(double *values, int num)
+void vecexp_taylor11(double *values, size_t num)
 {
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 1. / 120.;
-        a *= x;
-        a += 4.1666666666666666666666666666666666666666666666666e-2;
-        a *= x;
-        a += 0.166666666666666666666666666666666666666666666666665;
-        a *= x;
-        a += 0.5;
-        a *= x;
-        a += 1.0;
-        a *= x;
-        a += 1.0;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_taylor7(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 1. / 5040.;
-        a *= x;
-        a += 1.38888888888888888888888888888888888888888888888889e-3;
-        a *= x;
-        a += 8.3333333333333333333333333333333333333333333333333e-3;
-        a *= x;
-        a += 4.1666666666666666666666666666666666666666666666666e-2;
-        a *= x;
-        a += 0.166666666666666666666666666666666666666666666666665;
-        a *= x;
-        a += 0.5;
-        a *= x;
-        a += 1.0;
-        a *= x;
-        a += 1.0;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_taylor9(double *values, int num)
-{
-    int i;
-    for (i = 0;i < num;++i) {
-        int n;
-        double a, px, x = values[i];
-        ieee754 u;
-
-        /* n = round(x / log 2) */
-        a = LOG2E * x + 0.5;
-        n = (int)a;
-        n -= (a < 0);
-
-        /* x -= n * log2 */
-        px = (double)n;
-        x -= px * C1;
-        x -= px * C2;
-
-        /* Compute e^x using a polynomial approximation. */
-        a = 1. / 362880.;
-        a *= x;
-        a += 2.4801587301587301587301587301587301587301587301587e-5;
-        a *= x;
-        a += 1.98412698412698412698412698412698412698412698412698e-4;
-        a *= x;
-        a += 1.38888888888888888888888888888888888888888888888889e-3;
-        a *= x;
-        a += 8.3333333333333333333333333333333333333333333333333e-3;
-        a *= x;
-        a += 4.1666666666666666666666666666666666666666666666666e-2;
-        a *= x;
-        a += 0.166666666666666666666666666666666666666666666666665;
-        a *= x;
-        a += 0.5;
-        a *= x;
-        a += 1.0;
-        a *= x;
-        a += 1.0;
-
-        /* Build 2^n in double. */
-        u.d = 0;
-        n += 1023;
-        u.s[3] = (unsigned short)((n << 4) & 0x7FF0);
-
-        values[i] = a * u.d;
-    }
-}
-
-void vecexp_taylor11(double *values, int num)
-{
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -1438,9 +793,9 @@ void vecexp_taylor11(double *values, int num)
     }
 }
 
-void vecexp_taylor13(double *values, int num)
+void vecexp_taylor13(double *values, size_t num)
 {
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double a, px, x = values[i];
@@ -1494,11 +849,9 @@ void vecexp_taylor13(double *values, int num)
     }
 }
 
-
-
-void vecexp_cephes(double *values, int num)
+void vecexp_cephes(double *values, size_t num)
 {
-    int i;
+    size_t i;
     for (i = 0;i < num;++i) {
         int n;
         double x = values[i];
@@ -1546,11 +899,9 @@ void vecexp_cephes(double *values, int num)
     }
 }
 
-
-
-void vecexp_libc(double *values, int n)
+void vecexp_libc(double *values, size_t n)
 {
-    int i;
+    size_t i;
     for (i = 0;i < n;++i) {
         values[i] = exp(values[i]);
     }
@@ -1617,13 +968,13 @@ double *read_source(int *num)
 	return values;
 }
 
-void measure(performance_t *perf, double *values, int n)
+void measure(performance_t *perf, double *values, size_t n)
 {
-    int i;
+    size_t i;
     performance_t *p;
 
     for (p = perf;p->func != NULL;++p) {
-        p->values = (double*)_aligned_malloc(sizeof(double) * n, 16);
+        p->values = (double*)_aligned_malloc(sizeof(double) * n, 32);
         for (i = 0;i < n;++i) {
             p->values[i] = values[i];
         }
@@ -1654,10 +1005,9 @@ void measure(performance_t *perf, double *values, int n)
     }
 }
 
-void fmath_expd(double *values, int n)
+void fmath_expd(double *values, size_t n)
 {
-    int i;
-    for (i = 0;i < n;++i) {
+    for (size_t i = 0;i < n; i++) {
         values[i] = fmath::expd(values[i]);
     }
 }
@@ -1712,31 +1062,12 @@ int main()
     performance_t perf[] = {
         {"libc                  ", vecexp_libc, 0., 0., 0, NULL},
         {"Cephes                ", vecexp_cephes, 0., 0., 0, NULL},
-#if 0
-        {"Taylor 5th", vecexp_taylor5, 0., 0., 0, NULL},
-        {"Taylor 7th", vecexp_taylor7, 0., 0., 0, NULL},
-        {"Taylor 9th", vecexp_taylor9, 0., 0., 0, NULL},
-#endif
         {"Taylor 11th           ", vecexp_taylor11, 0., 0., 0, NULL},
         {"Taylor 13th           ", vecexp_taylor13, 0., 0., 0, NULL},
-#if 0
-        {"Remez 5th [-0.5,+0.5]", vecexp_remez5_05_05, 0., 0., 0, NULL},
-        {"Remez 7th [-0.5,+0.5]", vecexp_remez7_05_05, 0., 0., 0, NULL},
-        {"Remez 9th [-0.5,+0.5]", vecexp_remez9_05_05, 0., 0., 0, NULL},
-#endif
         {"Remez 11th [-0.5,+0.5]", vecexp_remez11_05_05, 0., 0., 0, NULL},
         {"Remez 13th [-0.5,+0.5]", vecexp_remez13_05_05, 0., 0., 0, NULL},
-#if 0
-        {"Remez 5th [0,log2]", remez5_0_log2, 0., 0., 0, NULL},
-        {"Remez 7th [0,log2]", remez7_0_log2, 0., 0., 0, NULL},
-        {"Remez 9th [0,log2]", remez9_0_log2, 0., 0., 0, NULL},
-#endif
         {"Remez 11th [0,log2]   ", remez11_0_log2, 0., 0., 0, NULL},
         {"Remez 13th [0,log2]   ", remez13_0_log2, 0., 0., 0, NULL},
-#if 0
-        {"Remez 5th [0,log2] SSE", remez5_0_log2_sse, 0., 0., 0, NULL},
-        {"Remez 7th [0,log2] SSE", remez7_0_log2_sse, 0., 0., 0, NULL},
-#endif
         {"Remez 9th [0,log2] SSE", remez9_0_log2_sse, 0., 0., 0, NULL},
         {"Remez 11th [0,log2]SSE", remez11_0_log2_sse, 0., 0., 0, NULL},
         {"fmath_expd            ", fmath_expd, 0., 0., 0, NULL},

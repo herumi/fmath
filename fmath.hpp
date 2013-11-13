@@ -13,10 +13,14 @@
 	function prototype list
 
 	float fmath::exp(float);
+	double fmath::expd(double);
 	float fmath::log(float);
 
 	__m128 fmath::exp_ps(__m128);
+	__m256 fmath::exp_ps256(__m256);
 	__m128 fmath::log_ps(__m128);
+
+	double fmath::expd_v(double *, size_t n);
 
 	if FMATH_USE_XBYAK is defined then Xbyak version are used
 */
@@ -55,20 +59,6 @@
 	#define XBYAK_NO_OP_NAMES
 	#include "xbyak/xbyak.h"
 	#include "xbyak/xbyak_util.h"
-#endif
-
-#if 1//#ifdef DEBUG
-inline void put(const void *p)
-{
-	const float *f = (const float*)p;
-	printf("{%e, %e, %e, %e}\n", f[0], f[1], f[2], f[3]);
-}
-inline void puti(const void *p)
-{
-	const unsigned int *i = (const unsigned int *)p;
-	printf("{%d, %d, %d, %d}\n", i[0], i[1], i[2], i[3]);
-	printf("{%x, %x, %x, %x}\n", i[0], i[1], i[2], i[3]);
-}
 #endif
 
 namespace fmath {
@@ -122,19 +112,19 @@ struct ExpVar {
 		n = 1 << s,
 		f88 = 0x42b00000 /* 88.0 */
 	};
-	float minX[4];
-	float maxX[4];
-	float a[4];
-	float b[4];
-	float f1[4];
-	unsigned int i127s[4];
-	unsigned int mask_s[4];
-	unsigned int i7fffffff[4];
+	float minX[8];
+	float maxX[8];
+	float a[8];
+	float b[8];
+	float f1[8];
+	unsigned int i127s[8];
+	unsigned int mask_s[8];
+	unsigned int i7fffffff[8];
 	unsigned int tbl[n];
 	ExpVar()
 	{
 		float log_2 = ::logf(2.0f);
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 8; i++) {
 			maxX[i] = 88;
 			minX[i] = -88;
 			a[i] = n / log_2;
@@ -248,8 +238,8 @@ struct ExpCode : public Xbyak::CodeGenerator {
 			exp_ps_ = (__m128(*)(__m128))getCurr();
 			makeExpPs(self, cpu);
 			return;
-		} catch (Xbyak::Error err) {
-			fprintf(stderr, "ExpCode ERR:%s(%d)\n", Xbyak::ConvertErrorToString(err), err);
+		} catch (std::exception& e) {
+			fprintf(stderr, "ExpCode ERR:%s\n", e.what());
 		} catch (...) {
 			fprintf(stderr, "ExpCode ERR:unknown error\n");
 		}
@@ -402,13 +392,13 @@ struct C {
 };
 
 template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
-MIE_ALIGN(16) const ExpVar<EXP_N> C<EXP_N, LOG_N, EXPD_N>::expVar;
+MIE_ALIGN(32) const ExpVar<EXP_N> C<EXP_N, LOG_N, EXPD_N>::expVar;
 
 template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
-MIE_ALIGN(16) const LogVar<LOG_N> C<EXP_N, LOG_N, EXPD_N>::logVar;
+MIE_ALIGN(32) const LogVar<LOG_N> C<EXP_N, LOG_N, EXPD_N>::logVar;
 
 template<size_t EXP_N, size_t LOG_N, size_t EXPD_N>
-MIE_ALIGN(16) const ExpdVar<EXPD_N> C<EXP_N, LOG_N, EXPD_N>::expdVar;
+MIE_ALIGN(32) const ExpdVar<EXPD_N> C<EXP_N, LOG_N, EXPD_N>::expdVar;
 
 } // fmath::local
 
@@ -454,15 +444,32 @@ inline float exp(float x)
 #endif
 }
 
-/*
-	remark : -ffast-math option of gcc may generate bad code for fmath::expd
-*/
 inline double expd(double x)
 {
 	if (x <= -708.39641853226408) return 0;
 	if (x >= 709.78271289338397) return std::numeric_limits<double>::infinity();
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
+#if 1
+	const double _b = double(uint64_t(3) << 51);
+	__m128d b = _mm_load_sd(&_b);
+	__m128d xx = _mm_load_sd(&x);
+	__m128d d = _mm_add_sd(_mm_mul_sd(xx, _mm_load_sd(&c.a)), b);
+	uint64_t di = _mm_cvtsi128_si32(_mm_castpd_si128(d));
+	uint64_t iax = c.tbl[di & mask(c.sbit)];
+	__m128d _t = _mm_sub_sd(_mm_mul_sd(_mm_sub_sd(d, b), _mm_load_sd(&c.ra)), xx);
+	uint64_t u = ((di + c.adj) >> c.sbit) << 52;
+	double t;
+	_mm_store_sd(&t, _t);
+	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
+	double did;
+	u |= iax;
+	memcpy(&did, &u, sizeof(did));
+	return y * did;
+#else
+/*
+	remark : -ffast-math option of gcc may generate bad code for fmath::expd
+*/
 	const uint64_t b = 3ULL << 51;
 	di di;
 	di.d = x * c.a + b;
@@ -471,18 +478,19 @@ inline double expd(double x)
 	double t = (di.d - b) * c.ra - x;
 	uint64_t u = ((di.i + c.adj) >> c.sbit) << 52;
 	double y = (c.C3[0] - t) * (t * t) * c.C2[0] - t + c.C1[0];
-//	double y = (2.999796930327879362111743 - t) * (t * t) * 0.166677948823102161853172 - t + 1.000000000000000000488181;
 
 	di.i = u | iax;
 	return y * di.d;
+#endif
 }
 
-inline void expd_v(double *px, int n)
+// not fast
+#if 0
+inline __m128d exp_pd(__m128d x)
 {
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
 	const double b = double(3ULL << 51);
-	assert((n % 2) == 0);
 	const __m128d mC1 = *cast_to<__m128d>(c.C1);
 	const __m128d mC2 = *cast_to<__m128d>(c.C2);
 	const __m128d mC3 = *cast_to<__m128d>(c.C3);
@@ -491,10 +499,82 @@ inline void expd_v(double *px, int n)
 	const __m128i madj = _mm_set1_epi32(c.adj);
 	MIE_ALIGN(16) const double expMax[2] = { 709.78271289338397, 709.78271289338397 };
 	MIE_ALIGN(16) const double expMin[2] = { -708.39641853226408, -708.39641853226408 };
-	for (unsigned int i = 0; i < (unsigned int)n; i += 2) {
+	x = _mm_min_pd(x, *(const __m128d*)expMax);
+	x = _mm_max_pd(x, *(const __m128d*)expMin);
+
+	__m128d d = _mm_mul_pd(x, ma);
+	d = _mm_add_pd(d, _mm_set1_pd(b));
+	int adr0 = _mm_cvtsi128_si32(_mm_castpd_si128(d)) & mask(c.sbit);
+	int adr1 = _mm_cvtsi128_si32(_mm_srli_si128(_mm_castpd_si128(d), 8)) & mask(c.sbit);
+__m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
+	__m128i iax = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr1]));
+	iax = _mm_unpacklo_epi64(iaxL, iax);
+
+	__m128d t = _mm_sub_pd(_mm_mul_pd(_mm_sub_pd(d, _mm_set1_pd(b)), mra), x);
+	__m128i u = _mm_castpd_si128(d);
+	u = _mm_add_epi64(u, madj);
+	u = _mm_srli_epi64(u, c.sbit);
+	u = _mm_slli_epi64(u, 52);
+	u = _mm_or_si128(u, iax);
+	__m128d y = _mm_mul_pd(_mm_sub_pd(mC3, t), _mm_mul_pd(t, t));
+	y = _mm_mul_pd(y, mC2);
+	y = _mm_add_pd(_mm_sub_pd(y, t), mC1);
+	y = _mm_mul_pd(y, _mm_castsi128_pd(u));
+	return y;
+}
+#endif
+
+inline void expd_v(double *px, size_t n)
+{
+	using namespace local;
+	const ExpdVar<>& c = C<>::expdVar;
+	const double b = double(3ULL << 51);
+#ifdef __AVX2__
+	assert((n % 4) == 0);
+	const __m256d mC1 = _mm256_set1_pd(c.C1[0]);
+	const __m256d mC2 = _mm256_set1_pd(c.C2[0]);
+	const __m256d mC3 = _mm256_set1_pd(c.C3[0]);
+	const __m256d ma = _mm256_set1_pd(c.a);
+	const __m256d mra = _mm256_set1_pd(c.ra);
+	const __m256i madj = _mm256_set1_epi64x(c.adj);
+	const __m256i maskSbit = _mm256_set1_epi64x(mask(c.sbit));
+	const __m256d expMax = _mm256_set1_pd(709.78272569338397);
+	const __m256d expMin = _mm256_set1_pd(-708.39641853226408);
+	for (size_t i = 0; i < n; i += 4) {
+		__m256d x = _mm256_load_pd(px);
+		x = _mm256_min_pd(x, expMax);
+		x = _mm256_max_pd(x, expMin);
+
+		__m256d d = _mm256_mul_pd(x, ma);
+		d = _mm256_add_pd(d, _mm256_set1_pd(b));
+		__m256i adr = _mm256_and_si256(_mm256_castpd_si256(d), maskSbit);
+		__m256i iax = _mm256_i64gather_epi64((const long long*)c.tbl, adr, 8);
+		__m256d t = _mm256_sub_pd(_mm256_mul_pd(_mm256_sub_pd(d, _mm256_set1_pd(b)), mra), x);
+		__m256i u = _mm256_castpd_si256(d);
+		u = _mm256_add_epi64(u, madj);
+		u = _mm256_srli_epi64(u, c.sbit);
+		u = _mm256_slli_epi64(u, 52);
+		u = _mm256_or_si256(u, iax);
+		__m256d y = _mm256_mul_pd(_mm256_sub_pd(mC3, t), _mm256_mul_pd(t, t));
+		y = _mm256_mul_pd(y, mC2);
+		y = _mm256_add_pd(_mm256_sub_pd(y, t), mC1);
+		_mm256_store_pd(px, _mm256_mul_pd(y, _mm256_castsi256_pd(u)));
+		px += 4;
+	}
+#else
+	assert((n % 2) == 0);
+	const __m128d mC1 = _mm_set1_pd(c.C1[0]);
+	const __m128d mC2 = _mm_set1_pd(c.C2[0]);
+	const __m128d mC3 = _mm_set1_pd(c.C3[0]);
+	const __m128d ma = _mm_set1_pd(c.a);
+	const __m128d mra = _mm_set1_pd(c.ra);
+	const __m128i madj = _mm_set1_epi64x(c.adj);
+	const __m128d expMax = _mm_set1_pd(709.78272569338397);
+	const __m128d expMin = _mm_set1_pd(-708.39641853226408);
+	for (size_t i = 0; i < n; i += 2) {
 		__m128d x = _mm_load_pd(px);
-		x = _mm_min_pd(x, *(const __m128d*)expMax);
-		x = _mm_max_pd(x, *(const __m128d*)expMin);
+		x = _mm_min_pd(x, expMax);
+		x = _mm_max_pd(x, expMin);
 
 		__m128d d = _mm_mul_pd(x, ma);
 		d = _mm_add_pd(d, _mm_set1_pd(b));
@@ -517,6 +597,7 @@ inline void expd_v(double *px, int n)
 		_mm_store_pd(px, _mm_mul_pd(y, _mm_castsi128_pd(u)));
 		px += 2;
 	}
+#endif
 }
 
 #ifdef FMATH_USE_XBYAK
@@ -544,6 +625,10 @@ inline __m128 exp_ps(__m128 x)
 	u4 = _mm_srli_epi32(u4, expVar.s);
 	u4 = _mm_slli_epi32(u4, 23);
 
+#ifdef __AVX2__ // fast?
+	__m128i ti = _mm_i32gather_epi32((const int*)expVar.tbl, v4, 4);
+	__m128 t0 = _mm_castsi128_ps(ti);
+#else
 	unsigned int v0, v1, v2, v3;
 	v0 = _mm_cvtsi128_si32(v4);
 	v1 = _mm_extract_epi16(v4, 2);
@@ -552,17 +637,10 @@ inline __m128 exp_ps(__m128 x)
 #if 1
 	__m128 t0, t1, t2, t3;
 
-#if 0
 	t0 = _mm_castsi128_ps(_mm_set1_epi32(expVar.tbl[v0]));
 	t1 = _mm_castsi128_ps(_mm_set1_epi32(expVar.tbl[v1]));
 	t2 = _mm_castsi128_ps(_mm_set1_epi32(expVar.tbl[v2]));
 	t3 = _mm_castsi128_ps(_mm_set1_epi32(expVar.tbl[v3]));
-#else // faster but gcc puts warnings
-	t0 = _mm_set_ss(*(const float*)&expVar.tbl[v0]);
-	t1 = _mm_set_ss(*(const float*)&expVar.tbl[v1]);
-	t2 = _mm_set_ss(*(const float*)&expVar.tbl[v2]);
-	t3 = _mm_set_ss(*(const float*)&expVar.tbl[v3]);
-#endif
 
 	t1 = _mm_movelh_ps(t1, t3);
 	t1 = _mm_castsi128_ps(_mm_slli_epi64(_mm_castps_si128(t1), 32));
@@ -575,12 +653,60 @@ inline __m128 exp_ps(__m128 x)
 	ti = _mm_insert_epi32(ti, expVar.tbl[v3], 3);
 	__m128 t0 = _mm_castsi128_ps(ti);
 #endif
+#endif
 	t0 = _mm_or_ps(t0, _mm_castsi128_ps(u4));
 
 	t = _mm_mul_ps(t, t0);
 
 	return t;
 }
+#ifdef __AVX2__
+inline __m256 exp_ps256(__m256 x)
+{
+	using namespace local;
+	const ExpVar<>& expVar = C<>::expVar;
+
+	__m256i limit = _mm256_castps_si256(_mm256_and_ps(x, *(const __m256*)expVar.i7fffffff));
+	int over = _mm256_movemask_epi8(_mm256_cmpgt_epi32(limit, *(const __m256i*)expVar.maxX));
+	if (over) {
+		x = _mm256_min_ps(x, _mm256_load_ps(expVar.maxX));
+		x = _mm256_max_ps(x, _mm256_load_ps(expVar.minX));
+	}
+	__m256i r = _mm256_cvtps_epi32(_mm256_mul_ps(x, *(const __m256*)expVar.a));
+	__m256 t = _mm256_sub_ps(x, _mm256_mul_ps(_mm256_cvtepi32_ps(r), *(const __m256*)expVar.b));
+	t = _mm256_add_ps(t, *(const __m256*)expVar.f1);
+	__m256i v8 = _mm256_and_si256(r, *(const __m256i*)expVar.mask_s);
+	__m256i u8 = _mm256_add_epi32(r, *(const __m256i*)expVar.i127s);
+	u8 = _mm256_srli_epi32(u8, expVar.s);
+	u8 = _mm256_slli_epi32(u8, 23);
+#if 1
+	__m256i ti = _mm256_i32gather_epi32((const int*)expVar.tbl, v8, 4);
+#else
+	unsigned int v0, v1, v2, v3, v4, v5, v6, v7;
+	v0 = _mm256_extract_epi16(v8, 0);
+	v1 = _mm256_extract_epi16(v8, 2);
+	v2 = _mm256_extract_epi16(v8, 4);
+	v3 = _mm256_extract_epi16(v8, 6);
+	v4 = _mm256_extract_epi16(v8, 8);
+	v5 = _mm256_extract_epi16(v8, 10);
+	v6 = _mm256_extract_epi16(v8, 12);
+	v7 = _mm256_extract_epi16(v8, 14);
+	__m256i ti = _mm256_setzero_si256();
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v0], 0);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v1], 1);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v2], 2);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v3], 3);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v4], 4);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v5], 5);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v6], 6);
+	ti = _mm256_insert_epi32(ti, expVar.tbl[v7], 7);
+#endif
+	__m256 t0 = _mm256_castsi256_ps(ti);
+	t0 = _mm256_or_ps(t0, _mm256_castsi256_ps(u8));
+	t = _mm256_mul_ps(t, t0);
+	return t;
+}
+#endif
 
 inline float log(float x)
 {
