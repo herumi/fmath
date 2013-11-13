@@ -26,6 +26,9 @@ bench: bench.o
 fastexp: fastexp.o
 	$(CXX) -o $@ $<
 
+avx2: avx2.cpp
+	$(CXX) -o $@ $< -Ofast -mavx2 -mtune=native -Iinclude
+
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
