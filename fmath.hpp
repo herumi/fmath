@@ -568,7 +568,11 @@ inline void expd_v(double *px, size_t n)
 	const __m128d mC3 = _mm_set1_pd(c.C3[0]);
 	const __m128d ma = _mm_set1_pd(c.a);
 	const __m128d mra = _mm_set1_pd(c.ra);
+#if defined(__x86_64__) || defined(_WIN64)
 	const __m128i madj = _mm_set1_epi64x(c.adj);
+#else
+	const __m128i madj = _mm_set_epi32(0, c.adj, 0, c.adj);
+#endif
 	const __m128d expMax = _mm_set1_pd(709.78272569338397);
 	const __m128d expMin = _mm_set1_pd(-708.39641853226408);
 	for (size_t i = 0; i < n; i += 2) {
