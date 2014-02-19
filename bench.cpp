@@ -402,7 +402,7 @@ struct Test : public Xbyak::CodeGenerator {
 		mov(edi, ptr [esp + 8 + 12]); // count
 		mov(ebp, esp);
 		sub(esp, 32);
-		and(esp, ~15);
+		and_(esp, ~15u);
 	L("lp");
 		movaps(xm0, ptr [in]);
 		movaps(ptr [esp], xm0);
