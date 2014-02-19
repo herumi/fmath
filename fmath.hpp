@@ -282,7 +282,7 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		mulss(xm1, ptr [base + offsetof(Self, b)]);
 		shl(edx, 23); // u
 		subss(xm0, xm1); // t
-		or(eax, edx); // fi.f
+		or_(eax, edx); // fi.f
 		addss(xm0, ptr [base + offsetof(Self, f1)]);
 		movd(xm1, eax);
 		mulss(xm0, xm1);
