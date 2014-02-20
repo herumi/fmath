@@ -32,6 +32,7 @@
 #include <limits>
 #include <stdlib.h>
 #include <float.h>
+#include <memory.h> // for memcpy
 #if defined(_WIN32) && !defined(__GNUC__)
 	#include <intrin.h>
 	#ifndef MIE_ALIGN
