@@ -234,9 +234,9 @@ struct ExpCode : public Xbyak::CodeGenerator {
 		Xbyak::util::Cpu cpu;
 		try {
 			makeExp(self, cpu);
-			exp_ = (float(*)(float))getCode();
+			exp_ = getCode<float (*)(float)>();
 			align(16);
-			exp_ps_ = (__m128(*)(__m128))getCurr();
+			exp_ps_ = getCurr<__m128(*)(__m128)>();
 			makeExpPs(self, cpu);
 			return;
 		} catch (std::exception& e) {
@@ -525,6 +525,10 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 }
 #endif
 
+/*
+	px : pointer to array of double
+	n : size of array(assume multiple of 2 or 4)
+*/
 inline void expd_v(double *px, size_t n)
 {
 	using namespace local;
