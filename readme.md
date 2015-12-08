@@ -20,10 +20,10 @@ Prototpye of function
 * float fmath::exp(float);
 * float fmath::log(float);
 * double fmath::logd(double);
-* void fmath::logd_v(double *px, int n); // array version
 *
 * __m128 fmath::exp_ps(__m128);
 * __m128 fmath::log_ps(__m128);
+* void fmath::expv_d(double *p, size_t n); // for double p[n]; // n must be multiple of 4
 
 Experimental
 -----------
