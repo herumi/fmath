@@ -535,7 +535,8 @@ inline void expd_v(double *px, size_t n)
 	const ExpdVar<>& c = C<>::expdVar;
 	const double b = double(3ULL << 51);
 #ifdef __AVX2__
-	assert((n % 4) == 0);
+	size_t r = n & 3;
+	n &= ~3;
 	const __m256d mC1 = _mm256_set1_pd(c.C1[0]);
 	const __m256d mC2 = _mm256_set1_pd(c.C2[0]);
 	const __m256d mC3 = _mm256_set1_pd(c.C3[0]);
@@ -567,7 +568,8 @@ inline void expd_v(double *px, size_t n)
 		px += 4;
 	}
 #else
-	assert((n % 2) == 0);
+	size_t r = n & 1;
+	n &= ~1;
 	const __m128d mC1 = _mm_set1_pd(c.C1[0]);
 	const __m128d mC2 = _mm_set1_pd(c.C2[0]);
 	const __m128d mC3 = _mm_set1_pd(c.C3[0]);
@@ -607,6 +609,9 @@ inline void expd_v(double *px, size_t n)
 		px += 2;
 	}
 #endif
+	for (size_t i = 0; i < r; i++) {
+		px[i] = exp(px[i]);
+	}
 }
 
 #ifdef FMATH_USE_XBYAK

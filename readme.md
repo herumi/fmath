@@ -23,7 +23,7 @@ Prototpye of function
 *
 * __m128 fmath::exp_ps(__m128);
 * __m128 fmath::log_ps(__m128);
-* void fmath::expv_d(double *p, size_t n); // for double p[n]; // n must be multiple of 4
+* void fmath::expv_d(double *p, size_t n); // for double p[n];
 
 Experimental
 -----------
