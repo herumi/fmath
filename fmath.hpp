@@ -659,6 +659,7 @@ inline __m128 exp_ps(__m128 x)
 	t1 = _mm_movelh_ps(t1, t3);
 	t1 = _mm_castsi128_ps(_mm_slli_epi64(_mm_castps_si128(t1), 32));
 	t0 = _mm_movelh_ps(t0, t2);
+	t0 = _mm_castsi128_ps(_mm_srli_epi64(_mm_castps_si128(t0), 32));
 	t0 = _mm_or_ps(t0, t1);
 #else
 	__m128i ti = _mm_castps_si128(_mm_load_ss((const float*)&expVar.tbl[v0]));
