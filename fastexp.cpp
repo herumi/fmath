@@ -1059,7 +1059,7 @@ void testSlots()
 		for (int j = 0; j < 4; j++) {
 			int idx = (i + j) % 4;
 			float expect = fmath::exp(vals[idx]);
-			if (std::abs(expect - expvals[j]) > 1e-13f) {
+			if (fabs(expect - expvals[j]) > 1e-13f) {
 				printf("%d: expect[%d]=%.17g != shuffled[%d]=%.17g\n", i, idx, expect, j, expvals[j]);
 			}
 		}
