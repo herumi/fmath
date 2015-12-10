@@ -1049,9 +1049,27 @@ void testLimits()
 	}
 }
 
+void testSlots()
+{
+	float vals[4] = {0.1f, 20.0f, -20.0f, -40.0f};
+	float expvals[4] = {0.0f};
+	for (int i = 0; i < 4; i++) {
+		__m128 x = _mm_set_ps(vals[(i + 3) % 4], vals[(i + 2) % 4], vals[(i + 1) % 4], vals[(i + 0) % 4]);
+		_mm_storeu_ps(expvals, fmath::exp_ps(x));
+		for (int j = 0; j < 4; j++) {
+			int idx = (i + j) % 4;
+			float expect = fmath::exp(vals[idx]);
+			if (std::abs(expect - expvals[j]) > 1e-13f) {
+				printf("%d: expect[%d]=%.17g != shuffled[%d]=%.17g\n", i, idx, expect, j, expvals[j]);
+			}
+		}
+	}
+}
+
 int main()
 {
 	testLimits();
+	testSlots();
 	benchmark("std::exp    ", ::exp);
 	benchmark("fmath::expd ", fmath::expd);
 
