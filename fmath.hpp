@@ -2,7 +2,7 @@
 /**
 	@brief fast math library for float
 	@author herumi
-	@url http://homepage1.nifty.com/herumi/
+	@url https://github.com/herumi/fmath/
 	@note modified new BSD license
 	http://opensource.org/licenses/BSD-3-Clause
 

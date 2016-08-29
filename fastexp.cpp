@@ -1,6 +1,6 @@
 /*
 	This original source code is from http://www.chokkan.org/blog/archives/352
-	this modified version requires Xbyak(http://homepage1.nifty.com/herumi/soft/xbyak_e.html)
+	this modified version requires Xbyak(https://github.com/herumi/xbyak/)
 
 	g++ -O3 -fomit-frame-pointer -march=core2 -msse4 -fno-operator-names fastexp.cpp -mfpmath=sse fastexp.cpp
 
@@ -183,8 +183,7 @@ Simply create a console project, and add this file to the project.
 #include "xbyak/xbyak_util.h"
 /*
     Useful macro definitions for memory alignment:
-        http://homepage1.nifty.com/herumi/prog/gcc-and-vc.html#MIE_ALIGN
- */
+*/
 
 #ifdef _MSC_VER
 #define MIE_ALIGN(x) __declspec(align(x))

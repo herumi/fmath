@@ -24,7 +24,7 @@ __m128 fmath::log_ps(__m128);
 -----------------------------------------------------------------------------
 <Experimental>
 
-If you install xbyak(http://homepage1.nifty.com/herumi/soft/xbyak_e.html)
+If you install xbyak(https://github.com/herumi/xbyak/)
 and define FMATH_USE_XBYAK before including fmath.hpp,
 then fmath::exp() and fmath::exp_ps() will be about 10~20 % faster.
 Xbyak version uses SSE4.1 if available.
@@ -166,5 +166,5 @@ http://www.opensource.org/licenses/bsd-license.php
 -----------------------------------------------------------------------------
 <Author>
 
-http://homepage1.nifty.com/herumi/soft/fmath.html
-MITSUNARI Shigeo(herumi at nifty dot com)
+http://herumi.in.coocan.jp/
+MITSUNARI Shigeo(herumi@nifty.com)
