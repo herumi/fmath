@@ -11,7 +11,7 @@ ifeq ($(AVX2),flags)
 endif
 # ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak
-CFLAGS += $(INC_DIR) -O3 -D_FILE_OFFSET_BITS=64 -DNDEBUG $(HAS_AVX2) -mfpmath=sse -ffast-math $(ADD_OPT)
+CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT)
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 # ----------------------------------------------------------------
