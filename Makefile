@@ -1,17 +1,17 @@
-GCC_VER=$(shell gcc -dumpversion)
+GCC_VER=$(shell $(CXX) -dumpversion)
 ifeq ($(shell expr $(GCC_VER) \>= 4.2),1)
-    ADD_OPT+=-mtune=native
+    ADD_OPT+=-march=native
 endif
 ifeq ($(shell expr $(GCC_VER) \>= 4.5),1)
     ADD_OPT+=-fexcess-precision=fast
 endif
-AVX2=$(shell head -27 /proc/cpuinfo|awk '/avx2/ {print $$1}')
+AVX2=$(shell head -27 /proc/cpuinfo 2>/dev/null |awk '/avx2/ {print $$1}')
 ifeq ($(AVX2),flags)
 	HAS_AVX2=-mavx2
 endif
 # ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak
-CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT)
+CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -mfpmath=sse -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 # ----------------------------------------------------------------
