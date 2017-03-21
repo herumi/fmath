@@ -139,7 +139,7 @@ void validateAll(float (*org)(float), float (*f)(float), float bf, float ef)
 			otherCount++;
 //			printf("x=%e(%08x), diff=%d, %e(%08x), %e(%08x)\n", fi.f, fi.i, diff, fi2.f, fi2.i, fi3.f, fi3.i);
 		}
-		maxDiff = std::max(std::abs(diff), maxDiff);
+		maxDiff = std::max(::abs(diff), maxDiff);
 		maxDiff_f = std::max(::fabsf(diff_f), maxDiff_f);
 		count++;
 		if (count == 100000000) {
@@ -466,7 +466,7 @@ int main(int argc, char *argv[])
 	printf("in {%e, %e, %e, %e}\n", in[0], in[1], in[2], in[3]);
 	printf("std    {%e, %e, %e, %e}\n", ::exp(in[0]), ::exp(in[1]), ::exp(in[2]), ::exp(in[3]));
 	printf("fmath  {%e, %e, %e, %e}\n", fmath::exp(in[0]), fmath::exp(in[1]), fmath::exp(in[2]), fmath::exp(in[3]));
-	printf("exp_ps "); out = fmath::exp_ps(*(const __m128*)in);
+	printf("exp_ps "); out = fmath::exp_ps(*reinterpret_cast<const __m128*>(in));
 	put(&out);
 #ifdef __INTEL_COMPILER
 	out = _mm_exp_ps(*(const __m128*)in);
