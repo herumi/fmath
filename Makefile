@@ -30,7 +30,7 @@ fastexp: fastexp.o
 	$(CXX) -o $@ $<
 
 avx2: avx2.cpp fmath.hpp
-	$(CXX) -o $@ $< -Ofast -mavx2 -mtune=native -Iinclude
+	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)

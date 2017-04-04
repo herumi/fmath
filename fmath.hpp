@@ -485,10 +485,19 @@ inline double expd(double x)
 #endif
 }
 
-// not fast
-#if 0
+#if 1
 inline __m128d exp_pd(__m128d x)
 {
+#if 1
+	MIE_ALIGN(16) double buf[2];
+	memcpy(buf, &x, sizeof(buf));
+	buf[0] = expd(buf[0]);
+	buf[1] = expd(buf[1]);
+	__m128d y;
+	memcpy(&y, buf, sizeof(buf));
+	return y;
+#else
+// not fast
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
 	const double b = double(3ULL << 51);
@@ -522,6 +531,7 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 	y = _mm_add_pd(_mm_sub_pd(y, t), mC1);
 	y = _mm_mul_pd(y, _mm_castsi128_pd(u));
 	return y;
+#endif
 }
 #endif
 
