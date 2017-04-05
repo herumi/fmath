@@ -485,10 +485,9 @@ inline double expd(double x)
 #endif
 }
 
-#if 1
 inline __m128d exp_pd(__m128d x)
 {
-#if 1
+#if 0 // faster on Haswell
 	MIE_ALIGN(16) double buf[2];
 	memcpy(buf, &x, sizeof(buf));
 	buf[0] = expd(buf[0]);
@@ -496,8 +495,7 @@ inline __m128d exp_pd(__m128d x)
 	__m128d y;
 	memcpy(&y, buf, sizeof(buf));
 	return y;
-#else
-// not fast
+#else // faster on Skeylake
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
 	const double b = double(3ULL << 51);
@@ -533,7 +531,6 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 	return y;
 #endif
 }
-#endif
 
 /*
 	px : pointer to array of double
