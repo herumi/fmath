@@ -73,9 +73,60 @@ void check_exp_ps256()
 	CYBOZU_BENCH("exp_ps256", z = fmath::exp_ps256, vx);
 	cybozu::disable_warning_unused_variable(z);
 }
+
+void check_pow_pd()
+{
+	puts("check_pow_pd");
+	for (int i = 1; i < 100; i++) {
+		double x[2] = { i / 53.0, i / 12.0 };
+		double e[2] = { i / 23.0, i / 41.0 };
+		double y[2], z[2];
+		y[0] = ::pow(x[0], e[0]);
+		y[1] = ::pow(x[1], e[1]);
+		__m128d xm, em, ym;
+		memcpy(&xm, x, sizeof(xm));
+		memcpy(&em, e, sizeof(em));
+		ym = fmath::pow_pd(xm, em);
+		memcpy(z, &ym, sizeof(z));
+		for (int j = 0; j < 2; j++) {
+			double d = fabs(y[j] - z[j]) / y[j];
+			if (d > 1e-6) {
+				printf("j=%d, x=%f e=%f\n", j, x[j], e[j]);
+				printf("%f:%f\n", y[j], z[j]);
+			}
+		}
+	}
+}
+
+void check_pow_ps()
+{
+	puts("check_pow_ps");
+	for (int i = 1; i < 100; i++) {
+		float x[4] = { i / 53.0, i / 12.0, i / 123.0, i / 9.3 };
+		float e[4] = { i / 23.0, i / 41.0, i / 21.3, i / 50.3 };
+		float y[4], z[4];
+		for (int j = 0; j < 4; j++) {
+			y[j] = ::pow(x[j], e[j]);
+		}
+		__m128 xm, em, ym;
+		memcpy(&xm, x, sizeof(xm));
+		memcpy(&em, e, sizeof(em));
+		ym = fmath::pow_ps(xm, em);
+		memcpy(z, &ym, sizeof(z));
+		for (int j = 0; j < 4; j++) {
+			float d = fabs(y[j] - z[j]) / y[j];
+			if (d > 1e-6) {
+				printf("j=%d, x=%f e=%f\n", j, x[j], e[j]);
+				printf("%f:%f\n", y[j], z[j]);
+			}
+		}
+	}
+}
 int main()
 {
 	check_exp_ps256();
 	check_exp_pd();
 	check_exp_ps256();
+	check_pow_pd();
+	check_pow_ps();
 }

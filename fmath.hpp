@@ -851,4 +851,26 @@ __m128 (*const exp_ps)(__m128) = local::C<>::getInstance().exp_ps_;
 // exp2(x) = pow(2, x)
 inline float exp2(float x) { return fmath::exp(x * 0.6931472f); }
 
+/*
+	this function may be optimized in the future
+*/
+inline __m128d log_pd(__m128d x)
+{
+	double d[2];
+	memcpy(d, &x, sizeof(d));
+	d[0] = ::log(d[0]);
+	d[1] = ::log(d[1]);
+	__m128d m;
+	memcpy(&m, d, sizeof(m));
+	return m;
+}
+inline __m128 pow_ps(__m128 x, __m128 y)
+{
+	return exp_ps(_mm_mul_ps(y, log_ps(x)));
+}
+inline __m128d pow_pd(__m128d x, __m128d y)
+{
+	return exp_pd(_mm_mul_pd(y, log_pd(x)));
+}
+
 } // fmath
