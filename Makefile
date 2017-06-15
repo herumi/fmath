@@ -10,7 +10,7 @@ ifeq ($(AVX2),flags)
 	HAS_AVX2=-mavx2
 endif
 # ----------------------------------------------------------------
-INC_DIR= -I../src -I../xbyak
+INC_DIR= -I../src -I../xbyak -I./include
 CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -mfpmath=sse -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)

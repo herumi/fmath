@@ -11,30 +11,63 @@
 #endif
 #include <stdio.h>
 
-#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__x86_64__)
-	#define CYBOZU_BENCH_USE_RDTSC
+#ifndef CYBOZU_BENCH_DONT_USE_RDTSC
+	#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__x86_64__)
+		#define CYBOZU_BENCH_USE_RDTSC
+		#define CYBOZU_BENCH_USE_CPU_TIMER
+	#endif
+	#if defined(__GNUC__) && defined(__ARM_ARCH_7A__)
+//		#define CYBOZU_BENCH_USE_MRC
+//		#define CYBOZU_BENCH_USE_CPU_TIMER
+	#endif
 #endif
-#ifdef CYBOZU_BENCH_USE_RDTSC
+
+
+#include <assert.h>
+#include <time.h>
 #ifdef _MSC_VER
 	#include <intrin.h>
-#endif
+	#include <sys/timeb.h>
 #else
-	#include <cybozu/time.hpp>
+#endif
+
+#ifndef CYBOZU_UNUSED
+	#ifdef __GNUC__
+		#define CYBOZU_UNUSED __attribute__((unused))
+	#else
+		#define CYBOZU_UNUSED
+	#endif
 #endif
 
 namespace cybozu {
 
-#ifdef CYBOZU_BENCH_USE_RDTSC
 class CpuClock {
 public:
-	static inline uint64_t getRdtsc()
+	static inline uint64_t getCpuClk()
 	{
+#ifdef CYBOZU_BENCH_USE_RDTSC
 #ifdef _MSC_VER
 		return __rdtsc();
 #else
 		unsigned int eax, edx;
 		__asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
 		return ((uint64_t)edx << 32) | eax;
+#endif
+#elif defined(CYBOZU_BENCH_USE_MRC)
+		uint32_t clk;
+		__asm__ volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(clk));
+		return clk;
+#else
+#ifdef _MSC_VER
+		struct _timeb timeb;
+		_ftime_s(&timeb);
+		return uint64_t(timeb.time) * 1000000000 + timeb.millitm * 1000000;
+#else
+		struct timespec tp;
+		int ret CYBOZU_UNUSED = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
+		assert(ret == 0);
+		return uint64_t(tp.tv_sec) * 1000000000 + tp.tv_nsec;
+#endif
 #endif
 	}
 	CpuClock()
@@ -44,11 +77,11 @@ public:
 	}
 	void begin()
 	{
-		clock_ -= getRdtsc();
+		clock_ -= getCpuClk();
 	}
 	void end()
 	{
-		clock_ += getRdtsc();
+		clock_ += getCpuClk();
 		count_++;
 	}
 	int getCount() const { return count_; }
@@ -58,6 +91,7 @@ public:
 	{
 		double t = getClock() / double(getCount()) / N;
 		if (msg && *msg) printf("%s ", msg);
+#ifdef CYBOZU_BENCH_USE_CPU_TIMER
 		if (t > 1e6) {
 			printf("%7.3fMclk", t * 1e-6);
 		} else if (t > 1e3) {
@@ -65,70 +99,35 @@ public:
 		} else {
 			printf("%6.2f clk", t);
 		}
+#else
+		if (t > 1e6) {
+			printf("%7.3fmsec", t * 1e-6);
+		} else if (t > 1e3) {
+			printf("%7.3fusec", t * 1e-3);
+		} else {
+			printf("%6.2fnsec", t);
+		}
+#endif
 		if (msg && *msg) printf("\n");
 	}
 	// adhoc constatns for CYBOZU_BENCH
+#ifdef CYBOZU_BENCH_USE_CPU_TIMER
 	static const int loopN1 = 1000;
-	static const int loopN2 = 1000000;
-	static const uint64_t maxClk = (uint64_t)3e8;
+	static const int loopN2 = 100;
+	static const uint64_t maxClk = (uint64_t)1e8;
+#else
+	static const int loopN1 = 100;
+	static const int loopN2 = 100;
+	static const uint64_t maxClk = (uint64_t)1e8;
+#endif
 private:
 	uint64_t clock_;
 	int count_;
 };
-#else
-class CpuClock {
-	cybozu::Time t_;
-	uint64_t clock_;
-	int count_;
-public:
-	CpuClock() : clock_(0), count_(0) { t_.setTime(0, 0); }
-	void begin()
-	{
-		if (count_ == 0) t_.setCurrentTime(); // start
-	}
-	/*
-		@note QQQ ; this is not same api as rdtsc version
-	*/
-	void end()
-	{
-		cybozu::Time cur(true);
-		int diffSec = (int)(cur.getTime() - t_.getTime());
-		int diffMsec = cur.getMsec() - t_.getMsec();
-		const int diff = diffSec * 1000 + diffMsec;
-		clock_ = diff;
-		count_++;
-	}
-	int getCount() const { return count_; }
-	uint64_t getClock() const { return clock_; }
-	void clear() { t_.setTime(0, 0); clock_ = 0; count_ = 0; }
-	void put(const char *msg = 0, int N = 1) const
-	{
-		double t = getClock() / double(getCount()) / N;
-		if (msg && *msg) printf("%s ", msg);
-		if (t > 1) {
-			printf("%6.2fmsec", t);
-		} else if (t > 1e-3) {
-			printf("%6.2fusec", t * 1e3);
-		} else {
-			printf("%6.2fnsec", t * 1e6);
-		}
-		if (msg && *msg) printf("\n");
-	}
-	// adhoc constatns for CYBOZU_BENCH
-	static const int loopN1 = 1000000;
-	static const int loopN2 = 1000;
-	static const uint64_t maxClk = (uint64_t)500;
-};
-#endif
 
 namespace bench {
 
 static CpuClock g_clk;
-#ifdef __GNUC__
-	#define CYBOZU_UNUSED __attribute__((unused))
-#else
-	#define CYBOZU_UNUSED
-#endif
 static int CYBOZU_UNUSED g_loopNum;
 
 } // cybozu::bench
@@ -139,16 +138,34 @@ static int CYBOZU_UNUSED g_loopNum;
 */
 #define CYBOZU_BENCH(msg, func, ...) \
 { \
-	const uint64_t maxClk = cybozu::CpuClock::maxClk; \
-	cybozu::CpuClock clk; \
-	for (int i = 0; i < cybozu::CpuClock::loopN2; i++) { \
-		clk.begin(); \
-		for (int j = 0; j < cybozu::CpuClock::loopN1; j++) { func(__VA_ARGS__); } \
-		clk.end(); \
-		if (clk.getClock() > maxClk) break; \
+	const uint64_t _cybozu_maxClk = cybozu::CpuClock::maxClk; \
+	cybozu::CpuClock _cybozu_clk; \
+	for (int _cybozu_i = 0; _cybozu_i < cybozu::CpuClock::loopN2; _cybozu_i++) { \
+		_cybozu_clk.begin(); \
+		for (int _cybozu_j = 0; _cybozu_j < cybozu::CpuClock::loopN1; _cybozu_j++) { func(__VA_ARGS__); } \
+		_cybozu_clk.end(); \
+		if (_cybozu_clk.getClock() > _cybozu_maxClk) break; \
 	} \
-	if (msg && *msg) clk.put(msg, cybozu::CpuClock::loopN1); \
-	cybozu::bench::g_clk = clk; cybozu::bench::g_loopNum = cybozu::CpuClock::loopN1; \
+	if (msg && *msg) _cybozu_clk.put(msg, cybozu::CpuClock::loopN1); \
+	cybozu::bench::g_clk = _cybozu_clk; cybozu::bench::g_loopNum = cybozu::CpuClock::loopN1; \
+}
+
+/*
+	double clk;
+	CYBOZU_BENCH_T(clk, <func>, <param1>, <param2>, ...);
+	clk is set by CYBOZU_BENCH_T
+*/
+#define CYBOZU_BENCH_T(clk, func, ...) \
+{ \
+	const uint64_t _cybozu_maxClk = cybozu::CpuClock::maxClk; \
+	cybozu::CpuClock _cybozu_clk; \
+	for (int _cybozu_i = 0; _cybozu_i < cybozu::CpuClock::loopN2; _cybozu_i++) { \
+		_cybozu_clk.begin(); \
+		for (int _cybozu_j = 0; _cybozu_j < cybozu::CpuClock::loopN1; _cybozu_j++) { func(__VA_ARGS__); } \
+		_cybozu_clk.end(); \
+		if (_cybozu_clk.getClock() > _cybozu_maxClk) break; \
+	} \
+	clk = _cybozu_clk.getClock() / (double)_cybozu_clk.getCount() / cybozu::CpuClock::loopN1; \
 }
 
 /*
@@ -158,12 +175,12 @@ static int CYBOZU_UNUSED g_loopNum;
 */
 #define CYBOZU_BENCH_C(msg, _N, func, ...) \
 { \
-	cybozu::CpuClock clk; \
-	clk.begin(); \
-	for (int j = 0; j < _N; j++) { func(__VA_ARGS__); } \
-	clk.end(); \
-	if (msg && *msg) clk.put(msg, _N); \
-	cybozu::bench::g_clk = clk; cybozu::bench::g_loopNum = _N; \
+	cybozu::CpuClock _cybozu_clk; \
+	_cybozu_clk.begin(); \
+	for (int _cybozu_j = 0; _cybozu_j < _N; _cybozu_j++) { func(__VA_ARGS__); } \
+	_cybozu_clk.end(); \
+	if (msg && *msg) _cybozu_clk.put(msg, _N); \
+	cybozu::bench::g_clk = _cybozu_clk; cybozu::bench::g_loopNum = _N; \
 }
 
 } // cybozu

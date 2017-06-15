@@ -179,8 +179,7 @@ Simply create a console project, and add this file to the project.
 #include <emmintrin.h>
 
 #include "fmath.hpp"
-#define XBYAK_NO_OP_NAMES
-#include "xbyak/xbyak_util.h"
+#include <cybozu/benchmark.hpp>
 /*
     Useful macro definitions for memory alignment:
 */
@@ -978,7 +977,7 @@ void measure(performance_t *perf, double *values, size_t n)
     }
 
     for (p = perf;p->func != NULL;++p) {
-        Xbyak::util::Clock clk;
+        cybozu::CpuClock clk;
         clk.begin();
         p->func(p->values, n);
         clk.end();
@@ -1012,7 +1011,7 @@ void fmath_expd(double *values, size_t n)
 void benchmark(const char *str, double f(double))
 {
 	double a = 0;
-	Xbyak::util::Clock clk;
+	cybozu::CpuClock clk;
 	clk.begin();
 	int n = 0;
 	for (double x = 0; x < 1; x += 1e-8) {

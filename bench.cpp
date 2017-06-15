@@ -9,9 +9,7 @@
 #include "fmath.hpp"
 #include <cmath>
 #include <algorithm>
-
-#define XBYAK_NO_OP_NAMES
-#include "xbyak/xbyak_util.h"
+#include <cybozu/benchmark.hpp>
 
 inline void put(const void *p)
 {
@@ -24,8 +22,6 @@ inline void puti(const void *p)
 	printf("{%d, %d, %d, %d}\n", i[0], i[1], i[2], i[3]);
 	printf("{%x, %x, %x, %x}\n", i[0], i[1], i[2], i[3]);
 }
-
-static bool s_hasSSE41 = false;
 
 float dummy(float x)
 {
@@ -184,7 +180,7 @@ void validateExp(float (*f)(float), const char *msg, float e, bool verifyAll)
 
 void benchmark(float (*f)(float), const char *msg, float b, float e, float d, int N, double *adj, double *pbase, int *pcount)
 {
-	Xbyak::util::Clock clk;
+	cybozu::CpuClock clk;
 	float sum = 0;
 	int count = 0;
 	clk.begin();
@@ -444,12 +440,6 @@ int main(int argc, char *argv[])
 {
 	PutVersion();
 	bool verifyAll = false;
-	Xbyak::util::Cpu cpu;
-	s_hasSSE41 = cpu.has(Xbyak::util::Cpu::tSSE41);
-
-	if (s_hasSSE41) {
-		puts("SSE41 enable");
-	}
 	argc--, argv++;
 	while (argc > 0) {
 		if (strcmp(*argv, "-all") == 0) {
