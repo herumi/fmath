@@ -534,7 +534,7 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 
 /*
 	px : pointer to array of double
-	n : size of array(assume multiple of 2 or 4)
+	n : size of array
 */
 inline void expd_v(double *px, size_t n)
 {
