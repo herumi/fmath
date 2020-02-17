@@ -11,7 +11,13 @@
 #endif
 #include <stdio.h>
 
-#ifndef CYBOZU_BENCH_DONT_USE_RDTSC
+#ifdef __EMSCRIPTEN__
+	#define CYBOZU_BENCH_USE_GETTIMEOFDAY
+#endif
+
+#ifdef CYBOZU_BENCH_USE_GETTIMEOFDAY
+	#include <sys/time.h>
+#elif !defined(CYBOZU_BENCH_DONT_USE_RDTSC)
 	#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__x86_64__)
 		#define CYBOZU_BENCH_USE_RDTSC
 		#define CYBOZU_BENCH_USE_CPU_TIMER
@@ -41,6 +47,17 @@
 
 namespace cybozu {
 
+namespace bench {
+
+static void (*g_putCallback)(double);
+
+static inline void setPutCallback(void (*f)(double))
+{
+	g_putCallback = f;
+}
+
+} // cybozu::bench
+
 class CpuClock {
 public:
 	static inline uint64_t getCpuClk()
@@ -62,6 +79,11 @@ public:
 		struct _timeb timeb;
 		_ftime_s(&timeb);
 		return uint64_t(timeb.time) * 1000000000 + timeb.millitm * 1000000;
+#elif defined(CYBOZU_BENCH_USE_GETTIMEOFDAY)
+		struct timeval tv;
+		int ret CYBOZU_UNUSED = gettimeofday(&tv, 0);
+		assert(ret == 0);
+		return uint64_t(tv.tv_sec) * 1000000000 + tv.tv_usec * 1000;
 #else
 		struct timespec tp;
 		int ret CYBOZU_UNUSED = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
@@ -91,6 +113,10 @@ public:
 	{
 		double t = getClock() / double(getCount()) / N;
 		if (msg && *msg) printf("%s ", msg);
+		if (bench::g_putCallback) {
+			bench::g_putCallback(t);
+			return;
+		}
 #ifdef CYBOZU_BENCH_USE_CPU_TIMER
 		if (t > 1e6) {
 			printf("%7.3fMclk", t * 1e-6);

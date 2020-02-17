@@ -35,7 +35,7 @@ struct ExpData {
 		minX = cvt(0xc2aeac50);
 		maxX = cvt(0x42b17218);
 		log2 = std::log(2.0f);
-		log2_e = 1 / log2;
+		log2_e = 1.0f / log2;
 #if 0
 		// maxe=4.888831e-06
 		float z = 1;
@@ -71,19 +71,78 @@ evalf(s,20);
 struct Code : public Xbyak::CodeGenerator {
 	Xbyak::util::Cpu cpu;
 	ExpData *expData;
-	void (*exp_v_)(float *, size_t);
+	void (*expf_v)(float *, size_t);
 	Code()
+		: Xbyak::CodeGenerator(4096 * 2, Xbyak::DontSetProtectRWE)
 	{
+		if (!cpu.has(Xbyak::util::Cpu::tAVX512F)) {
+			fprintf(stderr, "AVX-512 is not supported\n");
+			exit(1);
+		}
 		size_t dataSize = sizeof(ExpData);
 		dataSize = (dataSize + 4095) & ~4095;
+		Xbyak::Label expDataL = L();
 		expData = (ExpData*)getCode();
 		expData->init();
 		setSize(dataSize);
-		exp_v_ = getCode<void (*)(float *, size_t)>();
-		genExp(*expData);
+		expf_v = getCurr<void (*)(float *, size_t)>();
+		genExp(expDataL);
+		setProtectModeRE();
 	}
-	void genExp(const ExpData& data)
+	~Code()
 	{
+		setProtectModeRW();
+	}
+	void genExp(const Xbyak::Label& expDataL)
+	{
+		using namespace Xbyak;
+		util::StackFrame sf(this, 2, 0, 64 * 9);
+		const Reg64& px = sf.p[0];
+		const Reg64& n = sf.p[1];
+
+		// prolog
+#ifdef XBYAK64_WIN
+		vmovups(ptr[rsp + 64 * 0], zm6);
+		vmovups(ptr[rsp + 64 * 1], zm7);
+#endif
+		for (int i = 2; i < 9; i++) {
+			vmovups(ptr[rsp + 64 * i], Zmm(i + 6));
+		}
+
+		// setup constant
+		const Zmm& i127 = zmm5;
+		const Zmm& minX = zmm6;
+		const Zmm& maxX = zmm7;
+		const Zmm& log2 = zmm8;
+		const Zmm& log2_e = zmm9;
+		const Zmm c[] = { zmm10, zmm11, zmm12, zmm13, zmm14 };
+		mov(eax, 127);
+		vpbroadcastd(i127, eax);
+		vpbroadcastd(minX, ptr[rip + expDataL + (int)offsetof(ExpData, minX)]);
+		vpbroadcastd(maxX, ptr[rip + expDataL + (int)offsetof(ExpData, maxX)]);
+		vpbroadcastd(log2, ptr[rip + expDataL + (int)offsetof(ExpData, log2)]);
+		vpbroadcastd(log2_e, ptr[rip + expDataL + (int)offsetof(ExpData, log2_e)]);
+		for (size_t i = 0; i < ExpData::TaylerN; i++) {
+			vpbroadcastd(c[i], ptr[rip + expDataL + (int)(offsetof(ExpData, c[0]) + sizeof(float) * i)]);
+		}
+
+		// main loop
+	Xbyak::Label lp = L();
+		vmovups(zm0, ptr[px]);
+		vmovups(ptr[px], zm0);
+
+		add(px, 64);
+		sub(n, 16);
+		jnz(lp, T_NEAR);
+
+		// epilog
+#ifdef XBYAK64_WIN
+		vmovups(zm6, ptr[rsp + 64 * 0]);
+		vmovups(zm7, ptr[rsp + 64 * 1]);
+#endif
+		for (int i = 2; i < 9; i++) {
+			vmovups(Zmm(i + 6), ptr[rsp + 64 * i]);
+		}
 	}
 };
 
@@ -109,7 +168,7 @@ inline float split(int *pn, float x)
 	return x - n;
 }
 
-inline float expC(float x)
+inline float expfC(float x)
 {
 	const local::ExpData& C = *local::C<>::code.expData;
 	x = std::min(x, C.maxX);
@@ -135,13 +194,17 @@ inline float expC(float x)
 	return x * fi.f;
 }
 
-inline void exp_vC(float *px, size_t n)
+inline void expf_vC(float *px, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
-		px[i] = expC(px[i]);
+		px[i] = expfC(px[i]);
 	}
 }
 
-void (*const exp_v)(float *px, size_t n) = local::C<>::code.exp_v_;
+inline void expf_v(float *px, size_t n)
+{
+printf("adr=%p\n", local::C<>::code.expf_v);
+	local::C<>::code.expf_v(px, n);
+}
 
 } // fmath2
