@@ -129,8 +129,24 @@ struct Code : public Xbyak::CodeGenerator {
 		// main loop
 	Xbyak::Label lp = L();
 		vmovups(zm0, ptr[px]);
-		vmovups(ptr[px], zm0);
+		vminps(zm0, maxX);
+		vmaxps(zm0, minX);
+		vmulps(zm0, log2_e);
+		vrndscaleps(zm1, zm0, 0); // n = floor(x)
+		vsubps(zm0, zm1); // a
+		vcvtps2dq(zm1, zm1);
+		vmulps(zm0, log2);
+		vpaddd(zm1, zm1, i127);
+		vpslld(zm1, zm1, 23); // fi.f
+		vmovaps(zm2, c[4]);
+		vfmadd213ps(zm2, zm0, c[3]);
+		vfmadd213ps(zm2, zm0, c[2]);
+		vfmadd213ps(zm2, zm0, c[1]);
+		vfmadd213ps(zm2, zm0, c[0]);
+		vfmadd213ps(zm2, zm0, c[0]);
+		vmulps(zm0, zm2, zm1);
 
+		vmovups(ptr[px], zm0);
 		add(px, 64);
 		sub(n, 16);
 		jnz(lp, T_NEAR);
@@ -171,26 +187,26 @@ inline float split(int *pn, float x)
 inline float expfC(float x)
 {
 	const local::ExpData& C = *local::C<>::code.expData;
-	x = std::min(x, C.maxX);
-	x = std::max(x, C.minX);
+	x = (std::min)(x, C.maxX);
+	x = (std::max)(x, C.minX);
 	x *= C.log2_e;
 	int n;
 	float a = split(&n, x);
 	/* |a| <= 0.5 */
-	float b = a * C.log2;
-	/* |b| <= 0.3466 */
+	a *= C.log2;
+	/* |a| <= 0.3466 */
 	local::fi fi;
 	fi.i = (n + 127) << 23; // 2^n
 	/*
-		e^b = 1 + b + b^2/2! + b^3/3! + b^4/4! + b^5/5!
-		= 1 + b(1 + b(1/2! + b(1/3! + b(1/4! + b/5!))))
+		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
+		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
 	*/
 	x = C.c[4];
-	x = b * x + C.c[3];
-	x = b * x + C.c[2];
-	x = b * x + C.c[1];
-	x = b * x + C.c[0];
-	x = b * x + C.c[0];
+	x = a * x + C.c[3];
+	x = a * x + C.c[2];
+	x = a * x + C.c[1];
+	x = a * x + C.c[0];
+	x = a * x + C.c[0];
 	return x * fi.f;
 }
 
@@ -203,8 +219,24 @@ inline void expf_vC(float *px, size_t n)
 
 inline void expf_v(float *px, size_t n)
 {
-printf("adr=%p\n", local::C<>::code.expf_v);
-	local::C<>::code.expf_v(px, n);
+	size_t n16 = n & ~size_t(15);
+	if (n16 > 0) {
+		local::C<>::code.expf_v(px, n16);
+	}
+	size_t n15 = n & 15;
+	if (n15 == 0) return;
+	px += n16;
+	float cp[16];
+	for (size_t i = 0; i < n15; i++) {
+		cp[i] = px[i];
+	}
+	for (size_t i = n15; i < 16; i++) {
+		cp[i] = 0; // clear is not necessary
+	}
+	local::C<>::code.expf_v(cp, 16);
+	for (size_t i = 0; i < n15; i++) {
+		px[i] = cp[i];
+	}
 }
 
 } // fmath2
