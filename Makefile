@@ -32,6 +32,9 @@ fastexp: fastexp.o
 avx2: avx2.cpp fmath.hpp
 	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
 
+exp_v: exp_v.cpp fmath2.hpp
+	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak
+
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
@@ -40,6 +43,9 @@ avx2: avx2.cpp fmath.hpp
 
 clean:
 	$(RM) *.o $(TARGET)
+
+test: exp_v
+	./exp_v
 
 bench.o: bench.cpp $(HEADER)
 fastexp.o: fastexp.cpp $(HEADER)
