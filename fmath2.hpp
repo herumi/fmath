@@ -80,7 +80,7 @@ struct Code : public Xbyak::CodeGenerator {
 			exit(1);
 		}
 		size_t dataSize = sizeof(ExpData);
-		dataSize = (dataSize + 4095) & ~4095;
+		dataSize = (dataSize + 4095) & ~size_t(4095);
 		Xbyak::Label expDataL = L();
 		expData = (ExpData*)getCode();
 		expData->init();
