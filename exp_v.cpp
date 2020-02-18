@@ -75,7 +75,7 @@ CYBOZU_TEST_AUTO(bench)
 	z.resize(n);
 	const size_t C = 10000;
 	for (size_t i = 0; i < n; i++) {
-		x[i] = sin(i / double(n) * 3) * 20;
+		x[i] = sin(i / double(n) * 7) * 20;
 	}
 	CYBOZU_BENCH_C("std_exp_v", C, copy_exp, y, x, std_exp_v);
 	CYBOZU_BENCH_C("expf_vC", C, copy_exp, z, x, fmath2::expf_vC);
