@@ -69,6 +69,7 @@ s:=eval(sols,L=log(2)/2);
 evalf(s,20);
 */
 struct Code : public Xbyak::CodeGenerator {
+	typedef Xbyak::Zmm Zmm;
 	Xbyak::util::Cpu cpu;
 	ExpData *expData;
 	void (*expf_v)(float *, size_t);
@@ -92,6 +93,25 @@ struct Code : public Xbyak::CodeGenerator {
 	~Code()
 	{
 		setProtectModeRW();
+	}
+	void genOneExp(const Zmm& i127, const Zmm& minX, const Zmm& maxX, const Zmm& log2, const Zmm& log2_e, const Zmm *c)
+	{
+		vminps(zm0, maxX);
+		vmaxps(zm0, minX);
+		vmulps(zm0, log2_e);
+		vrndscaleps(zm1, zm0, 0); // n = floor(x)
+		vsubps(zm0, zm1); // a
+		vcvtps2dq(zm1, zm1);
+		vmulps(zm0, log2);
+		vpaddd(zm1, zm1, i127);
+		vpslld(zm1, zm1, 23); // fi.f
+		vmovaps(zm2, c[4]);
+		vfmadd213ps(zm2, zm0, c[3]);
+		vfmadd213ps(zm2, zm0, c[2]);
+		vfmadd213ps(zm2, zm0, c[1]);
+		vfmadd213ps(zm2, zm0, c[0]);
+		vfmadd213ps(zm2, zm0, c[0]);
+		vmulps(zm0, zm2, zm1);
 	}
 	void genExp(const Xbyak::Label& expDataL)
 	{
@@ -128,29 +148,26 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 
 		// main loop
-	Xbyak::Label lp = L();
+		Label lt16;
+		cmp(n, 16);
+		jl(lt16, T_NEAR);
+	Label lp = L();
 		vmovups(zm0, ptr[px]);
-		vminps(zm0, maxX);
-		vmaxps(zm0, minX);
-		vmulps(zm0, log2_e);
-		vrndscaleps(zm1, zm0, 0); // n = floor(x)
-		vsubps(zm0, zm1); // a
-		vcvtps2dq(zm1, zm1);
-		vmulps(zm0, log2);
-		vpaddd(zm1, zm1, i127);
-		vpslld(zm1, zm1, 23); // fi.f
-		vmovaps(zm2, c[4]);
-		vfmadd213ps(zm2, zm0, c[3]);
-		vfmadd213ps(zm2, zm0, c[2]);
-		vfmadd213ps(zm2, zm0, c[1]);
-		vfmadd213ps(zm2, zm0, c[0]);
-		vfmadd213ps(zm2, zm0, c[0]);
-		vmulps(zm0, zm2, zm1);
-
+		genOneExp(i127, minX, maxX, log2, log2_e, c);
 		vmovups(ptr[px], zm0);
 		add(px, 64);
 		sub(n, 16);
-		jnz(lp, T_NEAR);
+		cmp(n, 16);
+		jge(lp, T_NEAR);
+	L(lt16);
+		mov(ecx, n);
+		mov(eax, 1);
+		shl(eax, cl);
+		sub(eax, 1);
+		kmovd(k1, eax);
+		vmovups(zm0|k1|T_z, ptr[px]);
+		genOneExp(i127, minX, maxX, log2, log2_e, c);
+		vmovups(ptr[px]|k1, zm0|k1);
 
 		// epilog
 #ifdef XBYAK64_WIN
@@ -220,25 +237,7 @@ inline void expf_vC(float *px, size_t n)
 
 inline void expf_v(float *px, size_t n)
 {
-	const size_t N = 32;
-	size_t rn = n & ~size_t(N - 1);
-	if (rn > 0) {
-		local::C<>::code.expf_v(px, rn);
-	}
-	size_t remain = n & (N - 1);
-	if (remain == 0) return;
-	px += rn;
-	float cp[N];
-	for (size_t i = 0; i < remain; i++) {
-		cp[i] = px[i];
-	}
-	for (size_t i = remain; i < N; i++) {
-		cp[i] = 0; // clear is not necessary
-	}
-	local::C<>::code.expf_v(cp, N);
-	for (size_t i = 0; i < remain; i++) {
-		px[i] = cp[i];
-	}
+	local::C<>::code.expf_v(px, n);
 }
 
 } // fmath2
