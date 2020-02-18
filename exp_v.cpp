@@ -13,6 +13,8 @@ float diff(float x, float y)
 CYBOZU_TEST_AUTO(diff)
 {
 	float maxe = 0;
+	double ave = 0;
+	int aveN = 0;
 	for (float x = -30; x < 30; x += 1e-5) {
 		float y1 = fmath2::expfC(x);
 		float y2 = std::exp(x);
@@ -20,8 +22,11 @@ CYBOZU_TEST_AUTO(diff)
 		if (e > maxe) {
 			maxe = e;
 		}
+		ave += e;
+		aveN++;
 	}
 	printf("maxe=%e\n", maxe);
+	printf("ave=%e\n", ave / aveN);
 	g_maxe = maxe;
 }
 

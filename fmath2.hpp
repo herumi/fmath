@@ -95,8 +95,9 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	void genExp(const Xbyak::Label& expDataL)
 	{
+		const int keepRegN = 7;
 		using namespace Xbyak;
-		util::StackFrame sf(this, 2, 0, 64 * 9);
+		util::StackFrame sf(this, 2, 0, 64 * keepRegN);
 		const Reg64& px = sf.p[0];
 		const Reg64& n = sf.p[1];
 
@@ -105,17 +106,17 @@ struct Code : public Xbyak::CodeGenerator {
 		vmovups(ptr[rsp + 64 * 0], zm6);
 		vmovups(ptr[rsp + 64 * 1], zm7);
 #endif
-		for (int i = 2; i < 9; i++) {
+		for (int i = 2; i < keepRegN; i++) {
 			vmovups(ptr[rsp + 64 * i], Zmm(i + 6));
 		}
 
 		// setup constant
-		const Zmm& i127 = zmm5;
-		const Zmm& minX = zmm6;
-		const Zmm& maxX = zmm7;
-		const Zmm& log2 = zmm8;
-		const Zmm& log2_e = zmm9;
-		const Zmm c[] = { zmm10, zmm11, zmm12, zmm13, zmm14 };
+		const Zmm& i127 = zmm3;
+		const Zmm& minX = zmm4;
+		const Zmm& maxX = zmm5;
+		const Zmm& log2 = zmm6;
+		const Zmm& log2_e = zmm7;
+		const Zmm c[] = { zmm8, zmm9, zmm10, zmm11, zmm12 };
 		mov(eax, 127);
 		vpbroadcastd(i127, eax);
 		vpbroadcastd(minX, ptr[rip + expDataL + (int)offsetof(ExpData, minX)]);
@@ -156,7 +157,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vmovups(zm6, ptr[rsp + 64 * 0]);
 		vmovups(zm7, ptr[rsp + 64 * 1]);
 #endif
-		for (int i = 2; i < 9; i++) {
+		for (int i = 2; i < keepRegN; i++) {
 			vmovups(Zmm(i + 6), ptr[rsp + 64 * i]);
 		}
 	}
@@ -219,22 +220,23 @@ inline void expf_vC(float *px, size_t n)
 
 inline void expf_v(float *px, size_t n)
 {
-	size_t n16 = n & ~size_t(15);
-	if (n16 > 0) {
-		local::C<>::code.expf_v(px, n16);
+	const size_t N = 32;
+	size_t rn = n & ~size_t(N - 1);
+	if (rn > 0) {
+		local::C<>::code.expf_v(px, rn);
 	}
-	size_t n15 = n & 15;
-	if (n15 == 0) return;
-	px += n16;
-	float cp[16];
-	for (size_t i = 0; i < n15; i++) {
+	size_t remain = n & (N - 1);
+	if (remain == 0) return;
+	px += rn;
+	float cp[N];
+	for (size_t i = 0; i < remain; i++) {
 		cp[i] = px[i];
 	}
-	for (size_t i = n15; i < 16; i++) {
+	for (size_t i = remain; i < N; i++) {
 		cp[i] = 0; // clear is not necessary
 	}
-	local::C<>::code.expf_v(cp, 16);
-	for (size_t i = 0; i < n15; i++) {
+	local::C<>::code.expf_v(cp, N);
+	for (size_t i = 0; i < remain; i++) {
 		px[i] = cp[i];
 	}
 }
