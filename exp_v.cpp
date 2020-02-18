@@ -71,6 +71,35 @@ void std_exp_v(float *px, size_t n)
 	}
 }
 
+// return address which can be wrriten 64 byte
+float *getBoundary()
+{
+	const int size = 4096;
+	static MIE_ALIGN(4096) uint8_t top[size * 3];
+	float *base = (float*)(top + size - 64);
+	bool isOK = Xbyak::CodeArray::protect(top + size, size, Xbyak::CodeArray::PROTECT_RE);
+	CYBOZU_TEST_ASSERT(isOK);
+	return base;
+}
+
+CYBOZU_TEST_AUTO(boundary)
+{
+	float y0[16];
+	float *base = getBoundary();
+	// can't write base[16]
+	for (int i = 0; i < 16; i++) {
+		float *y1 = base + i;
+		for (int j = 0; j < 16 - i; j++) {
+			y0[j] = float(j);
+			y1[j] = y0[j];
+		}
+		int n = 16 - i;
+		fmath2::expf_vC(y0, n);
+		fmath2::expf_v(y1, n);
+		checkDiff(y0, y1, n);
+	}
+}
+
 CYBOZU_TEST_AUTO(bench)
 {
 	Fvec x, y, z;

@@ -94,7 +94,9 @@ struct Code : public Xbyak::CodeGenerator {
 	{
 		setProtectModeRW();
 	}
-	void genOneExp(const Zmm& i127, const Zmm& minX, const Zmm& maxX, const Zmm& log2, const Zmm& log2_e, const Zmm *c)
+	// zm0 = exp(zm0)
+	// use zm0, zm1, zm2
+	void genOneExp(const Zmm& i127, const Zmm& minX, const Zmm& maxX, const Zmm& log2, const Zmm& log2_e, const Zmm c[5])
 	{
 		vminps(zm0, maxX);
 		vmaxps(zm0, minX);
