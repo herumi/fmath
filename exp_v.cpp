@@ -115,3 +115,16 @@ CYBOZU_TEST_AUTO(bench)
 	CYBOZU_BENCH_C("expf_v  ", C, fmath2::expf_v, &y1[0], &x[0], n);
 	checkDiff(y0.data(), y1.data(), n);
 }
+
+CYBOZU_TEST_AUTO(limit)
+{
+	const size_t n = 4;
+	float x[n] = { -100, -80, 80, 100 };
+	float y0[n];
+	float y1[n];
+	std_exp_v(y0, x, n);
+	fmath2::expf_v(y1, x, n);
+	for (size_t i = 0; i < n; i++) {
+		printf("x=%e std=%e fmath2=%e\n", x[i], y0[i], y1[i]);
+	}
+}
