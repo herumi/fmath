@@ -30,44 +30,40 @@ CYBOZU_TEST_AUTO(diff)
 	g_maxe = maxe;
 }
 
-void checkDiff(const float *x, const float *y, size_t n)
+void checkDiff(const float *x, const float *y, size_t n, bool put = false)
 {
 	for (size_t i = 0; i < n; i++) {
 		float d = diff(x[i], y[i]);
-		CYBOZU_TEST_ASSERT(d <= g_maxe);
+		if (put) {
+			if (d > g_maxe) {
+				printf("err n=%zd, i=%zd x=%e y=%e\n", n, i, x[i], y[i]);
+			}
+		} else {
+			CYBOZU_TEST_ASSERT(d <= g_maxe);
+		}
 	}
 }
 
 CYBOZU_TEST_AUTO(expf_v)
 {
 	const size_t n = 300;
-	float y0[n];
+	float x[n];
 	float y1[n];
 	float y2[n];
 	for (size_t i = 0; i < n; i++) {
-		float x = float((i - n/2.0) / n * 20);
-		y0[i] = x;
-		y1[i] = x;
-		y2[i] = x;
+		x[i] = float((i - n/2.0) / n * 20);
 	}
-	fmath2::expf_vC(y1, n);
-	fmath2::expf_v(y2, n);
+	fmath2::expf_vC(y1, x, n);
+	fmath2::expf_v(y2, x, n);
 	checkDiff(y1, y2, n);
 }
 
 typedef std::vector<float> Fvec;
 
-template<class F>
-void copy_exp(Fvec& out, const Fvec& in, const F& f)
-{
-	out = in;
-	f(&out[0], out.size());
-}
-
-void std_exp_v(float *px, size_t n)
+void std_exp_v(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
-		px[i] = std::exp(px[i]);
+		dst[i] = std::exp(src[i]);
 	}
 }
 
@@ -84,36 +80,38 @@ float *getBoundary()
 
 CYBOZU_TEST_AUTO(boundary)
 {
+	float x[16];
 	float y0[16];
+	for (int i = 0; i < 16; i++) {
+		x[i] = i / 8.0f;
+	}
 	float *base = getBoundary();
 	// can't write base[16]
 	for (int i = 0; i < 16; i++) {
 		float *y1 = base + i;
-		for (int j = 0; j < 16 - i; j++) {
-			y0[j] = float(j);
-			y1[j] = y0[j];
-		}
 		int n = 16 - i;
-		fmath2::expf_vC(y0, n);
-		fmath2::expf_v(y1, n);
+		fmath2::expf_vC(y0, x, n);
+		fmath2::expf_v(y1, x, n);
 		checkDiff(y0, y1, n);
 	}
 }
 
 CYBOZU_TEST_AUTO(bench)
 {
-	Fvec x, y, z;
+	Fvec x, y0, y1;
 	const size_t n = 3000;
 	x.resize(n);
-	y.resize(n);
-	z.resize(n);
+	y0.resize(n);
+	y1.resize(n);
 	const size_t C = 10000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = sin(i / double(n) * 7) * 20;
 	}
-	CYBOZU_BENCH_C("std_exp_v", C, copy_exp, y, x, std_exp_v);
-	CYBOZU_BENCH_C("expf_vC", C, copy_exp, z, x, fmath2::expf_vC);
-	checkDiff(y.data(), z.data(), n);
-	CYBOZU_BENCH_C("expf_v", C, copy_exp, z, x, fmath2::expf_v);
-	checkDiff(y.data(), z.data(), n);
+	CYBOZU_BENCH_C("std_exp_v", C, std_exp_v, &y0[0], &x[0], n);
+	CYBOZU_BENCH_C("expf_v  C", C, fmath2::expf_vC, &y1[0], &x[0], n);
+	checkDiff(y0.data(), y1.data(), n);
+	y1.clear();
+	y1.resize(n);
+	CYBOZU_BENCH_C("expf_v  ", C, fmath2::expf_v, &y1[0], &x[0], n);
+	checkDiff(y0.data(), y1.data(), n);
 }

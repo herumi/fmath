@@ -72,7 +72,8 @@ struct Code : public Xbyak::CodeGenerator {
 	typedef Xbyak::Zmm Zmm;
 	Xbyak::util::Cpu cpu;
 	ConstVar *constVar;
-	void (*expf_v)(float *, size_t);
+	typedef void (*VecFunc)(float *dst, const float *src, size_t n);
+	VecFunc expf_v;
 	Code()
 		: Xbyak::CodeGenerator(4096 * 2, Xbyak::DontSetProtectRWE)
 	{
@@ -86,7 +87,7 @@ struct Code : public Xbyak::CodeGenerator {
 		constVar = (ConstVar*)getCode();
 		constVar->init();
 		setSize(dataSize);
-		expf_v = getCurr<void (*)(float *, size_t)>();
+		expf_v = getCurr<VecFunc>();
 		genExp(expDataL);
 		setProtectModeRE();
 	}
@@ -115,13 +116,15 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmadd213ps(zm2, zm0, expCoeff[0]);
 		vmulps(zm0, zm2, zm1);
 	}
+	// exp_v(float *dst, const float *src, size_t n);
 	void genExp(const Xbyak::Label& expDataL)
 	{
 		const int keepRegN = 7;
 		using namespace Xbyak;
-		util::StackFrame sf(this, 2, 0, 64 * keepRegN);
-		const Reg64& px = sf.p[0];
-		const Reg64& n = sf.p[1];
+		util::StackFrame sf(this, 3, util::UseRCX, 64 * keepRegN);
+		const Reg64& dst = sf.p[0];
+		const Reg64& src = sf.p[1];
+		const Reg64& n = sf.p[2];
 
 		// prolog
 #ifdef XBYAK64_WIN
@@ -154,22 +157,23 @@ struct Code : public Xbyak::CodeGenerator {
 		cmp(n, 16);
 		jl(lt16, T_NEAR);
 	Label lp = L();
-		vmovups(zm0, ptr[px]);
+		vmovups(zm0, ptr[src]);
+		add(src, 64);
 		genOneExp(i127, expMin, expMax, log2, log2_e, expCoeff);
-		vmovups(ptr[px], zm0);
-		add(px, 64);
+		vmovups(ptr[dst], zm0);
+		add(dst, 64);
 		sub(n, 16);
 		cmp(n, 16);
-		jge(lp, T_NEAR);
+		jge(lp);
 	L(lt16);
 		mov(ecx, n);
 		mov(eax, 1);
 		shl(eax, cl);
 		sub(eax, 1);
 		kmovd(k1, eax);
-		vmovups(zm0|k1|T_z, ptr[px]);
+		vmovups(zm0|k1|T_z, ptr[src]);
 		genOneExp(i127, expMin, expMax, log2, log2_e, expCoeff);
-		vmovups(ptr[px]|k1, zm0|k1);
+		vmovups(ptr[dst]|k1, zm0|k1);
 
 		// epilog
 #ifdef XBYAK64_WIN
@@ -230,16 +234,16 @@ inline float expfC(float x)
 	return x * fi.f;
 }
 
-inline void expf_vC(float *px, size_t n)
+inline void expf_vC(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
-		px[i] = expfC(px[i]);
+		dst[i] = expfC(src[i]);
 	}
 }
 
-inline void expf_v(float *px, size_t n)
+inline void expf_v(float *dst, const float *src, size_t n)
 {
-	local::Inst<>::code.expf_v(px, n);
+	local::Inst<>::code.expf_v(dst, src, n);
 }
 
 } // fmath2
