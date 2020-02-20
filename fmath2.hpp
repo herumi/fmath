@@ -102,7 +102,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vminps(zm0, expMax);
 		vmaxps(zm0, expMin);
 		vmulps(zm0, log2_e);
-#if 0
+#if 1
 		// a little faster if we can assume nearest round mode
 		vcvtps2dq(zm1, zm0);
 		vcvtdq2ps(zm2, zm1);
