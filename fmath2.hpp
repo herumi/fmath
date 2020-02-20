@@ -153,9 +153,11 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 
 		// main loop
-		Label lt16;
-		cmp(n, 16);
-		jl(lt16, T_NEAR);
+		Label mod16, exit;
+		mov(ecx, n);
+		and_(n, ~15);
+		jz(mod16);
+		align(16);
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
@@ -163,10 +165,10 @@ struct Code : public Xbyak::CodeGenerator {
 		vmovups(ptr[dst], zm0);
 		add(dst, 64);
 		sub(n, 16);
-		cmp(n, 16);
-		jge(lp);
-	L(lt16);
-		mov(ecx, n);
+		jnz(lp);
+	L(mod16);
+		and_(ecx, 15);
+		jz(exit);
 		mov(eax, 1);
 		shl(eax, cl);
 		sub(eax, 1);
@@ -174,7 +176,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vmovups(zm0|k1|T_z, ptr[src]);
 		genOneExp(i127, expMin, expMax, log2, log2_e, expCoeff);
 		vmovups(ptr[dst]|k1, zm0|k1);
-
+	L(exit);
 		// epilog
 #ifdef XBYAK64_WIN
 		vmovups(zm6, ptr[rsp + 64 * 0]);
