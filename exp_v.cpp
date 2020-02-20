@@ -10,20 +10,15 @@ float diff(float x, float y)
 	return std::abs(x - y) / x;
 }
 
-CYBOZU_TEST_AUTO(diff)
+float putDiff(float begin, float end, float step)
 {
 	float maxe = 0;
-	float maxDiff = 0;
 	double ave = 0;
 	int aveN = 0;
-	for (float x = -30; x < 30; x += 1e-5) {
+	for (float x = begin; x < end; x += step) {
 		float y1 = fmath2::expfC(x);
 		float y2 = std::exp(x);
 		float e;
-		e = std::abs(y1 - y2);
-		if (e > maxDiff) {
-			maxDiff = e;
-		}
 		e = diff(y1, y2);
 		if (e > maxe) {
 			maxe = e;
@@ -31,10 +26,16 @@ CYBOZU_TEST_AUTO(diff)
 		ave += e;
 		aveN++;
 	}
+	printf("range [%e, %e] step=%e\n", begin, end, step);
 	printf("maxe=%e\n", maxe);
 	printf("ave=%e\n", ave / aveN);
-	printf("maxDiff=%e\n", maxDiff);
-	g_maxe = maxe;
+	return maxe;
+}
+
+CYBOZU_TEST_AUTO(setMaxE)
+{
+	putDiff(-10, 10, 0.5);
+	g_maxe = putDiff(-30, 30, 1e-5);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
