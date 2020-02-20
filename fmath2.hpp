@@ -151,12 +151,14 @@ struct Code : public Xbyak::CodeGenerator {
 		const Zmm expCoeff[] = { zmm8, zmm9, zmm10, zmm11, zmm12 };
 		mov(eax, 127);
 		vpbroadcastd(i127, eax);
-		vpbroadcastd(expMin, ptr[rip + expDataL + (int)offsetof(ConstVar, expMin)]);
-		vpbroadcastd(expMax, ptr[rip + expDataL + (int)offsetof(ConstVar, expMax)]);
-		vpbroadcastd(log2, ptr[rip + expDataL + (int)offsetof(ConstVar, log2)]);
-		vpbroadcastd(log2_e, ptr[rip + expDataL + (int)offsetof(ConstVar, log2_e)]);
+
+		lea(rax, ptr[rip+expDataL]);
+		vpbroadcastd(expMin, ptr[rax + offsetof(ConstVar, expMin)]);
+		vpbroadcastd(expMax, ptr[rax + offsetof(ConstVar, expMax)]);
+		vpbroadcastd(log2, ptr[rax + offsetof(ConstVar, log2)]);
+		vpbroadcastd(log2_e, ptr[rax + offsetof(ConstVar, log2_e)]);
 		for (size_t i = 0; i < ConstVar::TaylerN; i++) {
-			vpbroadcastd(expCoeff[i], ptr[rip + expDataL + (int)(offsetof(ConstVar, expCoeff[0]) + sizeof(float) * i)]);
+			vpbroadcastd(expCoeff[i], ptr[rax + offsetof(ConstVar, expCoeff[0]) + sizeof(float) * i]);
 		}
 
 		// main loop
@@ -164,7 +166,6 @@ struct Code : public Xbyak::CodeGenerator {
 		mov(ecx, n);
 		and_(n, ~15);
 		jz(mod16);
-		align(16);
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
