@@ -16,7 +16,7 @@ float putDiff(float begin, float end, float step)
 	double ave = 0;
 	int aveN = 0;
 	for (float x = begin; x < end; x += step) {
-		float y1 = fmath2::expfC(x);
+		float y1 = fmath::expfC(x);
 		float y2 = std::exp(x);
 		float e;
 		e = diff(y1, y2);
@@ -61,8 +61,8 @@ CYBOZU_TEST_AUTO(expf_v)
 	for (size_t i = 0; i < n; i++) {
 		x[i] = float((i - n/2.0) / n * 20);
 	}
-	fmath2::expf_vC(y1, x, n);
-	fmath2::expf_v(y2, x, n);
+	fmath::expf_vC(y1, x, n);
+	fmath::expf_v(y2, x, n);
 	checkDiff(y1, y2, n);
 }
 
@@ -98,8 +98,8 @@ CYBOZU_TEST_AUTO(boundary)
 	for (int i = 0; i < 16; i++) {
 		float *y1 = base + i;
 		int n = 16 - i;
-		fmath2::expf_vC(y0, x, n);
-		fmath2::expf_v(y1, x, n);
+		fmath::expf_vC(y0, x, n);
+		fmath::expf_v(y1, x, n);
 		checkDiff(y0, y1, n);
 	}
 }
@@ -117,11 +117,11 @@ CYBOZU_TEST_AUTO(bench)
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("std_exp_v", C, std_exp_v, &y0[0], &x[0], n);
-	CYBOZU_BENCH_C("expf_v  C", C, fmath2::expf_vC, &y1[0], &x[0], n);
+	CYBOZU_BENCH_C("expf_v  C", C, fmath::expf_vC, &y1[0], &x[0], n);
 	checkDiff(y0.data(), y1.data(), n);
 	y1.clear();
 	y1.resize(n);
-	CYBOZU_BENCH_C("expf_v  ", C, fmath2::expf_v, &y1[0], &x[0], n);
+	CYBOZU_BENCH_C("expf_v  ", C, fmath::expf_v, &y1[0], &x[0], n);
 	checkDiff(y0.data(), y1.data(), n);
 }
 
@@ -132,7 +132,7 @@ CYBOZU_TEST_AUTO(limit)
 	float y0[n];
 	float y1[n];
 	std_exp_v(y0, x, n);
-	fmath2::expf_v(y1, x, n);
+	fmath::expf_v(y1, x, n);
 	for (size_t i = 0; i < n; i++) {
 		printf("x=%e std=%e fmath2=%e\n", x[i], y0[i], y1[i]);
 	}

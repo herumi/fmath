@@ -7,7 +7,7 @@
 #include <xbyak/xbyak_util.h>
 #include <cmath>
 
-namespace fmath2 {
+namespace fmath {
 
 namespace local {
 
