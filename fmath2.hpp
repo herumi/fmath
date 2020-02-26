@@ -234,7 +234,7 @@ struct Code : public Xbyak::CodeGenerator {
 		assert(!(out == in && in == t));
 		/*
 			t = rcp(x)
-			1/x = -(x t^2 - 2t)
+			-1/x = -(x t^2 - 2t)
 		*/
 		vrcp14ps(out, in);
 		vaddps(t, out, out);
