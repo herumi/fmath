@@ -69,7 +69,7 @@ struct ConstVar {
 			0.1505016409143539640686624507163,
 		};
 		for (size_t i = 0; i < logN; i++) {
-			logCoeff[i] = logTbl[i];
+			logCoeff[i] = logTbl[i] * 2;
 		}
 	}
 };
@@ -242,15 +242,14 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmadd213ps(zm1, log2, log2div2); // e
 
 		vsubps(zm0, zm0, sqrt2); // y - sqrt2
-		vmulps(zm0, zm0, t1); // a
-		vmulps(t1, zm0, zm0); // b
-		vmovaps(zm2, logCoeff[3]);
-		vfmadd213ps(zm2, t1, logCoeff[2]);
-		vfmadd213ps(zm2, t1, logCoeff[1]);
-		vfmadd213ps(zm2, t1, logCoeff[0]);
-		vmulps(zm2, zm2, zm0);
-		vaddps(zm2, zm2, zm2);
-		vaddps(zm0, zm2, zm1);
+
+		vmulps(zm2, zm0, t1); // a
+		vmulps(t1, zm2, zm2); // b
+		vmovaps(zm0, logCoeff[3]);
+		vfmadd213ps(zm0, t1, logCoeff[2]);
+		vfmadd213ps(zm0, t1, logCoeff[1]);
+		vfmadd213ps(zm0, t1, logCoeff[0]);
+		vfmadd213ps(zm0, zm2, zm1);
 	}
 	// log_v(float *dst, const float *src, size_t n);
 	void genLog(const Xbyak::Label& constVarL)
@@ -405,7 +404,6 @@ inline float logfC(float x)
 	x = b * x + C.logCoeff[1];
 	x = b * x + C.logCoeff[0];
 	x *= a;
-	x += x;
 	x += e;
 	return x;
 }
