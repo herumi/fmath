@@ -34,6 +34,8 @@ avx2: avx2.cpp fmath.hpp
 
 exp_v: exp_v.cpp fmath2.hpp
 	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak
+log_v: log_v.cpp fmath2.hpp
+	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
