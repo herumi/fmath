@@ -214,6 +214,7 @@ struct Code : public Xbyak::CodeGenerator {
 			vmovups(Zmm(i + 6), ptr[rsp + 64 * i]);
 		}
 	}
+	// out = 1/in
 	void inverse(const Zmm& out, const Zmm& in, const Zmm& t)
 	{
 		assert(!(out == in && in == t));
@@ -227,6 +228,19 @@ struct Code : public Xbyak::CodeGenerator {
 		vmulps(t, t, in);
 		vsubps(out, out, t);
 	}
+	// out = -1/in
+	void inverseNeg(const Zmm& out, const Zmm& in, const Zmm& t)
+	{
+		assert(!(out == in && in == t));
+		/*
+			t = rcp(x)
+			1/x = -(x t^2 - 2t)
+		*/
+		vrcp14ps(out, in);
+		vaddps(t, out, out);
+		vmulps(out, out, out);
+		vfmsub213ps(out, in, t);
+	}
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
 	void genLogOne(const Zmm& t1, const Zmm& t2, const Zmm& i127shl23, const Zmm& x7fffff, const Zmm& sqrt2, const Zmm& log2, const Zmm& log2div2, const Zmm *logCoeff)
@@ -238,12 +252,12 @@ struct Code : public Xbyak::CodeGenerator {
 		vpord(zm0, zm0, i127shl23); // y
 
 		vaddps(zm2, zm0, sqrt2); // y + sqrt2
-		inverse(t1, zm2, t2);
+		inverseNeg(t1, zm2, t2); // t1 = -1/zm2
 		vfmadd213ps(zm1, log2, log2div2); // e
 
-		vsubps(zm0, zm0, sqrt2); // y - sqrt2
+		vsubps(zm0, sqrt2, zm0); // sqrt2 - y
 
-		vmulps(zm2, zm0, t1); // a
+		vmulps(zm2, zm0, t1); // a = (y - sqrt2) / (y + sqrt2)
 		vmulps(t1, zm2, zm2); // b
 		vmovaps(zm0, logCoeff[3]);
 		vfmadd213ps(zm0, t1, logCoeff[2]);
