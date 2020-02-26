@@ -24,12 +24,12 @@ inline float cvt(uint32_t x)
 }
 
 struct ConstVar {
-	static const size_t TaylerN = 5;
+	static const size_t expN = 5;
 	float expMin; // exp(expMin) = 0
 	float expMax; // exp(expMax) = inf
 	float log2; // log(2)
 	float log2_e; // log_2(e) = 1 / log2
-	float expCoeff[TaylerN]; // near to 1/(i + 1)!
+	float expCoeff[expN]; // near to 1/(i + 1)!
 	void init()
 	{
 		expMin = cvt(0xc2aeac50);
@@ -39,20 +39,20 @@ struct ConstVar {
 #if 0
 		// maxe=4.888831e-06
 		float z = 1;
-		for (size_t i = 0; i < TaylerN; i++) {
+		for (size_t i = 0; i < expN; i++) {
 			expCoeff[i] = z;
 			z /= (i + 2);
 		}
 #else
 		// maxe=1.938668e-06
-		const uint32_t tbl[TaylerN] = {
+		const uint32_t tbl[expN] = {
 			0x3f800000,
 			0x3effff12,
 			0x3e2aaa56,
 			0x3d2b89cc,
 			0x3c091331,
 		};
-		for (size_t i = 0; i < TaylerN; i++) {
+		for (size_t i = 0; i < expN; i++) {
 			expCoeff[i] = cvt(tbl[i]);
 		}
 #endif
@@ -157,7 +157,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vpbroadcastd(expMax, ptr[rax + offsetof(ConstVar, expMax)]);
 		vpbroadcastd(log2, ptr[rax + offsetof(ConstVar, log2)]);
 		vpbroadcastd(log2_e, ptr[rax + offsetof(ConstVar, log2_e)]);
-		for (size_t i = 0; i < ConstVar::TaylerN; i++) {
+		for (size_t i = 0; i < ConstVar::expN; i++) {
 			vpbroadcastd(expCoeff[i], ptr[rax + offsetof(ConstVar, expCoeff[0]) + sizeof(float) * i]);
 		}
 
