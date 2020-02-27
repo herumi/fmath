@@ -36,6 +36,7 @@ float putDiff(float begin, float end, float step)
 
 CYBOZU_TEST_AUTO(setMaxE)
 {
+	putDiff(1, 2, 1e-6);
 	putDiff(1e-7, 4, 0.1);
 	g_maxe = putDiff(1e-6, 4, 1e-6);
 }
@@ -92,11 +93,11 @@ void std_log_v(float *dst, const float *src, size_t n)
 CYBOZU_TEST_AUTO(bench)
 {
 	Fvec x, y0, y1;
-	const size_t n = 3000;
+	const size_t n = 1024 * 16;
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const size_t C = 10000;
+	const size_t C = 100000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
