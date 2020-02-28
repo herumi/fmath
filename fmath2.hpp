@@ -25,14 +25,15 @@ inline float cvt(uint32_t x)
 
 struct ConstVar {
 	static const size_t expN = 5;
-	static const size_t logN = 4;
+	static const size_t logN = 9;
 	float expMin; // exp(expMin) = 0
 	float expMax; // exp(expMax) = inf
 	float log2; // log(2)
 	float log2_e; // log_2(e) = 1 / log2
 	float expCoeff[expN]; // near to 1/(i + 1)!
-	float log2div2; // log(2)/2
-	float sqrt2;
+	//
+	float log1p5; // log(1.5)
+	float f2div3; // 2/3
 	float logCoeff[logN];
 	void init()
 	{
@@ -40,8 +41,8 @@ struct ConstVar {
 		expMax = cvt(0x42b17218);
 		log2 = std::log(2.0f);
 		log2_e = 1.0f / log2;
-		log2div2 = log2 / 2;
-		sqrt2 = std::sqrt(2.0f);
+		log1p5 = std::log(1.5f);
+		f2div3 = 2.0f/3;
 #if 0
 		// maxe=4.888831e-06
 		float z = 1;
@@ -63,13 +64,18 @@ struct ConstVar {
 		}
 #endif
 		const float logTbl[logN] = {
-			0.9999999968719069552145263001550,
-			0.3333347422539786943017443341906,
-			0.1998289745987578035122400619786,
-			0.1505016409143539640686624507163,
+			 1.0, // must be 1
+			-0.4999989349263440705336,
+			 0.333331748522807408888,
+			-0.250098233320984520093,
+			 0.2001203496317802082,
+			-0.1638934172494609701,
+			 0.139867127701942415,
+			-.1549358351787812319,
+			 0.14052780094817488,
 		};
 		for (size_t i = 0; i < logN; i++) {
-			logCoeff[i] = logTbl[i] * 2;
+			logCoeff[i] = logTbl[i];
 		}
 	}
 };
@@ -243,7 +249,7 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
-	void genLogOne(const Zmm& t1, const Zmm& t2, const Zmm& i127shl23, const Zmm& x7fffff, const Zmm& sqrt2, const Zmm& log2, const Zmm& log2div2, const Zmm *logCoeff)
+	void genLogOne(const Zmm& x0, const Zmm& x1, const Zmm& i127shl23, const Zmm& x7fffff, const Zmm& log2, const Zmm& log1p5, const Zmm& f2div3, const Zmm *logCoeff)
 	{
 		vpsubd(zm1, zm0, i127shl23);
 		vpsrad(zm1, zm1, 23); // e
@@ -251,24 +257,35 @@ struct Code : public Xbyak::CodeGenerator {
 		vpandd(zm0, zm0, x7fffff);
 		vpord(zm0, zm0, i127shl23); // y
 
-		vaddps(zm2, zm0, sqrt2); // y + sqrt2
-		inverseNeg(t1, zm2, t2); // t1 = -1/zm2
-		vfmadd213ps(zm1, log2, log2div2); // e
+		vfmsub213ps(zm0, f2div3, logCoeff[0]); // a
+		vfmadd213ps(zm1, log2, log1p5); // e
+#if 0
+		vmulps(zm2, zm0, zm0); // aa
+		vmovaps(x0, logCoeff[8]);
+		vmovaps(x1, logCoeff[7]);
+		vfmadd213ps(x0, zm2, logCoeff[6]);
+		vfmadd213ps(x1, zm2, logCoeff[5]);
+		vfmadd213ps(x0, zm2, logCoeff[4]);
+		vfmadd213ps(x1, zm2, logCoeff[3]);
+		vfmadd213ps(x0, zm2, logCoeff[2]);
+		vfmadd213ps(x1, zm2, logCoeff[1]);
+		vfmadd213ps(x0, zm2, logCoeff[0]);
 
-		vsubps(zm0, sqrt2, zm0); // sqrt2 - y
-
-		vmulps(zm2, zm0, t1); // a = (y - sqrt2) / (y + sqrt2)
-		vmulps(t1, zm2, zm2); // b
-		vmovaps(zm0, logCoeff[3]);
-		vfmadd213ps(zm0, t1, logCoeff[2]);
-		vfmadd213ps(zm0, t1, logCoeff[1]);
-		vfmadd213ps(zm0, t1, logCoeff[0]);
+		vfmadd213ps(x1, zm0, x0);
+		vfmadd213ps(zm0, x1, zm1);
+#else
+		int logN = ConstVar::logN;
+		vmovaps(zm2, logCoeff[logN - 1]);
+		for (int i = logN - 2; i >= 0; i--) {
+			vfmadd213ps(zm2, zm0, logCoeff[i]);
+		}
 		vfmadd213ps(zm0, zm2, zm1);
+#endif
 	}
 	// log_v(float *dst, const float *src, size_t n);
 	void genLog(const Xbyak::Label& constVarL)
 	{
-		const int keepRegN = 8;
+		const int keepRegN = 14;
 		using namespace Xbyak;
 		util::StackFrame sf(this, 3, util::UseRCX, 64 * keepRegN);
 		const Reg64& dst = sf.p[0];
@@ -287,21 +304,23 @@ struct Code : public Xbyak::CodeGenerator {
 		// setup constant
 		const Zmm& i127shl23 = zmm3;
 		const Zmm& x7fffff = zmm4;
-		const Zmm& sqrt2 = zmm5;
-		const Zmm& log2 = zmm6;
-		const Zmm& log2div2 = zmm7;
-		const Zmm logCoeff[] = { zmm8, zmm9, zmm10, zmm11 };
-		const Zmm& t1 = zmm12;
-		const Zmm& t2 = zmm13;
+		const Zmm& log2 = zmm5;
+		const Zmm& log1p5 = zmm6;
+		const Zmm& f2div3 = zmm7;
+		const Zmm& t0 = zmm8;
+		const Zmm& t1 = zmm9;
+		const Zmm logCoeff[ConstVar::logN] = {
+			zm10, zm11, zm12, zm13, zm14, zm15, zm16, zm17, zm18
+		};
 		mov(eax, 127 << 23);
 		vpbroadcastd(i127shl23, eax);
 		mov(eax, 0x7fffff);
 		vpbroadcastd(x7fffff, eax);
 
 		lea(rax, ptr[rip+constVarL]);
-		vbroadcastss(sqrt2, ptr[rax + offsetof(ConstVar, sqrt2)]);
 		vbroadcastss(log2, ptr[rax + offsetof(ConstVar, log2)]);
-		vbroadcastss(log2div2, ptr[rax + offsetof(ConstVar, log2div2)]);
+		vbroadcastss(log1p5, ptr[rax + offsetof(ConstVar, log1p5)]);
+		vbroadcastss(f2div3, ptr[rax + offsetof(ConstVar, f2div3)]);
 		for (size_t i = 0; i < ConstVar::logN; i++) {
 			vbroadcastss(logCoeff[i], ptr[rax + offsetof(ConstVar, logCoeff[0]) + sizeof(float) * i]);
 		}
@@ -314,7 +333,7 @@ struct Code : public Xbyak::CodeGenerator {
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
-		genLogOne(t1, t2, i127shl23, x7fffff, sqrt2, log2, log2div2, logCoeff);
+		genLogOne(t0, t0, i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
 		vmovups(ptr[dst], zm0);
 
 		add(dst, 64);
@@ -328,7 +347,7 @@ struct Code : public Xbyak::CodeGenerator {
 		sub(eax, 1);
 		kmovd(k1, eax);
 		vmovups(zm0|k1|T_z, ptr[src]);
-		genLogOne(t1, t2, i127shl23, x7fffff, sqrt2, log2, log2div2, logCoeff);
+		genLogOne(t0, t0, i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
 		vmovups(ptr[dst]|k1, zm0|k1);
 	L(exit);
 
@@ -389,37 +408,6 @@ inline float expfC(float x)
 	x = a * x + C.expCoeff[0];
 	x = a * x + C.expCoeff[0];
 	return x * fi.f;
-}
-
-inline float logfC(float x)
-{
-	const local::ConstVar& C = *local::Inst<>::code.constVar;
-	local::fi fi;
-	fi.f = x;
-	float e = (int(fi.i - (127 << 23))) >> 23;
-	fi.i = (fi.i & 0x7fffff) | (127 << 23);
-	float y = fi.f;
-	/*
-		x = y * 2^e (1 <= y < 2)
-		log(x) = e log2 + log y
-		a = (y - sqrt(2)) / (y + sqrt(2))
-		|a| <= (sqrt(2) - 1)/(sqrt(2) + 1)
-		y = sqrt(2) (1+a)/(1-a)
-		log(x) = e log2 + 1/2 log 2 + log((1+a)/(1-a))
-		log((1+a)/(1-a)) = 2a(1 + a^2/3 + a^4/5 + a^6/7)
-		b = a^2
-		log(x) = (e+1/2) log2 + 2a(1 + b(1/3 + b(1/5 + b/7)))
-	*/
-	float a = (y - C.sqrt2) / (y + C.sqrt2);
-	e = C.log2 * e + C.log2div2;
-	float b = a * a;
-	x = C.logCoeff[3];
-	x = b * x + C.logCoeff[2];
-	x = b * x + C.logCoeff[1];
-	x = b * x + C.logCoeff[0];
-	x *= a;
-	x += e;
-	return x;
 }
 
 inline void expf_v(float *dst, const float *src, size_t n)

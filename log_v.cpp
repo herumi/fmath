@@ -1,7 +1,9 @@
 #include "fmath2.hpp"
 #include <cybozu/test.hpp>
 #include <cybozu/benchmark.hpp>
+#include <float.h>
 #include <vector>
+
 
 float g_maxe;
 
@@ -10,17 +12,85 @@ float diff(float x, float y)
 	return std::abs(x - y);
 }
 
-float putDiff(float begin, float end, float step)
+uint32_t idiff(float x, float y)
+{
+	fmath::local::fi fi1, fi2;
+	fi1.f = x;
+	fi2.f = y;
+	return std::abs((int)fi1.i - (int)fi2.i);
+}
+
+float fmath_logf(float x)
+{
+	float y;
+	fmath::logf_v(&y, &x, 1);
+	return y;
+}
+
+float logfC(float x)
+{
+	using namespace fmath;
+	const local::ConstVar& C = *local::Inst<>::code.constVar;
+	local::fi fi;
+	fi.f = x;
+	float e = (int(fi.i - (127 << 23))) >> 23;
+	fi.i = (fi.i & 0x7fffff) | (127 << 23);
+	float y = fi.f;
+	/*
+		x = y * 2^e (1 <= y < 2)
+		log(x) = e log2 + log(y)
+		a = (2/3) y - 1 (|a|<=1/3)
+		y = 1.5(1 + a)
+		log(y) = log 1.5 + log(1 + a)
+		log(x) = e log2 + log 1.5 + (a - a^2/2 + a^3/3 - ...)
+	*/
+	float a = C.f2div3 * y - C.logCoeff[0];
+	e = e * C.log2 + C.log1p5;
+
+	const float *tbl = C.logCoeff;
+#if 1
+	float aa = a * a;
+	float x1 = tbl[9];
+	float x0 = tbl[8];
+	x1 = x1 * aa + tbl[7];
+	x0 = x0 * aa + tbl[6];
+	x1 = x1 * aa + tbl[5];
+	x0 = x0 * aa + tbl[4];
+	x1 = x1 * aa + tbl[3];
+	x0 = x0 * aa + tbl[2];
+	x1 = x1 * aa + tbl[1];
+	x0 = x0 * aa + tbl[0];
+	x = x1 * a + x0;
+#else
+	const int logN = ConstVar::logN;
+	x = tbl[logN - 1];
+	for (int i = logN - 2; i >= 0; i--) {
+		x = x * a + tbl[i];
+	}
+#endif
+	x = x * a + e;
+	return x;
+}
+
+
+void std_log_v(float *dst, const float *src, size_t n)
+{
+	for (size_t i = 0; i < n; i++) {
+		dst[i] = std::log(src[i]);
+	}
+}
+
+template<class F>
+float putDiff(float begin, float end, float step, const F& f)
 {
 	float maxe = 0;
 	float maxx = 0;
 	double ave = 0;
 	int aveN = 0;
 	for (float x = begin; x < end; x += step) {
-		float y1 = fmath::logfC(x);
-		float y2 = std::log(x);
-		float e;
-		e = diff(y1, y2);
+		float y0 = std::log(x);
+		float y1 = f(x);
+		float e = diff(y0, y1);
 		if (e > maxe) {
 			maxe = e;
 			maxx = x;
@@ -28,7 +98,7 @@ float putDiff(float begin, float end, float step)
 		ave += e;
 		aveN++;
 	}
-	printf("range [%e, %e] step=%e\n", begin, end, step);
+	printf("range [%.2e, %.2e] step=%.2e\n", begin, end, step);
 	printf("maxe=%e (x=%e)\n", maxe, maxx);
 	printf("ave=%e\n", ave / aveN);
 	return maxe;
@@ -36,9 +106,12 @@ float putDiff(float begin, float end, float step)
 
 CYBOZU_TEST_AUTO(setMaxE)
 {
-	putDiff(1, 2, 1e-6);
-	putDiff(1e-7, 4, 0.1);
-	g_maxe = putDiff(1e-6, 4, 1e-6);
+	puts("logfC");
+	putDiff(1, 2, 1e-6, logfC);
+	g_maxe = putDiff(1e-6, 4, 1e-6, logfC);
+	puts("fmath::logf_v");
+	putDiff(1, 2, 1e-6, fmath_logf);
+	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -55,40 +128,7 @@ void checkDiff(const float *x, const float *y, size_t n, bool put = false)
 	}
 }
 
-void logf_vC(float *dst, const float *src, size_t n)
-{
-	for (size_t i = 0; i < n; i++) {
-		dst[i] = fmath::logfC(src[i]);
-	}
-}
-
-CYBOZU_TEST_AUTO(logf_v)
-{
-	const size_t n = 300;
-	float x[n];
-	float y1[n];
-	float y2[n];
-	for (size_t i = 0; i < n; i++) {
-		x[i] = (i + 1) / float(n) * 4;
-	}
-	logf_vC(y1, x, n);
-	fmath::logf_v(y2, x, n);
-#if 0
-	for (size_t i = 0; i < 16; i++) {
-		printf("%2zd x=%e ok=%e ng=%e diff=%e\n", i, x[i], y1[i], y2[i], abs(y1[i] - y2[i]));
-	}
-#endif
-	checkDiff(y1, y2, n, true);
-}
-
 typedef std::vector<float> Fvec;
-
-void std_log_v(float *dst, const float *src, size_t n)
-{
-	for (size_t i = 0; i < n; i++) {
-		dst[i] = std::log(src[i]);
-	}
-}
 
 CYBOZU_TEST_AUTO(bench)
 {
@@ -97,29 +137,25 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const size_t C = 100000;
+	const size_t C = 30000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("std_log_v", C, std_log_v, &y0[0], &x[0], n);
-	CYBOZU_BENCH_C("logf_v  C", C, logf_vC, &y1[0], &x[0], n);
-	checkDiff(y0.data(), y1.data(), n);
-	y1.clear();
-	y1.resize(n);
 	CYBOZU_BENCH_C("logf_v  ", C, fmath::logf_v, &y1[0], &x[0], n);
 	checkDiff(y0.data(), y1.data(), n);
 }
 
 CYBOZU_TEST_AUTO(limit)
 {
-	const size_t n = 5;
-	float x[n] = { 0, 1e-8, 1, 100, 1e8 };
+	float x[] = { 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 + 1.0/3, 2, 100, 1e8, FLT_MAX };
+	const size_t n = sizeof(x) / sizeof(x[0]);
 	float y0[n];
 	float y1[n];
 	std_log_v(y0, x, n);
 	fmath::logf_v(y1, x, n);
 	for (size_t i = 0; i < n; i++) {
-		printf("x=%e std=%e fmath2=%e\n", x[i], y0[i], y1[i]);
+		printf("x=%.8e std=%.8e fmath2=%.8e diff=%e\n", x[i], y0[i], y1[i], diff(y0[i], y1[i]));
 	}
 }
