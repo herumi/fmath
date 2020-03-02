@@ -4,20 +4,11 @@
 #include <float.h>
 #include <vector>
 
-
 float g_maxe;
 
 float diff(float x, float y)
 {
 	return std::abs(x - y);
-}
-
-uint32_t idiff(float x, float y)
-{
-	fmath::local::fi fi1, fi2;
-	fi1.f = x;
-	fi2.f = y;
-	return std::abs((int)fi1.i - (int)fi2.i);
 }
 
 float fmath_logf(float x)
@@ -108,7 +99,7 @@ CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("logfC");
 	putDiff(1, 2, 1e-6, logfC);
-	g_maxe = putDiff(1e-6, 4, 1e-6, logfC);
+	putDiff(1e-6, 4, 1e-6, logfC);
 	puts("fmath::logf_v");
 	putDiff(1, 2, 1e-6, fmath_logf);
 	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf);

@@ -10,32 +10,80 @@ float diff(float x, float y)
 	return std::abs(x - y) / x;
 }
 
-float putDiff(float begin, float end, float step)
+float fmath_expf(float x)
+{
+	float y;
+	fmath::expf_v(&y, &x, 1);
+	return y;
+}
+
+inline float expfC(float x)
+{
+	using namespace fmath;
+	const local::ConstVar& C = *local::Inst<>::code.constVar;
+	x = (std::min)(x, C.expMax);
+	x = (std::max)(x, C.expMin);
+	x *= C.log2_e;
+	int n;
+	float a = split(&n, x);
+	/* |a| <= 0.5 */
+	a *= C.log2;
+	/* |a| <= 0.3466 */
+	local::fi fi;
+	fi.i = (n + 127) << 23; // 2^n
+	/*
+		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
+		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
+	*/
+	x = C.expCoeff[4];
+	x = a * x + C.expCoeff[3];
+	x = a * x + C.expCoeff[2];
+	x = a * x + C.expCoeff[1];
+	x = a * x + C.expCoeff[0];
+	x = a * x + C.expCoeff[0];
+	return x * fi.f;
+}
+
+void std_exp_v(float *dst, const float *src, size_t n)
+{
+	for (size_t i = 0; i < n; i++) {
+		dst[i] = std::exp(src[i]);
+	}
+}
+
+template<class F>
+float putDiff(float begin, float end, float step, const F& f)
 {
 	float maxe = 0;
+	float maxx = 0;
 	double ave = 0;
 	int aveN = 0;
 	for (float x = begin; x < end; x += step) {
-		float y1 = fmath::expfC(x);
-		float y2 = std::exp(x);
+		float y0 = std::exp(x);
+		float y1 = f(x);
 		float e;
-		e = diff(y1, y2);
+		e = diff(y0, y1);
 		if (e > maxe) {
 			maxe = e;
+			maxx = x;
 		}
 		ave += e;
 		aveN++;
 	}
-	printf("range [%e, %e] step=%e\n", begin, end, step);
-	printf("maxe=%e\n", maxe);
+	printf("range [%.2e, %.2e] step=%.2e\n", begin, end, step);
+	printf("maxe=%e (x=%e)\n", maxe, maxx);
 	printf("ave=%e\n", ave / aveN);
 	return maxe;
 }
 
 CYBOZU_TEST_AUTO(setMaxE)
 {
-	putDiff(-10, 10, 0.5);
-	g_maxe = putDiff(-30, 30, 1e-5);
+	puts("expfC");
+	putDiff(-10, 10, 0.5, expfC);
+	putDiff(-30, 30, 1e-5, expfC);
+	puts("fmath::expf_v");
+	putDiff(-10, 10, 0.5, fmath_expf);
+	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -52,13 +100,6 @@ void checkDiff(const float *x, const float *y, size_t n, bool put = false)
 	}
 }
 
-void expf_vC(float *dst, const float *src, size_t n)
-{
-	for (size_t i = 0; i < n; i++) {
-		dst[i] = fmath::expfC(src[i]);
-	}
-}
-
 CYBOZU_TEST_AUTO(expf_v)
 {
 	const size_t n = 300;
@@ -68,19 +109,12 @@ CYBOZU_TEST_AUTO(expf_v)
 	for (size_t i = 0; i < n; i++) {
 		x[i] = float((i - n/2.0) / n * 20);
 	}
-	expf_vC(y1, x, n);
+	std_exp_v(y1, x, n);
 	fmath::expf_v(y2, x, n);
 	checkDiff(y1, y2, n);
 }
 
 typedef std::vector<float> Fvec;
-
-void std_exp_v(float *dst, const float *src, size_t n)
-{
-	for (size_t i = 0; i < n; i++) {
-		dst[i] = std::exp(src[i]);
-	}
-}
 
 // return address which can be wrriten 64 byte
 float *getBoundary()
@@ -105,7 +139,7 @@ CYBOZU_TEST_AUTO(boundary)
 	for (int i = 0; i < 16; i++) {
 		float *y1 = base + i;
 		int n = 16 - i;
-		expf_vC(y0, x, n);
+		std_exp_v(y0, x, n);
 		fmath::expf_v(y1, x, n);
 		checkDiff(y0, y1, n);
 	}
@@ -124,10 +158,6 @@ CYBOZU_TEST_AUTO(bench)
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("std_exp_v", C, std_exp_v, &y0[0], &x[0], n);
-	CYBOZU_BENCH_C("expf_v  C", C, expf_vC, &y1[0], &x[0], n);
-	checkDiff(y0.data(), y1.data(), n);
-	y1.clear();
-	y1.resize(n);
 	CYBOZU_BENCH_C("expf_v  ", C, fmath::expf_v, &y1[0], &x[0], n);
 	checkDiff(y0.data(), y1.data(), n);
 }

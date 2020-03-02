@@ -384,32 +384,6 @@ inline float split(int *pn, float x)
 	return x - n;
 }
 
-inline float expfC(float x)
-{
-	const local::ConstVar& C = *local::Inst<>::code.constVar;
-	x = (std::min)(x, C.expMax);
-	x = (std::max)(x, C.expMin);
-	x *= C.log2_e;
-	int n;
-	float a = split(&n, x);
-	/* |a| <= 0.5 */
-	a *= C.log2;
-	/* |a| <= 0.3466 */
-	local::fi fi;
-	fi.i = (n + 127) << 23; // 2^n
-	/*
-		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
-		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
-	*/
-	x = C.expCoeff[4];
-	x = a * x + C.expCoeff[3];
-	x = a * x + C.expCoeff[2];
-	x = a * x + C.expCoeff[1];
-	x = a * x + C.expCoeff[0];
-	x = a * x + C.expCoeff[0];
-	return x * fi.f;
-}
-
 inline void expf_v(float *dst, const float *src, size_t n)
 {
 	local::Inst<>::code.expf_v(dst, src, n);
