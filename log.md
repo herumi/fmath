@@ -187,3 +187,4 @@ vfmadd213ps(zm0, zm2, zm1); // log(x) = e * log(2) + log(1.5) + log(y)
 
 が今のところ一番高速.
 11clk/loop.
+実装コードは[fmath2.hpp](https://github.com/herumi/fmath/blob/master/fmath2.hpp).
