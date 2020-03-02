@@ -39,11 +39,10 @@ float logfC(float x)
 	e = e * C.log2 + C.log1p5;
 
 	const float *tbl = C.logCoeff;
-#if 1
+#if 0
 	float aa = a * a;
-	float x1 = tbl[9];
 	float x0 = tbl[8];
-	x1 = x1 * aa + tbl[7];
+	float x1 = tbl[7];
 	x0 = x0 * aa + tbl[6];
 	x1 = x1 * aa + tbl[5];
 	x0 = x0 * aa + tbl[4];
@@ -53,7 +52,7 @@ float logfC(float x)
 	x0 = x0 * aa + tbl[0];
 	x = x1 * a + x0;
 #else
-	const int logN = ConstVar::logN;
+	const int logN = C.logN;
 	x = tbl[logN - 1];
 	for (int i = logN - 2; i >= 0; i--) {
 		x = x * a + tbl[i];

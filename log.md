@@ -177,7 +177,7 @@ vpord(zm0, zm0, i127shl23); // y
 
 vfmsub213ps(zm0, f2div3, logCoeff[0]); // a = y * (2/3) - 1
 vfmadd213ps(zm1, log2, log1p5); // e = e * log(2) + log(1.5)
-int logN = ConstVar::logN;
+int logN = ConstVar::logN; // 9
 vmovaps(zm2, logCoeff[logN - 1]);
 for (int i = logN - 2; i >= 0; i--) {
     vfmadd213ps(zm2, zm0, logCoeff[i]);
