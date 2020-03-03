@@ -249,7 +249,7 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
-	void genLogOne(const Zmm& x0, const Zmm& x1, const Zmm& i127shl23, const Zmm& x7fffff, const Zmm& log2, const Zmm& log1p5, const Zmm& f2div3, const Zmm *logCoeff)
+	void genLogOne(const Zmm& i127shl23, const Zmm& x7fffff, const Zmm& log2, const Zmm& log1p5, const Zmm& f2div3, const Zmm *logCoeff)
 	{
 		vpsubd(zm1, zm0, i127shl23);
 		vpsrad(zm1, zm1, 23); // e
@@ -259,33 +259,18 @@ struct Code : public Xbyak::CodeGenerator {
 
 		vfmsub213ps(zm0, f2div3, logCoeff[0]); // a
 		vfmadd213ps(zm1, log2, log1p5); // e
-#if 0
-		vmulps(zm2, zm0, zm0); // aa
-		vmovaps(x0, logCoeff[8]);
-		vmovaps(x1, logCoeff[7]);
-		vfmadd213ps(x0, zm2, logCoeff[6]);
-		vfmadd213ps(x1, zm2, logCoeff[5]);
-		vfmadd213ps(x0, zm2, logCoeff[4]);
-		vfmadd213ps(x1, zm2, logCoeff[3]);
-		vfmadd213ps(x0, zm2, logCoeff[2]);
-		vfmadd213ps(x1, zm2, logCoeff[1]);
-		vfmadd213ps(x0, zm2, logCoeff[0]);
 
-		vfmadd213ps(x1, zm0, x0);
-		vfmadd213ps(zm0, x1, zm1);
-#else
 		int logN = ConstVar::logN;
 		vmovaps(zm2, logCoeff[logN - 1]);
 		for (int i = logN - 2; i >= 0; i--) {
 			vfmadd213ps(zm2, zm0, logCoeff[i]);
 		}
 		vfmadd213ps(zm0, zm2, zm1);
-#endif
 	}
 	// log_v(float *dst, const float *src, size_t n);
 	void genLog(const Xbyak::Label& constVarL)
 	{
-		const int keepRegN = 14;
+		const int keepRegN = 11;
 		using namespace Xbyak;
 		util::StackFrame sf(this, 3, util::UseRCX, 64 * keepRegN);
 		const Reg64& dst = sf.p[0];
@@ -307,10 +292,8 @@ struct Code : public Xbyak::CodeGenerator {
 		const Zmm& log2 = zmm5;
 		const Zmm& log1p5 = zmm6;
 		const Zmm& f2div3 = zmm7;
-		const Zmm& t0 = zmm8;
-		const Zmm& t1 = zmm9;
 		const Zmm logCoeff[ConstVar::logN] = {
-			zm10, zm11, zm12, zm13, zm14, zm15, zm16, zm17, zm18
+			zm8, zm9, zm10, zm11, zm12, zm13, zm14, zm15, zm16
 		};
 		mov(eax, 127 << 23);
 		vpbroadcastd(i127shl23, eax);
@@ -333,7 +316,7 @@ struct Code : public Xbyak::CodeGenerator {
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
-		genLogOne(t0, t0, i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
+		genLogOne(i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
 		vmovups(ptr[dst], zm0);
 
 		add(dst, 64);
@@ -347,7 +330,7 @@ struct Code : public Xbyak::CodeGenerator {
 		sub(eax, 1);
 		kmovd(k1, eax);
 		vmovups(zm0|k1|T_z, ptr[src]);
-		genLogOne(t0, t0, i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
+		genLogOne(i127shl23, x7fffff, log2, log1p5, f2div3, logCoeff);
 		vmovups(ptr[dst]|k1, zm0|k1);
 	L(exit);
 
@@ -371,18 +354,6 @@ template<size_t dummy>
 MIE_ALIGN(32) const Code Inst<dummy>::code;
 
 } // fmath::local
-
-inline float split(int *pn, float x)
-{
-	int n;
-	if (x >= 0) {
-		n = int(x + 0.5f);
-	} else {
-		n = int(x - 0.5f);
-	}
-	*pn = n;
-	return x - n;
-}
 
 inline void expf_v(float *dst, const float *src, size_t n)
 {

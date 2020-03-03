@@ -120,6 +120,11 @@ void checkDiff(const float *x, const float *y, size_t n, bool put = false)
 
 typedef std::vector<float> Fvec;
 
+void putClk(const char *msg, size_t n)
+{
+	printf("%s %.2fclk\n", msg, cybozu::bench::g_clk.getClock() / double(n));
+}
+
 CYBOZU_TEST_AUTO(bench)
 {
 	Fvec x, y0, y1;
@@ -132,8 +137,10 @@ CYBOZU_TEST_AUTO(bench)
 		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
 	printf("for float x[%zd];\n", n);
-	CYBOZU_BENCH_C("std_log_v", C, std_log_v, &y0[0], &x[0], n);
-	CYBOZU_BENCH_C("logf_v  ", C, fmath::logf_v, &y1[0], &x[0], n);
+	CYBOZU_BENCH_C("", C, std_log_v, &y0[0], &x[0], n);
+	putClk("std_log_v", C * (n / 16));
+	CYBOZU_BENCH_C("", C, fmath::logf_v, &y1[0], &x[0], n);
+	putClk("fmath::logf_v", C * (n / 16));
 	checkDiff(y0.data(), y1.data(), n);
 }
 

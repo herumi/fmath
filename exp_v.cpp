@@ -17,6 +17,18 @@ float fmath_expf(float x)
 	return y;
 }
 
+inline float split(int *pn, float x)
+{
+	int n;
+	if (x >= 0) {
+		n = int(x + 0.5f);
+	} else {
+		n = int(x - 0.5f);
+	}
+	*pn = n;
+	return x - n;
+}
+
 inline float expfC(float x)
 {
 	using namespace fmath;
@@ -116,6 +128,11 @@ CYBOZU_TEST_AUTO(expf_v)
 
 typedef std::vector<float> Fvec;
 
+void putClk(const char *msg, size_t n)
+{
+	printf("%s %.2fclk\n", msg, cybozu::bench::g_clk.getClock() / double(n));
+}
+
 // return address which can be wrriten 64 byte
 float *getBoundary()
 {
@@ -157,8 +174,10 @@ CYBOZU_TEST_AUTO(bench)
 		x[i] = sin(i / double(n) * 7) * 20;
 	}
 	printf("for float x[%zd];\n", n);
-	CYBOZU_BENCH_C("std_exp_v", C, std_exp_v, &y0[0], &x[0], n);
-	CYBOZU_BENCH_C("expf_v  ", C, fmath::expf_v, &y1[0], &x[0], n);
+	CYBOZU_BENCH_C("", C, std_exp_v, &y0[0], &x[0], n);
+	putClk("std::exp", C * (n / 16));
+	CYBOZU_BENCH_C("", C, fmath::expf_v, &y1[0], &x[0], n);
+	putClk("fmath::expf_v", C * (n / 16));
 	checkDiff(y0.data(), y1.data(), n);
 }
 
