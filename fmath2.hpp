@@ -129,26 +129,16 @@ struct Code : public Xbyak::CodeGenerator {
 		vminps(zm0, expMax);
 		vmaxps(zm0, expMin);
 		vmulps(zm0, log2_e);
-#if 1
-		// a little faster if we can assume nearest round mode
-		vcvtps2dq(zm1, zm0);
-		vcvtdq2ps(zm2, zm1);
-		vsubps(zm0, zm2);
-#else
 		vrndscaleps(zm1, zm0, 0); // n = round(x)
 		vsubps(zm0, zm1); // a
-		vcvtps2dq(zm1, zm1);
-#endif
 		vmulps(zm0, log2);
-		vpaddd(zm1, zm1, i127);
-		vpslld(zm1, zm1, 23); // fi.f
 		vmovaps(zm2, expCoeff[4]);
 		vfmadd213ps(zm2, zm0, expCoeff[3]);
 		vfmadd213ps(zm2, zm0, expCoeff[2]);
 		vfmadd213ps(zm2, zm0, expCoeff[1]);
 		vfmadd213ps(zm2, zm0, expCoeff[0]);
 		vfmadd213ps(zm2, zm0, expCoeff[0]);
-		vmulps(zm0, zm2, zm1);
+		vscalefps(zm0, zm2, zm1); // zm2 * 2^zm1
 	}
 	// exp_v(float *dst, const float *src, size_t n);
 	void genExpAVX512(const Xbyak::Label& constVarL)
