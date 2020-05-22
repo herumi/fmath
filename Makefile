@@ -11,7 +11,7 @@ ifeq ($(AVX2),flags)
 endif
 # ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak -I./include
-CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -mfpmath=sse -DNDEBUG
+CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 # ----------------------------------------------------------------
@@ -33,9 +33,9 @@ avx2: avx2.cpp fmath.hpp
 	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
 
 exp_v: exp_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak
+	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
 log_v: log_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak
+	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
@@ -44,7 +44,7 @@ log_v: log_v.cpp fmath2.hpp
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
 clean:
-	$(RM) *.o $(TARGET)
+	$(RM) *.o $(TARGET) exp_v log_v
 
 test: exp_v
 	./exp_v

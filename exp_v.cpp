@@ -169,7 +169,7 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const size_t C = 30000;
+	const int C = 30000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = sin(i / double(n) * 7) * 20;
 	}

@@ -108,7 +108,7 @@ struct Code : public Xbyak::CodeGenerator {
 		size_t dataSize = sizeof(ConstVar);
 		dataSize = (dataSize + 4095) & ~size_t(4095);
 		Xbyak::Label constVarL = L();
-		constVar = (ConstVar*)getCode();
+		constVar = const_cast<ConstVar*>(reinterpret_cast<const ConstVar*>(getCode()));
 		constVar->init();
 		setSize(dataSize);
 		expf_v = getCurr<VecFunc>();
@@ -124,7 +124,7 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	// zm0 = exp(zm0)
 	// use zm0, zm1, zm2
-	void genExpOneAVX512(const Zmm& i127, const Zmm& expMin, const Zmm& expMax, const Zmm& log2, const Zmm& log2_e, const Zmm expCoeff[5])
+	void genExpOneAVX512(const Zmm& expMin, const Zmm& expMax, const Zmm& log2, const Zmm& log2_e, const Zmm expCoeff[5])
 	{
 		vminps(zm0, expMax);
 		vmaxps(zm0, expMin);
@@ -160,14 +160,11 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 
 		// setup constant
-		const Zmm& i127 = zmm3;
-		const Zmm& expMin = zmm4;
-		const Zmm& expMax = zmm5;
-		const Zmm& log2 = zmm6;
-		const Zmm& log2_e = zmm7;
-		const Zmm expCoeff[] = { zmm8, zmm9, zmm10, zmm11, zmm12 };
-		mov(eax, 127);
-		vpbroadcastd(i127, eax);
+		const Zmm& expMin = zmm3;
+		const Zmm& expMax = zmm4;
+		const Zmm& log2 = zmm5;
+		const Zmm& log2_e = zmm6;
+		const Zmm expCoeff[] = { zmm7, zmm8, zmm9, zmm10, zmm11 };
 		lea(rax, ptr[rip+constVarL]);
 		vbroadcastss(expMin, ptr[rax + offsetof(ConstVar, expMin)]);
 		vbroadcastss(expMax, ptr[rax + offsetof(ConstVar, expMax)]);
@@ -185,7 +182,7 @@ struct Code : public Xbyak::CodeGenerator {
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
-		genExpOneAVX512(i127, expMin, expMax, log2, log2_e, expCoeff);
+		genExpOneAVX512(expMin, expMax, log2, log2_e, expCoeff);
 		vmovups(ptr[dst], zm0);
 		add(dst, 64);
 		sub(n, 16);
@@ -198,7 +195,7 @@ struct Code : public Xbyak::CodeGenerator {
 		sub(eax, 1);
 		kmovd(k1, eax);
 		vmovups(zm0|k1|T_z, ptr[src]);
-		genExpOneAVX512(i127, expMin, expMax, log2, log2_e, expCoeff);
+		genExpOneAVX512(expMin, expMax, log2, log2_e, expCoeff);
 		vmovups(ptr[dst]|k1, zm0|k1);
 	L(exit);
 		// epilog
