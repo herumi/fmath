@@ -171,7 +171,7 @@ CYBOZU_TEST_AUTO(bench)
 	y1.resize(n);
 	const int C = 30000;
 	for (size_t i = 0; i < n; i++) {
-		x[i] = sin(i / double(n) * 7) * 20;
+		x[i] = sin(i / float(n) * 7) * 20;
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("", C, std_exp_v, &y0[0], &x[0], n);

@@ -143,7 +143,11 @@ struct Code : public Xbyak::CodeGenerator {
 	// exp_v(float *dst, const float *src, size_t n);
 	void genExpAVX512(const Xbyak::Label& constVarL)
 	{
-		const int keepRegN = 7;
+#ifdef XBYAK64_WIN
+		const int keepRegN = 6;
+#else
+		const int keepRegN = 0;
+#endif
 		using namespace Xbyak;
 		util::StackFrame sf(this, 3, util::UseRCX, 64 * keepRegN);
 		const Reg64& dst = sf.p[0];
@@ -152,12 +156,10 @@ struct Code : public Xbyak::CodeGenerator {
 
 		// prolog
 #ifdef XBYAK64_WIN
-		vmovups(ptr[rsp + 64 * 0], zm6);
-		vmovups(ptr[rsp + 64 * 1], zm7);
-#endif
-		for (int i = 2; i < keepRegN; i++) {
+		for (int i = 0; i < keepRegN; i++) {
 			vmovups(ptr[rsp + 64 * i], Zmm(i + 6));
 		}
+#endif
 
 		// setup constant
 		const Zmm& expMin = zmm3;
@@ -177,7 +179,7 @@ struct Code : public Xbyak::CodeGenerator {
 		// main loop
 		Label mod16, exit;
 		mov(ecx, n);
-		and_(n, ~15);
+		and_(n, ~15u);
 		jz(mod16);
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
@@ -200,12 +202,10 @@ struct Code : public Xbyak::CodeGenerator {
 	L(exit);
 		// epilog
 #ifdef XBYAK64_WIN
-		vmovups(zm6, ptr[rsp + 64 * 0]);
-		vmovups(zm7, ptr[rsp + 64 * 1]);
-#endif
-		for (int i = 2; i < keepRegN; i++) {
+		for (int i = 0; i < keepRegN; i++) {
 			vmovups(Zmm(i + 6), ptr[rsp + 64 * i]);
 		}
+#endif
 	}
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
@@ -271,7 +271,7 @@ struct Code : public Xbyak::CodeGenerator {
 		// main loop
 		Label mod16, exit;
 		mov(ecx, n);
-		and_(n, ~15);
+		and_(n, ~15u);
 		jz(mod16, T_NEAR);
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
