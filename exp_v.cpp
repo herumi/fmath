@@ -33,8 +33,6 @@ inline float expfC(float x)
 {
 	using namespace fmath;
 	const local::ConstVar& C = *local::Inst<>::code.constVar;
-	x = (std::min)(x, C.expMax);
-	x = (std::max)(x, C.expMin);
 	x *= C.log2_e;
 	int n;
 	float a = split(&n, x);
@@ -183,8 +181,8 @@ CYBOZU_TEST_AUTO(bench)
 
 CYBOZU_TEST_AUTO(limit)
 {
-	const size_t n = 4;
-	float x[n] = { -100, -80, 80, 100 };
+	const size_t n = 6;
+	float x[n] = { -1000, -100, -80, 80, 100, 1000 };
 	float y0[n];
 	float y1[n];
 	std_exp_v(y0, x, n);

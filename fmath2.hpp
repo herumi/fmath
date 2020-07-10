@@ -26,8 +26,6 @@ inline float cvt(uint32_t x)
 struct ConstVar {
 	static const size_t expN = 5;
 	static const size_t logN = 9;
-	float expMin; // exp(expMin) = 0
-	float expMax; // exp(expMax) = inf
 	float log2; // log(2)
 	float log2_e; // log_2(e) = 1 / log2
 	float expCoeff[expN]; // near to 1/(i + 1)!
@@ -37,8 +35,6 @@ struct ConstVar {
 	float logCoeff[logN];
 	void init()
 	{
-		expMin = cvt(0xc2aeac50);
-		expMax = cvt(0x42b17218);
 		log2 = std::log(2.0f);
 		log2_e = 1.0f / log2;
 		log1p5 = std::log(1.5f);
@@ -124,10 +120,8 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	// zm0 = exp(zm0)
 	// use zm0, zm1, zm2
-	void genExpOneAVX512(const Zmm& expMin, const Zmm& expMax, const Zmm& log2, const Zmm& log2_e, const Zmm expCoeff[5])
+	void genExpOneAVX512(const Zmm& log2, const Zmm& log2_e, const Zmm expCoeff[5])
 	{
-		vminps(zm0, expMax);
-		vmaxps(zm0, expMin);
 		vmulps(zm0, log2_e);
 		vrndscaleps(zm1, zm0, 0); // n = round(x)
 		vsubps(zm0, zm1); // a
@@ -144,7 +138,7 @@ struct Code : public Xbyak::CodeGenerator {
 	void genExpAVX512(const Xbyak::Label& constVarL)
 	{
 #ifdef XBYAK64_WIN
-		const int keepRegN = 6;
+		const int keepRegN = 4;
 #else
 		const int keepRegN = 0;
 #endif
@@ -162,14 +156,10 @@ struct Code : public Xbyak::CodeGenerator {
 #endif
 
 		// setup constant
-		const Zmm& expMin = zmm3;
-		const Zmm& expMax = zmm4;
-		const Zmm& log2 = zmm5;
-		const Zmm& log2_e = zmm6;
-		const Zmm expCoeff[] = { zmm7, zmm8, zmm9, zmm10, zmm11 };
+		const Zmm& log2 = zmm3;
+		const Zmm& log2_e = zmm4;
+		const Zmm expCoeff[] = { zmm5, zmm6, zmm7, zmm8, zmm9 };
 		lea(rax, ptr[rip+constVarL]);
-		vbroadcastss(expMin, ptr[rax + offsetof(ConstVar, expMin)]);
-		vbroadcastss(expMax, ptr[rax + offsetof(ConstVar, expMax)]);
 		vbroadcastss(log2, ptr[rax + offsetof(ConstVar, log2)]);
 		vbroadcastss(log2_e, ptr[rax + offsetof(ConstVar, log2_e)]);
 		for (size_t i = 0; i < ConstVar::expN; i++) {
@@ -184,7 +174,7 @@ struct Code : public Xbyak::CodeGenerator {
 	Label lp = L();
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
-		genExpOneAVX512(expMin, expMax, log2, log2_e, expCoeff);
+		genExpOneAVX512(log2, log2_e, expCoeff);
 		vmovups(ptr[dst], zm0);
 		add(dst, 64);
 		sub(n, 16);
@@ -197,7 +187,7 @@ struct Code : public Xbyak::CodeGenerator {
 		sub(eax, 1);
 		kmovd(k1, eax);
 		vmovups(zm0|k1|T_z, ptr[src]);
-		genExpOneAVX512(expMin, expMax, log2, log2_e, expCoeff);
+		genExpOneAVX512(log2, log2_e, expCoeff);
 		vmovups(ptr[dst]|k1, zm0|k1);
 	L(exit);
 		// epilog
