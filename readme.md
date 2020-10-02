@@ -1,9 +1,7 @@
 
-fast approximate function of exponential function exp and log
-=================
+# fast approximate function of exponential function exp and log
 
-How to use
------------
+## How to use
 
 include fmath.hpp and use fmath::log, fmath::exp, fmath::expd.
 
@@ -14,8 +12,7 @@ eg.
 fmath::PowGenerator f(1.234);
 f.get(x) returns pow(x, 1.234);
 
-Prototpye of function
------------
+## Prototpye of function
 
 * float fmath::exp(float);
 * float fmath::log(float);
@@ -25,8 +22,15 @@ Prototpye of function
 * __m128 fmath::log_ps(__m128);
 * void fmath::expv_d(double *p, size_t n); // for double p[n];
 
-Experimental
------------
+
+### for AVX-512
+
+`fmath2.hpp` provides the following functions:
+
+- void expf_v(float *dst, const float *src, size_t n);
+- void logf_v(float *dst, const float *src, size_t n);
+
+## Experimental
 
 If you install [xbyak](https://github.com/herumi/xbyak/)
 and define FMATH_USE_XBYAK before including fmath.hpp,
@@ -35,8 +39,7 @@ Xbyak version uses SSE4.1 if available.
 
 ### AVX version of fmath::exp is experimental
 
-Remark
------------
+## Remark
 
 gcc puts warnings such as "dereferencing type-punned pointer will break strict-aliasing rules."
 It is no problem.
@@ -44,15 +47,14 @@ Please change #if 1 in fmath.hpp:423 if you worry about it. But it causes a litt
 
 -ffast-math option of gcc may generate bad code for fmath::expd.
 
-License
------------
+# License
 
->modified new BSD License
->http://opensource.org/licenses/BSD-3-Clause
+- modified new BSD License
+- http://opensource.org/licenses/BSD-3-Clause
 
-History
------------
+# History
 
+* 2020/Jul/10 add expf_v and logf_v for AVX-512
 * 2012/Oct/30 fix fmath::expd for small value
 * 2011/Aug/26 add fmath::expd_v
 * 2011/Mar/25 exp supports AVX
