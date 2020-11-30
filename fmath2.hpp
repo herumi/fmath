@@ -124,8 +124,8 @@ struct Code : public Xbyak::CodeGenerator {
 	{
 		vmulps(zm0, log2_e);
 		vrndscaleps(zm1, zm0, 0); // n = round(x)
-		vsubps(zm0, zm1); // a
-		vmulps(zm0, log2);
+		vsubps(zm0, zm1); // a = x - n
+		vmulps(zm0, log2); // a *= log2
 		vmovaps(zm2, expCoeff[4]);
 		vfmadd213ps(zm2, zm0, expCoeff[3]);
 		vfmadd213ps(zm2, zm0, expCoeff[2]);
@@ -315,4 +315,4 @@ inline void logf_v(float *dst, const float *src, size_t n)
 	local::Inst<>::code.logf_v(dst, src, n);
 }
 
-} // fmath2
+} // fmath
