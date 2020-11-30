@@ -134,11 +134,36 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmadd213ps(zm2, zm0, expCoeff[0]);
 		vscalefps(zm0, zm2, zm1); // zm2 * 2^zm1
 	}
+	void genExpOneAVX512_2(const Zmm& log2, const Zmm& log2_e, const Zmm expCoeff[5], const Zmm& t0, const Zmm& t1, const Zmm& t2)
+	{
+		vmulps(zm0, log2_e);
+		vmulps(t0, log2_e);
+		vrndscaleps(zm1, zm0, 0); // n = round(x)
+		vrndscaleps(t1, t0, 0); // n = round(x)
+		vsubps(zm0, zm1); // a = x - n
+		vsubps(t0, t1); // a = x - n
+		vmulps(zm0, log2); // a *= log2
+		vmulps(t0, log2); // a *= log2
+		vmovaps(zm2, expCoeff[4]);
+		vmovaps(t2, expCoeff[4]);
+		vfmadd213ps(zm2, zm0, expCoeff[3]);
+		vfmadd213ps(t2, t0, expCoeff[3]);
+		vfmadd213ps(zm2, zm0, expCoeff[2]);
+		vfmadd213ps(t2, t0, expCoeff[2]);
+		vfmadd213ps(zm2, zm0, expCoeff[1]);
+		vfmadd213ps(t2, t0, expCoeff[1]);
+		vfmadd213ps(zm2, zm0, expCoeff[0]);
+		vfmadd213ps(t2, t0, expCoeff[0]);
+		vfmadd213ps(zm2, zm0, expCoeff[0]);
+		vfmadd213ps(t2, t0, expCoeff[0]);
+		vscalefps(zm0, zm2, zm1); // zm2 * 2^zm1
+		vscalefps(t0, t2, t1); // zm2 * 2^zm1
+	}
 	// exp_v(float *dst, const float *src, size_t n);
 	void genExpAVX512(const Xbyak::Label& constVarL)
 	{
 #ifdef XBYAK64_WIN
-		const int keepRegN = 4;
+		const int keepRegN = 4 + 3;
 #else
 		const int keepRegN = 0;
 #endif
@@ -159,6 +184,9 @@ struct Code : public Xbyak::CodeGenerator {
 		const Zmm& log2 = zmm3;
 		const Zmm& log2_e = zmm4;
 		const Zmm expCoeff[] = { zmm5, zmm6, zmm7, zmm8, zmm9 };
+		const Zmm& t0 = zm10;
+		const Zmm& t1 = zm11;
+		const Zmm& t2 = zm12;
 		lea(rax, ptr[rip+constVarL]);
 		vbroadcastss(log2, ptr[rax + offsetof(ConstVar, log2)]);
 		vbroadcastss(log2_e, ptr[rax + offsetof(ConstVar, log2_e)]);
@@ -167,18 +195,31 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 
 		// main loop
-		Label mod16, exit;
+		Label mod32, mod16, exit;
 		mov(ecx, n);
-		and_(n, ~15u);
-		jz(mod16);
+		and_(n, ~31u);
+		jz(mod32, T_NEAR);
 	Label lp = L();
+		vmovups(zm0, ptr[src]);
+		vmovups(t0, ptr[src + 64]);
+		add(src, 128);
+		genExpOneAVX512_2(log2, log2_e, expCoeff, t0, t1, t2);
+		vmovups(ptr[dst], zm0);
+		vmovups(ptr[dst + 64], t0);
+		add(dst, 128);
+		sub(n, 32);
+		jnz(lp);
+	L(mod32);
+		and_(ecx, 31);
+		jz(exit, T_NEAR);
+		cmp(ecx, 16);
+		jl(mod16);
 		vmovups(zm0, ptr[src]);
 		add(src, 64);
 		genExpOneAVX512(log2, log2_e, expCoeff);
 		vmovups(ptr[dst], zm0);
 		add(dst, 64);
-		sub(n, 16);
-		jnz(lp);
+		sub(ecx, 16);
 	L(mod16);
 		and_(ecx, 15);
 		jz(exit);
