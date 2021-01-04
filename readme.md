@@ -12,7 +12,7 @@ eg.
 fmath::PowGenerator f(1.234);
 f.get(x) returns pow(x, 1.234);
 
-## Prototpye of function
+## Prototype of function
 
 * float fmath::exp(float);
 * float fmath::log(float);
