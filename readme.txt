@@ -13,7 +13,7 @@ eg.
 fmath::PowGenerator f(1.234);
 f.get(x) returns pow(x, 1.234);
 
-<Prototpye>
+<Prototype>
 -----------------------------------------------------------------------------
 float fmath::exp(float);
 float fmath::log(float);
@@ -107,7 +107,7 @@ icl::log_ps                                34.2/ 48.2    34.8/ 43.4
 
                              Core2Duo 2.6GHz
 
-                        VC2010                       icc11.1          gcc 4.4.3    gcc 4.3.2 on cyginw
+                        VC2010                       icc11.1          gcc 4.4.3    gcc 4.3.2 on cygwin
                  Xp(32bit)    Xp(64bit)     Xp(32bit)    Xp(64bit)  Linux(64bit)       Xp(32bit)
 std::exp       139.9/150.1   24.5/ 33.0    27.4/ 38.4   18.0/ 27.1    586.0/591.5     157.8/167.9
 fmath::exp      10.1/ 20.3    5.6/ 14.1    10.1/ 21.1    5.8/ 14.9      9.1/ 14.6      10.8/ 20.9
