@@ -1,7 +1,9 @@
 #include "fmath2.hpp"
+#include <vector>
+#include <float.h>
 #include <cybozu/test.hpp>
 #include <cybozu/benchmark.hpp>
-#include <vector>
+#include <cybozu/inttype.hpp>
 
 float g_maxe;
 
@@ -179,15 +181,24 @@ CYBOZU_TEST_AUTO(bench)
 	checkDiff(y0.data(), y1.data(), n);
 }
 
-CYBOZU_TEST_AUTO(limit)
+void limitTest(float f1(float), float f2(float))
 {
-	const size_t n = 6;
-	float x[n] = { -1000, -100, -80, 80, 100, 1000 };
-	float y0[n];
-	float y1[n];
-	std_exp_v(y0, x, n);
-	fmath::expf_v(y1, x, n);
-	for (size_t i = 0; i < n; i++) {
-		printf("x=%e std=%e fmath2=%e\n", x[i], y0[i], y1[i]);
+	float tbl[] = { 0, FLT_MIN, 0.5, 1,  80, 100, 1000, FLT_MAX };
+	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
+		float x = tbl[i];
+		float a = f1(x);
+		float b = f2(x);
+		float e = fabs(a - b);
+		printf("x=%e std=%e fmath2=%e diff=%e\n", x, a, b, e);
+		a = f1(-x);
+		b = f2(-x);
+		e = fabs(a - b);
+		printf("x=%e std=%e fmath2=%e diff=%e\n", -x, a, b, e);
 	}
 }
+CYBOZU_TEST_AUTO(expLimit)
+{
+	puts("expLimit");
+	limitTest(std::exp, fmath_expf);
+}
+
