@@ -8,7 +8,8 @@ float g_maxe;
 
 float diff(float x, float y)
 {
-	return std::abs(x - y);
+	float d = std::abs(x - y);
+	return x != 0 ? d / x : d;
 }
 
 float fmath_logf(float x)
@@ -132,7 +133,7 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const size_t C = 30000;
+	const int C = 30000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
@@ -146,7 +147,7 @@ CYBOZU_TEST_AUTO(bench)
 
 CYBOZU_TEST_AUTO(limit)
 {
-	float x[] = { 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 + 1.0/3, 2, 100, 1e8, FLT_MAX };
+	float x[] = { 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 - 1e-5, 1 + 1.0/3, 1 + 1e-5, 2, 100, 1e8, FLT_MAX };
 	const size_t n = sizeof(x) / sizeof(x[0]);
 	float y0[n];
 	float y1[n];
