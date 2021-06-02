@@ -16,11 +16,18 @@ union fi {
 	uint32_t i;
 };
 
-inline float cvt(uint32_t x)
+inline float u2f(uint32_t x)
 {
 	fi fi;
 	fi.i = x;
 	return fi.f;
+}
+
+inline uint32_t f2u(float x)
+{
+	fi fi;
+	fi.f = x;
+	return fi.i;
 }
 
 struct ConstVar {
@@ -56,7 +63,7 @@ struct ConstVar {
 			0x3c091331,
 		};
 		for (size_t i = 0; i < expN; i++) {
-			expCoeff[i] = cvt(expTbl[i]);
+			expCoeff[i] = u2f(expTbl[i]);
 		}
 #endif
 		const float logTbl[logN] = {
