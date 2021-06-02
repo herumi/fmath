@@ -6,6 +6,7 @@
 */
 #include <xbyak/xbyak_util.h>
 #include <cmath>
+#include <vector>
 
 namespace fmath {
 
@@ -30,6 +31,8 @@ inline uint32_t f2u(float x)
 	return fi.i;
 }
 
+//#define LOG_TBL
+
 struct ConstVar {
 	static const size_t expN = 5;
 	static const size_t logN = 9;
@@ -40,6 +43,16 @@ struct ConstVar {
 	float log1p5; // log(1.5)
 	float f2div3; // 2/3
 	float logCoeff[logN];
+	static const size_t L = 5;
+	static const size_t LN = 1 << L;
+	float sqrt2;
+	float inv_sqrt2;
+	float logLimit; // 1/32
+	float one;
+	float mhalf; // -0.5
+	float f1div3; // 1/3
+	float logTbl1[LN];
+	float logTbl2[LN];
 	void init()
 	{
 		log2 = std::log(2.0f);
@@ -80,11 +93,65 @@ struct ConstVar {
 		for (size_t i = 0; i < logN; i++) {
 			logCoeff[i] = logTbl[i];
 		}
+		sqrt2 = sqrt(2);
+		inv_sqrt2 = 1 / sqrt2;
+		logLimit = 1.0 / 32;
+		one = 1;
+		mhalf = -0.5;
+		f1div3 = 1.0 / 3;
+		for (size_t i = 0; i < LN; i++) {
+			fi fi;
+			fi.i = (127 << 23) | (i << (23 - L));
+			logTbl1[i] = sqrt2 / fi.f;
+			logTbl2[i] = log(logTbl1[i]);
+		}
 	}
 };
 
-typedef Xbyak::Zmm Zmm;
+using namespace Xbyak;
 using namespace Xbyak::util;
+
+const int freeTbl[] = {
+	0, 1, 2, 3, 4, 
+#ifndef XBYAK64_WIN
+	5, 6,
+#endif
+};
+
+static const size_t maxFreeN = sizeof(freeTbl)/sizeof(freeTbl[0]);
+
+const int saveTbl[] = {
+#ifdef XBYAK64_WIN
+	5, 6,
+#endif
+	7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+};
+
+static const size_t maxSaveN = sizeof(saveTbl)/sizeof(saveTbl[0]);
+
+struct UsedReg {
+	size_t pos;
+	UsedReg()
+		: pos(0)
+	{
+	}
+	int allocRegIdx()
+	{
+		if (pos < maxFreeN) {
+			return freeTbl[pos++];
+		}
+		if (pos < maxFreeN + maxSaveN) {
+			return saveTbl[pos++ - maxFreeN];
+		}
+		throw std::runtime_error("allocRegIdx");
+	}
+	int getKeepNum() const
+	{
+		if (pos < maxFreeN) return 0;
+		return pos - maxFreeN;
+	}
+	size_t getPos() const { return pos; }
+};
 
 struct LogParam {
 	Zmm i127shl23;
@@ -93,15 +160,18 @@ struct LogParam {
 	Zmm log1p5;
 	Zmm f2div3;
 	Zmm logCoeff[ConstVar::logN];
-	LogParam()
-		: i127shl23(zmm3)
-		, x7fffff(zmm4)
-		, log2(zmm5)
-		, log1p5(zmm6)
-		, f2div3(zmm7)
+	LogParam(UsedReg& usedReg)
+		: i127shl23(usedReg.allocRegIdx())
+		, x7fffff(usedReg.allocRegIdx())
+		, log2(usedReg.allocRegIdx())
+#ifdef LOG_TBL
+#else
+		, log1p5(usedReg.allocRegIdx())
+		, f2div3(usedReg.allocRegIdx())
+#endif
 	{
 		for (int i = 0; i < (int)ConstVar::logN; i++) {
-			logCoeff[i] = Zmm(8 + i);
+			logCoeff[i] = Zmm(usedReg.allocRegIdx());
 		}
 	}
 };
@@ -290,24 +360,25 @@ struct Code : public Xbyak::CodeGenerator {
 	// log_v(float *dst, const float *src, size_t n);
 	void genLogAVX512(const Xbyak::Label& constVarL)
 	{
-		const int keepRegN = 11;
-		using namespace Xbyak;
-		util::StackFrame sf(this, 3, util::UseRCX, 64 * keepRegN);
+		UsedReg usedReg;
+		int regN = 3;
+		std::vector<Zmm> args;
+		for (int i = 0; i < regN; i++) {
+			args.push_back(Zmm(usedReg.allocRegIdx()));
+		}
+		LogParam para(usedReg);
+		const int keepRegN = usedReg.getKeepNum();
+		StackFrame sf(this, 3, UseRCX, 64 * keepRegN);
 		const Reg64& dst = sf.p[0];
 		const Reg64& src = sf.p[1];
 		const Reg64& n = sf.p[2];
 
-		// prolog
-#ifdef XBYAK64_WIN
-		vmovups(ptr[rsp + 64 * 0], zm6);
-		vmovups(ptr[rsp + 64 * 1], zm7);
-#endif
-		for (int i = 2; i < keepRegN; i++) {
-			vmovups(ptr[rsp + 64 * i], Zmm(i + 6));
+		// keep
+		for (int i = 0; i < keepRegN; i++) {
+			vmovups(ptr[rsp + 64 * i], Zmm(saveTbl[i]));
 		}
 
 		// setup constant
-		LogParam para;
 		mov(eax, 127 << 23);
 		vpbroadcastd(para.i127shl23, eax);
 		mov(eax, 0x7fffff);
@@ -327,10 +398,10 @@ struct Code : public Xbyak::CodeGenerator {
 		and_(n, ~15u);
 		jz(mod16, T_NEAR);
 	Label lp = L();
-		vmovups(zm0, ptr[src]);
+		vmovups(args[0], ptr[src]);
 		add(src, 64);
 		genLogOneAVX512(para);
-		vmovups(ptr[dst], zm0);
+		vmovups(ptr[dst], args[0]);
 
 		add(dst, 64);
 		sub(n, 16);
@@ -342,18 +413,14 @@ struct Code : public Xbyak::CodeGenerator {
 		shl(eax, cl);
 		sub(eax, 1);
 		kmovd(k1, eax);
-		vmovups(zm0|k1|T_z, ptr[src]);
+		vmovups(args[0]|k1|T_z, ptr[src]);
 		genLogOneAVX512(para);
-		vmovups(ptr[dst]|k1, zm0|k1);
+		vmovups(ptr[dst]|k1, args[0]|k1);
 	L(exit);
 
 		// epilog
-#ifdef XBYAK64_WIN
-		vmovups(zm6, ptr[rsp + 64 * 0]);
-		vmovups(zm7, ptr[rsp + 64 * 1]);
-#endif
-		for (int i = 2; i < keepRegN; i++) {
-			vmovups(Zmm(i + 6), ptr[rsp + 64 * i]);
+		for (int i = 0; i < keepRegN; i++) {
+			vmovups(Zmm(saveTbl[i]), ptr[rsp + 64 * i]);
 		}
 	}
 };

@@ -9,7 +9,7 @@ float g_maxe;
 float diff(float x, float y)
 {
 	float d = std::abs(x - y);
-	return x != 0 ? d / x : d;
+	return fabs(x) > 1e-10 ? d / x : d;
 }
 
 float fmath_logf(float x)
