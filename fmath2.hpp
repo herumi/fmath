@@ -43,30 +43,22 @@ struct ConstVar {
 	float log1p5; // log(1.5)
 	float f2div3; // 2/3
 	float logCoeff[logN];
-	static const size_t L = 5;
-	static const size_t LN = 1 << L;
 	float sqrt2;
 	float inv_sqrt2;
 	float logLimit; // 1/32
 	float one;
 	float mhalf; // -0.5
 	float f1div3; // 1/3
+	static const size_t L = 5;
+	static const size_t LN = 1 << L;
 	float logTbl1[LN];
 	float logTbl2[LN];
 	void init()
 	{
 		log2 = std::log(2.0f);
 		log2_e = 1.0f / log2;
-		log1p5 = std::log(1.5f);
-		f2div3 = 2.0f/3;
-#if 0
-		// maxe=4.888831e-06
-		float z = 1;
-		for (size_t i = 0; i < expN; i++) {
-			expCoeff[i] = z;
-			z /= (i + 2);
-		}
-#else
+//		log1p5 = std::log(1.5f);
+//		f2div3 = 2.0f/3;
 		// maxe=1.938668e-06
 		const uint32_t expTbl[expN] = {
 			0x3f800000,
@@ -78,7 +70,6 @@ struct ConstVar {
 		for (size_t i = 0; i < expN; i++) {
 			expCoeff[i] = u2f(expTbl[i]);
 		}
-#endif
 		const float logTbl[logN] = {
 			 1.0, // must be 1
 			-0.49999985195974875681242,
@@ -435,6 +426,9 @@ struct Code : public Xbyak::CodeGenerator {
 		UsedReg usedReg;
 #ifdef LOG_TBL
 		int regN = 5;
+#else
+		int regN = 3;
+#endif
 		Args args;
 		for (int i = 0; i < regN; i++) {
 			args.push_back(Zmm(usedReg.allocRegIdx()));
@@ -450,7 +444,6 @@ struct Code : public Xbyak::CodeGenerator {
 		for (int i = 0; i < keepRegN; i++) {
 			vmovups(ptr[rsp + 64 * i], Zmm(saveTbl[i]));
 		}
-
 		// setup constant
 		const struct {
 			const Zmm& z;
@@ -469,46 +462,37 @@ struct Code : public Xbyak::CodeGenerator {
 			float x;
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
+#ifdef LOG_TBL
 			{ para.one, 1.0f },
 			{ para.half, 0.5f },
 			{ para.sqrt2, sqrt(2.0f) },
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
-			{ para.f1div3, 1.0 / 3 },
-			{ para.f1div32, 1.0 / 32 },
+			{ para.f1div3, 1.0f / 3 },
+			{ para.f1div32, 1.0f / 32 },
+#else
+			{ para.log1p5, log(1.5f) },
+			{ para.f2div3, 2.0f / 3 },
+#endif
 		};
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
 		}
-#else
-		int regN = 3;
-		std::vector<Zmm> args;
-		for (int i = 0; i < regN; i++) {
-			args.push_back(Zmm(usedReg.allocRegIdx()));
-		}
-		LogParam para(constVarL, usedReg);
-		const int keepRegN = usedReg.getKeepNum();
-		StackFrame sf(this, 3, UseRCX, 64 * keepRegN);
-		const Reg64& dst = sf.p[0];
-		const Reg64& src = sf.p[1];
-		const Reg64& n = sf.p[2];
-
-		// keep
-		for (int i = 0; i < keepRegN; i++) {
-			vmovups(ptr[rsp + 64 * i], Zmm(saveTbl[i]));
-		}
-
-		// setup constant
-		mov(eax, 127 << 23);
-		vpbroadcastd(para.i127shl23, eax);
-		mov(eax, 0x7fffff);
-		vpbroadcastd(para.x7fffff, eax);
-
-		lea(rax, ptr[rip+constVarL]);
-		vbroadcastss(para.log2, ptr[rax + offsetof(ConstVar, log2)]);
-		vbroadcastss(para.log1p5, ptr[rax + offsetof(ConstVar, log1p5)]);
-		vbroadcastss(para.f2div3, ptr[rax + offsetof(ConstVar, f2div3)]);
+#ifndef LOG_TBL
+#if 0
+		const float logTbl[ConstVar::logN] = {
+			 1.0, // must be 1
+			-0.49999985195974875681242,
+			 0.33333220526061677705782,
+			-0.25004206220486390058000,
+			 0.20010985747510067100077,
+			-0.16481566812093889672203,
+			 0.13988269735629330763020,
+			-0.15049504706005165294002,
+			 0.14095711402233803479921,
+		};
+#endif
 		for (size_t i = 0; i < ConstVar::logN; i++) {
-			vbroadcastss(para.logCoeff[i], ptr[rax + offsetof(ConstVar, logCoeff[0]) + sizeof(float) * i]);
+			setFloat(para.logCoeff[i], constVar->logCoeff[i]);
 		}
 #endif
 
