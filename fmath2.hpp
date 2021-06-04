@@ -357,8 +357,9 @@ struct Code : public Xbyak::CodeGenerator {
 	void genLogOneAVX512(const Args& t, const LogParam& p)
 	{
 #ifdef LOG_TBL
+		const Zmm& keepX = t[4];
 //int3();
-		vmovaps(t[4], t[0]);
+		vmovaps(keepX, t[0]);
 
 		vmulps(t[0], t[0], p.sqrt2);
 		vpsubd(t[1], t[0], p.i127shl23);
@@ -384,15 +385,10 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
 		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
 		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
-#if 0
-		const uint8_t neg = 1 << 6;
-//		const uint8_t lt = 1;
-		vfpclassps(k1, t[4], neg); // neg
-		vmovaps(t[0]|k1, p.fNan);
-//		vcmpps(k1, t[4], t[1], eq); // = 0
-//		mov(t[0], p1, p.fMInf);
-#endif
 #else
+		const Zmm& keepX = t[3];
+		vmovaps(keepX, t[0]);
+
 		vpsubd(t[1], t[0], p.i127shl23);
 		vpsrad(t[1], t[1], 23); // e
 		vcvtdq2ps(t[1], t[1]); // float(e)
@@ -409,6 +405,13 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 		vfmadd213ps(t[0], t[2], t[1]);
 #endif
+		// check x < 0 or x == 0
+		const uint8_t neg = 1 << 6;
+		const uint8_t zero = (1 << 1) | (1 << 2);
+		vfpclassps(k2, keepX, neg);
+		vmovaps(t[0]|k2, p.fNan);
+		vfpclassps(k2, keepX, zero);
+		vmovaps(t[0]|k2, p.fMInf);
 	}
 	// use eax
 	void setInt(const Zmm& dst, uint32_t x)
@@ -427,7 +430,7 @@ struct Code : public Xbyak::CodeGenerator {
 #ifdef LOG_TBL
 		int regN = 5;
 #else
-		int regN = 3;
+		int regN = 4;
 #endif
 		Args args;
 		for (int i = 0; i < regN; i++) {
