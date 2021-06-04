@@ -154,25 +154,48 @@ struct UsedReg {
 };
 
 struct LogParam {
+	const Label& constVarL;
 	Zmm i127shl23;
 	Zmm x7fffff;
 	Zmm log2;
+	Zmm fNan;
+	Zmm fMInf;
+#ifdef LOG_TBL
+	Zmm one;
+	Zmm half;
+	Zmm sqrt2;
+	Zmm inv_sqrt2;
+	Zmm f1div3;
+	Zmm f1div32;
+#else
 	Zmm log1p5;
 	Zmm f2div3;
 	Zmm logCoeff[ConstVar::logN];
-	LogParam(UsedReg& usedReg)
-		: i127shl23(usedReg.allocRegIdx())
+#endif
+	LogParam(const Label& constVarL, UsedReg& usedReg)
+		: constVarL(constVarL)
+		, i127shl23(usedReg.allocRegIdx())
 		, x7fffff(usedReg.allocRegIdx())
 		, log2(usedReg.allocRegIdx())
+		, fNan(usedReg.allocRegIdx())
+		, fMInf(usedReg.allocRegIdx())
 #ifdef LOG_TBL
+		, one(usedReg.allocRegIdx())
+		, half(usedReg.allocRegIdx())
+		, sqrt2(usedReg.allocRegIdx())
+		, inv_sqrt2(usedReg.allocRegIdx())
+		, f1div3(usedReg.allocRegIdx())
+		, f1div32(usedReg.allocRegIdx())
 #else
 		, log1p5(usedReg.allocRegIdx())
 		, f2div3(usedReg.allocRegIdx())
 #endif
 	{
+#ifndef LOG_TBL
 		for (int i = 0; i < (int)ConstVar::logN; i++) {
 			logCoeff[i] = Zmm(usedReg.allocRegIdx());
 		}
+#endif
 	}
 };
 
@@ -186,6 +209,7 @@ s:=eval(sols,L=log(2)/2);
 evalf(s,20);
 */
 struct Code : public Xbyak::CodeGenerator {
+	typedef std::vector<Zmm> Args;
 	Xbyak::util::Cpu cpu;
 	ConstVar *constVar;
 	typedef void (*VecFunc)(float *dst, const float *src, size_t n);
@@ -339,34 +363,129 @@ struct Code : public Xbyak::CodeGenerator {
 	}
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
-	void genLogOneAVX512(const LogParam& p)
+	void genLogOneAVX512(const Args& t, const LogParam& p)
 	{
-		vpsubd(zm1, zm0, p.i127shl23);
-		vpsrad(zm1, zm1, 23); // e
-		vcvtdq2ps(zm1, zm1); // float(e)
-		vpandd(zm0, zm0, p.x7fffff);
-		vpord(zm0, zm0, p.i127shl23); // y
+#ifdef LOG_TBL
+//int3();
+		vmovaps(t[4], t[0]);
 
-		vfmsub213ps(zm0, p.f2div3, p.logCoeff[0]); // a
-		vfmadd213ps(zm1, p.log2, p.log1p5); // e
+		vmulps(t[0], t[0], p.sqrt2);
+		vpsubd(t[1], t[0], p.i127shl23);
+		vpsrad(t[1], t[1], 23); // n
+		vcvtdq2ps(t[1], t[1]); // int -> float
+		vpandd(t[0], t[0], p.x7fffff);
+		vpsrad(t[2], t[0], 23 - ConstVar::L); // d
+		vpord(t[0], t[0], p.i127shl23); // y
+		vmulps(t[0], t[0], p.inv_sqrt2);
+		kxnord(k2, k2, k2);
+		lea(rax, ptr[rip + p.constVarL]);
+		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl1)]); // f
+		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
+		kxnord(k2, k2, k2);
+		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
+//		vsubps(t[3], t[4], p.one); // x-1
+//		facge(p1.s, p.f1div32.s, t[3]); // 1/32 >= abs(x-1)
+//		mov(t[0], p1, t[3]);
+//		eor(t[2], p1, t[2]);
+
+		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
+		vmovaps(t[2], t[0]);
+		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
+		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
+		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
+#if 0
+		const uint8_t neg = 1 << 6;
+//		const uint8_t lt = 1;
+		vfpclassps(k1, t[4], neg); // neg
+		vmovaps(t[0]|k1, p.fNan);
+//		vcmpps(k1, t[4], t[1], eq); // = 0
+//		mov(t[0], p1, p.fMInf);
+#endif
+#else
+		vpsubd(t[1], t[0], p.i127shl23);
+		vpsrad(t[1], t[1], 23); // e
+		vcvtdq2ps(t[1], t[1]); // float(e)
+		vpandd(t[0], t[0], p.x7fffff);
+		vpord(t[0], t[0], p.i127shl23); // y
+
+		vfmsub213ps(t[0], p.f2div3, p.logCoeff[0]); // a
+		vfmadd213ps(t[1], p.log2, p.log1p5); // e
 
 		int logN = ConstVar::logN;
-		vmovaps(zm2, p.logCoeff[logN - 1]);
+		vmovaps(t[2], p.logCoeff[logN - 1]);
 		for (int i = logN - 2; i >= 0; i--) {
-			vfmadd213ps(zm2, zm0, p.logCoeff[i]);
+			vfmadd213ps(t[2], t[0], p.logCoeff[i]);
 		}
-		vfmadd213ps(zm0, zm2, zm1);
+		vfmadd213ps(t[0], t[2], t[1]);
+#endif
+	}
+	// use eax
+	void setInt(const Zmm& dst, uint32_t x)
+	{
+		mov(eax, x);
+		vpbroadcastd(dst, eax);
+	}
+	void setFloat(const Zmm& dst, float f)
+	{
+		setInt(dst, f2u(f));
 	}
 	// log_v(float *dst, const float *src, size_t n);
 	void genLogAVX512(const Xbyak::Label& constVarL)
 	{
 		UsedReg usedReg;
+#ifdef LOG_TBL
+		int regN = 5;
+		Args args;
+		for (int i = 0; i < regN; i++) {
+			args.push_back(Zmm(usedReg.allocRegIdx()));
+		}
+		LogParam para(constVarL, usedReg);
+		const int keepRegN = usedReg.getKeepNum();
+		StackFrame sf(this, 3, UseRCX, 64 * keepRegN);
+		const Reg64& dst = sf.p[0];
+		const Reg64& src = sf.p[1];
+		const Reg64& n = sf.p[2];
+
+		// keep
+		for (int i = 0; i < keepRegN; i++) {
+			vmovups(ptr[rsp + 64 * i], Zmm(saveTbl[i]));
+		}
+
+		// setup constant
+		const struct {
+			const Zmm& z;
+			uint32_t x;
+		} intTbl[] = {
+			{ para.i127shl23, 127 << 23 },
+			{ para.x7fffff, 0x7fffff },
+			{ para.fNan, 0x7fc00000 }, // Nan
+			{ para.fMInf, 0xff800000 }, // -Inf
+		};
+		for (size_t i = 0; i < sizeof(intTbl)/sizeof(intTbl[0]); i++) {
+			setInt(intTbl[i].z, intTbl[i].x);
+		}
+		const struct {
+			const Zmm& z;
+			float x;
+		} floatTbl[] = {
+			{ para.log2, log(2.0f) },
+			{ para.one, 1.0f },
+			{ para.half, 0.5f },
+			{ para.sqrt2, sqrt(2.0f) },
+			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
+			{ para.f1div3, 1.0 / 3 },
+			{ para.f1div32, 1.0 / 32 },
+		};
+		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
+			setFloat(floatTbl[i].z, floatTbl[i].x);
+		}
+#else
 		int regN = 3;
 		std::vector<Zmm> args;
 		for (int i = 0; i < regN; i++) {
 			args.push_back(Zmm(usedReg.allocRegIdx()));
 		}
-		LogParam para(usedReg);
+		LogParam para(constVarL, usedReg);
 		const int keepRegN = usedReg.getKeepNum();
 		StackFrame sf(this, 3, UseRCX, 64 * keepRegN);
 		const Reg64& dst = sf.p[0];
@@ -391,6 +510,7 @@ struct Code : public Xbyak::CodeGenerator {
 		for (size_t i = 0; i < ConstVar::logN; i++) {
 			vbroadcastss(para.logCoeff[i], ptr[rax + offsetof(ConstVar, logCoeff[0]) + sizeof(float) * i]);
 		}
+#endif
 
 		// main loop
 		Label mod16, exit;
@@ -400,7 +520,7 @@ struct Code : public Xbyak::CodeGenerator {
 	Label lp = L();
 		vmovups(args[0], ptr[src]);
 		add(src, 64);
-		genLogOneAVX512(para);
+		genLogOneAVX512(args, para);
 		vmovups(ptr[dst], args[0]);
 
 		add(dst, 64);
@@ -414,8 +534,8 @@ struct Code : public Xbyak::CodeGenerator {
 		sub(eax, 1);
 		kmovd(k1, eax);
 		vmovups(args[0]|k1|T_z, ptr[src]);
-		genLogOneAVX512(para);
-		vmovups(ptr[dst]|k1, args[0]|k1);
+		genLogOneAVX512(args, para);
+		vmovups(ptr[dst]|k1, args[0]);
 	L(exit);
 
 		// epilog

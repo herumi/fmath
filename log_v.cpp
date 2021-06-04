@@ -147,7 +147,7 @@ CYBOZU_TEST_AUTO(bench)
 
 CYBOZU_TEST_AUTO(limit)
 {
-	float x[] = { 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 - 1e-5, 1 + 1.0/3, 1 + 1e-5, 2, 100, 1e8, FLT_MAX };
+	float x[] = { -3, 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 - 1e-5, 1 + 1.0/3, 1 + 1e-5, 2, 100, 1e8, FLT_MAX };
 	const size_t n = sizeof(x) / sizeof(x[0]);
 	float y0[n];
 	float y1[n];
