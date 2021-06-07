@@ -102,6 +102,8 @@ CYBOZU_TEST_AUTO(setMaxE)
 	putDiff(1e-6, 4, 1e-6, logfC);
 	puts("fmath::logf_v");
 	putDiff(1, 2, 1e-6, fmath_logf);
+	putDiff(2, 3, 1e-6, fmath_logf);
+	putDiff(0.99, 1.01, 1e-6, fmath_logf);
 	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf);
 }
 
