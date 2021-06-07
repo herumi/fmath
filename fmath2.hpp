@@ -31,7 +31,7 @@ inline uint32_t f2u(float x)
 	return fi.i;
 }
 
-//#define LOG_TBL
+//#define FMATH_LOG_TBL
 
 struct ConstVar {
 	static const size_t expN = 5;
@@ -151,7 +151,8 @@ struct LogParam {
 	Zmm log2;
 	Zmm fNan;
 	Zmm fMInf;
-#ifdef LOG_TBL
+	Zmm x7fffffff;
+#ifdef FMATH_LOG_TBL
 	Zmm one;
 	Zmm half;
 	Zmm sqrt2;
@@ -170,7 +171,8 @@ struct LogParam {
 		, log2(usedReg.allocRegIdx())
 		, fNan(usedReg.allocRegIdx())
 		, fMInf(usedReg.allocRegIdx())
-#ifdef LOG_TBL
+		, x7fffffff(usedReg.allocRegIdx())
+#ifdef FMATH_LOG_TBL
 		, one(usedReg.allocRegIdx())
 		, half(usedReg.allocRegIdx())
 		, sqrt2(usedReg.allocRegIdx())
@@ -182,7 +184,7 @@ struct LogParam {
 		, f2div3(usedReg.allocRegIdx())
 #endif
 	{
-#ifndef LOG_TBL
+#ifndef FMATH_LOG_TBL
 		for (int i = 0; i < (int)ConstVar::logN; i++) {
 			logCoeff[i] = Zmm(usedReg.allocRegIdx());
 		}
@@ -356,7 +358,7 @@ struct Code : public Xbyak::CodeGenerator {
 	// use zm0, zm1, zm2
 	void genLogOneAVX512(const Args& t, const LogParam& p)
 	{
-#ifdef LOG_TBL
+#ifdef FMATH_LOG_TBL
 		const Zmm& keepX = t[4];
 //int3();
 		vmovaps(keepX, t[0]);
@@ -375,10 +377,13 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
 		kxnord(k2, k2, k2);
 		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
-//		vsubps(t[3], t[4], p.one); // x-1
-//		facge(p1.s, p.f1div32.s, t[3]); // 1/32 >= abs(x-1)
-//		mov(t[0], p1, t[3]);
-//		eor(t[2], p1, t[2]);
+#if 1 // for |x-1| < 1/32
+		vsubps(t[2], keepX, p.one); // x-1
+		vandps(t[2], t[2], p.x7fffffff); // |x-1|
+		vcmpps(k2, t[2], p.f1div32, 1 /* lt */);
+		vsubps(t[0]|k2, keepX, p.one); // y = t[0] = x-1
+		vxorps(t[3]|k2, t[3]); // h = t[3] = 0
+#endif
 
 		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
 		vmovaps(t[2], t[0]);
@@ -427,7 +432,7 @@ struct Code : public Xbyak::CodeGenerator {
 	void genLogAVX512(const Xbyak::Label& constVarL)
 	{
 		UsedReg usedReg;
-#ifdef LOG_TBL
+#ifdef FMATH_LOG_TBL
 		int regN = 5;
 #else
 		int regN = 4;
@@ -456,6 +461,7 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.x7fffff, 0x7fffff },
 			{ para.fNan, 0x7fc00000 }, // Nan
 			{ para.fMInf, 0xff800000 }, // -Inf
+			{ para.x7fffffff, 0x7fffffff }, // abs
 		};
 		for (size_t i = 0; i < sizeof(intTbl)/sizeof(intTbl[0]); i++) {
 			setInt(intTbl[i].z, intTbl[i].x);
@@ -465,7 +471,7 @@ struct Code : public Xbyak::CodeGenerator {
 			float x;
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
-#ifdef LOG_TBL
+#ifdef FMATH_LOG_TBL
 			{ para.one, 1.0f },
 			{ para.half, 0.5f },
 			{ para.sqrt2, sqrt(2.0f) },
@@ -480,20 +486,7 @@ struct Code : public Xbyak::CodeGenerator {
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
 		}
-#ifndef LOG_TBL
-#if 0
-		const float logTbl[ConstVar::logN] = {
-			 1.0, // must be 1
-			-0.49999985195974875681242,
-			 0.33333220526061677705782,
-			-0.25004206220486390058000,
-			 0.20010985747510067100077,
-			-0.16481566812093889672203,
-			 0.13988269735629330763020,
-			-0.15049504706005165294002,
-			 0.14095711402233803479921,
-		};
-#endif
+#ifndef FMATH_LOG_TBL
 		for (size_t i = 0; i < ConstVar::logN; i++) {
 			setFloat(para.logCoeff[i], constVar->logCoeff[i]);
 		}
