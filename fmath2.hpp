@@ -152,8 +152,8 @@ struct LogParam {
 	Zmm fNan;
 	Zmm fMInf;
 	Zmm x7fffffff;
-#ifdef FMATH_LOG_TBL
 	Zmm one;
+#ifdef FMATH_LOG_TBL
 	Zmm half;
 	Zmm sqrt2;
 	Zmm inv_sqrt2;
@@ -162,6 +162,7 @@ struct LogParam {
 #else
 	Zmm log1p5;
 	Zmm f2div3;
+	Zmm f1div8;
 	Zmm logCoeff[ConstVar::logN];
 #endif
 	LogParam(const Label& constVarL, UsedReg& usedReg)
@@ -172,8 +173,8 @@ struct LogParam {
 		, fNan(usedReg.allocRegIdx())
 		, fMInf(usedReg.allocRegIdx())
 		, x7fffffff(usedReg.allocRegIdx())
-#ifdef FMATH_LOG_TBL
 		, one(usedReg.allocRegIdx())
+#ifdef FMATH_LOG_TBL
 		, half(usedReg.allocRegIdx())
 		, sqrt2(usedReg.allocRegIdx())
 		, inv_sqrt2(usedReg.allocRegIdx())
@@ -182,6 +183,7 @@ struct LogParam {
 #else
 		, log1p5(usedReg.allocRegIdx())
 		, f2div3(usedReg.allocRegIdx())
+		, f1div8(usedReg.allocRegIdx())
 #endif
 	{
 #ifndef FMATH_LOG_TBL
@@ -402,6 +404,13 @@ struct Code : public Xbyak::CodeGenerator {
 
 		vfmsub213ps(t[0], p.f2div3, p.logCoeff[0]); // a
 		vfmadd213ps(t[1], p.log2, p.log1p5); // e
+#if 1 // for |x-1| < 1/8
+		vsubps(t[2], keepX, p.one); // x-1
+		vandps(t[2], t[2], p.x7fffffff); // |x-1|
+		vcmpps(k2, t[2], p.f1div8, 1 /* lt */);
+		vsubps(t[0]|k2, keepX, p.one); // a = t[0] = x-1
+		vxorps(t[1]|k2, t[1]); // e = t[1] = 0
+#endif
 
 		int logN = ConstVar::logN;
 		vmovaps(t[2], p.logCoeff[logN - 1]);
@@ -471,8 +480,8 @@ struct Code : public Xbyak::CodeGenerator {
 			float x;
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
-#ifdef FMATH_LOG_TBL
 			{ para.one, 1.0f },
+#ifdef FMATH_LOG_TBL
 			{ para.half, 0.5f },
 			{ para.sqrt2, sqrt(2.0f) },
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
@@ -481,6 +490,7 @@ struct Code : public Xbyak::CodeGenerator {
 #else
 			{ para.log1p5, log(1.5f) },
 			{ para.f2div3, 2.0f / 3 },
+			{ para.f1div8, 1.0f / 8 },
 #endif
 		};
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
