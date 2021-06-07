@@ -31,7 +31,9 @@ inline uint32_t f2u(float x)
 	return fi.i;
 }
 
-//#define FMATH_LOG_TBL
+//#define FMATH_LOG_TBL // use gather(slow)
+#define FMATH_LOG_PRECISE // more exact for |x-1| is small
+#define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
 
 struct ConstVar {
 	static const size_t expN = 5;
@@ -379,7 +381,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
 		kxnord(k2, k2, k2);
 		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
-#if 1 // for |x-1| < 1/32
+#ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
 		vcmpps(k2, t[2], p.f1div32, 1 /* lt */);
@@ -404,7 +406,7 @@ struct Code : public Xbyak::CodeGenerator {
 
 		vfmsub213ps(t[0], p.f2div3, p.logCoeff[0]); // a
 		vfmadd213ps(t[1], p.log2, p.log1p5); // e
-#if 1 // for |x-1| < 1/8
+#ifdef FMATH_LOG_PRECISE // for |x-1| < 1/8
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
 		vcmpps(k2, t[2], p.f1div8, 1 /* lt */);
@@ -419,6 +421,7 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 		vfmadd213ps(t[0], t[2], t[1]);
 #endif
+#ifdef FMATH_LOG_NOT_POSITIVE
 		// check x < 0 or x == 0
 		const uint8_t neg = 1 << 6;
 		const uint8_t zero = (1 << 1) | (1 << 2);
@@ -426,6 +429,7 @@ struct Code : public Xbyak::CodeGenerator {
 		vmovaps(t[0]|k2, p.fNan);
 		vfpclassps(k2, keepX, zero);
 		vmovaps(t[0]|k2, p.fMInf);
+#endif
 	}
 	// use eax
 	void setInt(const Zmm& dst, uint32_t x)
