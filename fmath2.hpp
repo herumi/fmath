@@ -31,9 +31,9 @@ inline uint32_t f2u(float x)
 	return fi.i;
 }
 
-//#define FMATH_LOG_TBL // use gather(slow)
+#define FMATH_LOG_TBL // use gather(slow)
 #define FMATH_LOG_PRECISE // more exact for |x-1| is small
-#define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
+//#define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
 
 struct ConstVar {
 	static const size_t expN = 5;
@@ -51,7 +51,7 @@ struct ConstVar {
 	float one;
 	float mhalf; // -0.5
 	float f1div3; // 1/3
-	static const size_t L = 5;
+	static const size_t L = 4;
 	static const size_t LN = 1 << L;
 	float logTbl1[LN];
 	float logTbl2[LN];
@@ -375,12 +375,20 @@ struct Code : public Xbyak::CodeGenerator {
 		vpsrad(t[2], t[0], 23 - ConstVar::L); // d
 		vpord(t[0], t[0], p.i127shl23); // y
 		vmulps(t[0], t[0], p.inv_sqrt2);
-		kxnord(k2, k2, k2);
 		lea(rax, ptr[rip + p.constVarL]);
+	if (ConstVar::L == 4) {
+		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl1)]);
+	} else {
+		kxnord(k2, k2, k2);
 		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl1)]); // f
+	}
 		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
+	if (ConstVar::L == 4) {
+		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl2)]); // h
+	} else {
 		kxnord(k2, k2, k2);
 		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
+	}
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
