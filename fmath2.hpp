@@ -161,6 +161,7 @@ struct LogParam {
 	Zmm inv_sqrt2;
 	Zmm f1div3;
 	Zmm f1div32;
+	Zmm fm1div4;
 #else
 	Zmm log1p5;
 	Zmm f2div3;
@@ -182,6 +183,7 @@ struct LogParam {
 		, inv_sqrt2(usedReg.allocRegIdx())
 		, f1div3(usedReg.allocRegIdx())
 		, f1div32(usedReg.allocRegIdx())
+		, fm1div4(usedReg.allocRegIdx())
 #else
 		, log1p5(usedReg.allocRegIdx())
 		, f2div3(usedReg.allocRegIdx())
@@ -399,7 +401,12 @@ struct Code : public Xbyak::CodeGenerator {
 
 		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
 		vmovaps(t[2], t[0]);
+	if (ConstVar::L == 4) {
+		vfmadd213ps(t[2], p.fm1div4, p.f1div3); // f = y * (-1/4) + 1/3
+		vfmsub213ps(t[2], t[0], p.half); // f = f * y - 0.5
+	} else {
 		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
+	}
 		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
 		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
 #else
@@ -499,6 +506,7 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
 			{ para.f1div3, 1.0f / 3 },
 			{ para.f1div32, 1.0f / 32 },
+			{ para.fm1div4, -1.0f / 4 },
 #else
 			{ para.log1p5, log(1.5f) },
 			{ para.f2div3, 2.0f / 3 },
