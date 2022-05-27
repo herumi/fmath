@@ -162,6 +162,7 @@ struct LogParam {
 	Zmm f1div3;
 	Zmm preciseBoundary;
 	Zmm fm1div4;
+	Zmm f1div5;
 #else
 	Zmm log1p5;
 	Zmm f2div3;
@@ -184,6 +185,7 @@ struct LogParam {
 		, f1div3(usedReg.allocRegIdx())
 		, preciseBoundary(usedReg.allocRegIdx())
 		, fm1div4(usedReg.allocRegIdx())
+		, f1div5(usedReg.allocRegIdx())
 #else
 		, log1p5(usedReg.allocRegIdx())
 		, f2div3(usedReg.allocRegIdx())
@@ -402,12 +404,19 @@ struct Code : public Xbyak::CodeGenerator {
 		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
 		vmovaps(t[2], t[0]);
 	if (ConstVar::L == 4) {
+#if 0
+		vfmadd213ps(t[2], p.f1div5, p.fm1div4); // f = y * 1/5 + (-1/4)
+		vfmadd213ps(t[2], t[0], p.f1div3); // f = y(y * 1/5 + (-1/4)) + 1/3
+		vfmsub213ps(t[2], t[0], p.half); // f = f * y - 0.5
+#else
 		vfmadd213ps(t[2], p.fm1div4, p.f1div3); // f = y * (-1/4) + 1/3
 		vfmsub213ps(t[2], t[0], p.half); // f = f * y - 0.5
+#endif
+		vfmadd213ps(t[2], t[0], p.f1div5); // f = f * y + 1
 	} else {
 		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
-	}
 		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
+	}
 		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
 #else
 		const Zmm& keepX = t[3];
@@ -501,12 +510,30 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
 #ifdef FMATH_LOG_TBL
+#if 1
+			{ para.sqrt2, sqrt(2.0f) },
+			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
+			{ para.preciseBoundary, 1.0f / 16 },
+#if 0
+			{ para.f1div5, 0.999999042576443762804 },
+			{ para.half, 0.4999979229627685098 }, 
+			{ para.f1div3, 0.33431276939060016561 },
+			{ para.fm1div4, -0.251143747564983737254 },
+#else
+			{ para.f1div5, .999999270802542918550911 },
+			{ para.half, .499999097253386239335 /*0.5f*/ },
+			{ para.f1div3, .334203707329478676114 /*1.0f / 3*/ },
+			{ para.fm1div4, -.2508311271129865825  /*-1.0f / 4*/ },
+#endif
+#else
 			{ para.half, 0.499999097253386239335 /*0.5f*/ },
 			{ para.sqrt2, sqrt(2.0f) },
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
 			{ para.f1div3, 0.3339423629608606847607 /*1.0f / 3*/ },
 			{ para.preciseBoundary, 1.0f / 16 },
 			{ para.fm1div4, -.2508311271129865825 /*-1.0f / 4*/ },
+			{ para.f1div5, 1.0f/5 },
+#endif
 #else
 			{ para.log1p5, log(1.5f) },
 			{ para.f2div3, 2.0f / 3 },
