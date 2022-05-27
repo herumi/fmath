@@ -88,7 +88,7 @@ struct ConstVar {
 		}
 		sqrt2 = sqrt(2);
 		inv_sqrt2 = 1 / sqrt2;
-		logLimit = 1.0 / 32;
+		logLimit = 1.0 / 16;
 		one = 1;
 		mhalf = -0.5;
 		f1div3 = 1.0 / 3;
@@ -160,7 +160,7 @@ struct LogParam {
 	Zmm sqrt2;
 	Zmm inv_sqrt2;
 	Zmm f1div3;
-	Zmm f1div32;
+	Zmm preciseBoundary;
 	Zmm fm1div4;
 #else
 	Zmm log1p5;
@@ -182,7 +182,7 @@ struct LogParam {
 		, sqrt2(usedReg.allocRegIdx())
 		, inv_sqrt2(usedReg.allocRegIdx())
 		, f1div3(usedReg.allocRegIdx())
-		, f1div32(usedReg.allocRegIdx())
+		, preciseBoundary(usedReg.allocRegIdx())
 		, fm1div4(usedReg.allocRegIdx())
 #else
 		, log1p5(usedReg.allocRegIdx())
@@ -394,7 +394,7 @@ struct Code : public Xbyak::CodeGenerator {
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
-		vcmpps(k2, t[2], p.f1div32, 1 /* lt */);
+		vcmpps(k2, t[2], p.preciseBoundary, 1 /* lt */);
 		vsubps(t[0]|k2, keepX, p.one); // y = t[0] = x-1
 		vxorps(t[3]|k2, t[3]); // h = t[3] = 0
 #endif
@@ -501,12 +501,12 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
 #ifdef FMATH_LOG_TBL
-			{ para.half, 0.5f },
+			{ para.half, 0.499999097253386239335 /*0.5f*/ },
 			{ para.sqrt2, sqrt(2.0f) },
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
-			{ para.f1div3, 1.0f / 3 },
-			{ para.f1div32, 1.0f / 32 },
-			{ para.fm1div4, -1.0f / 4 },
+			{ para.f1div3, 0.3339423629608606847607 /*1.0f / 3*/ },
+			{ para.preciseBoundary, 1.0f / 16 },
+			{ para.fm1div4, -.2508311271129865825 /*-1.0f / 4*/ },
 #else
 			{ para.log1p5, log(1.5f) },
 			{ para.f2div3, 2.0f / 3 },
