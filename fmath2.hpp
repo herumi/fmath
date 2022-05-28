@@ -510,30 +510,13 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
 #ifdef FMATH_LOG_TBL
-#if 1
 			{ para.sqrt2, sqrt(2.0f) },
 			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
 			{ para.preciseBoundary, 1.0f / 16 },
-#if 0
-			{ para.f1div5, 0.999999042576443762804 },
-			{ para.half, 0.4999979229627685098 }, 
-			{ para.f1div3, 0.33431276939060016561 },
-			{ para.fm1div4, -0.251143747564983737254 },
-#else
 			{ para.f1div5, .999999270802542918550911 },
 			{ para.half, .499999097253386239335 /*0.5f*/ },
 			{ para.f1div3, .334203707329478676114 /*1.0f / 3*/ },
 			{ para.fm1div4, -.2508311271129865825  /*-1.0f / 4*/ },
-#endif
-#else
-			{ para.half, 0.499999097253386239335 /*0.5f*/ },
-			{ para.sqrt2, sqrt(2.0f) },
-			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
-			{ para.f1div3, 0.3339423629608606847607 /*1.0f / 3*/ },
-			{ para.preciseBoundary, 1.0f / 16 },
-			{ para.fm1div4, -.2508311271129865825 /*-1.0f / 4*/ },
-			{ para.f1div5, 1.0f/5 },
-#endif
 #else
 			{ para.log1p5, log(1.5f) },
 			{ para.f2div3, 2.0f / 3 },
