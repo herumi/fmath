@@ -19,51 +19,6 @@ float fmath_logf(float x)
 	return y;
 }
 
-float logfC(float x)
-{
-	using namespace fmath;
-	const local::ConstVar& C = *local::Inst<>::code.constVar;
-	local::fi fi;
-	fi.f = x;
-	float e = (int(fi.i - (127 << 23))) >> 23;
-	fi.i = (fi.i & 0x7fffff) | (127 << 23);
-	float y = fi.f;
-	/*
-		x = y * 2^e (1 <= y < 2)
-		log(x) = e log2 + log(y)
-		a = (2/3) y - 1 (|a|<=1/3)
-		y = 1.5(1 + a)
-		log(y) = log 1.5 + log(1 + a)
-		log(x) = e log2 + log 1.5 + (a - a^2/2 + a^3/3 - ...)
-	*/
-	float a = C.f2div3 * y - C.logCoeff[0];
-	e = e * C.log2 + C.log1p5;
-
-	const float *tbl = C.logCoeff;
-#if 0
-	float aa = a * a;
-	float x0 = tbl[8];
-	float x1 = tbl[7];
-	x0 = x0 * aa + tbl[6];
-	x1 = x1 * aa + tbl[5];
-	x0 = x0 * aa + tbl[4];
-	x1 = x1 * aa + tbl[3];
-	x0 = x0 * aa + tbl[2];
-	x1 = x1 * aa + tbl[1];
-	x0 = x0 * aa + tbl[0];
-	x = x1 * a + x0;
-#else
-	const int logN = C.logN;
-	x = tbl[logN - 1];
-	for (int i = logN - 2; i >= 0; i--) {
-		x = x * a + tbl[i];
-	}
-#endif
-	x = x * a + e;
-	return x;
-}
-
-
 void std_log_v(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
@@ -97,9 +52,6 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(setMaxE)
 {
-	puts("logfC");
-	putDiff(1, 2, 1e-6, logfC);
-	putDiff(1e-6, 4, 1e-6, logfC);
 	puts("fmath::logf_v");
 	putDiff(1, 2, 1e-6, fmath_logf);
 	putDiff(2, 3, 1e-6, fmath_logf);

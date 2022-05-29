@@ -41,15 +41,10 @@ struct ConstVar {
 	float log2_e; // log_2(e) = 1 / log2
 	float expCoeff[expN]; // near to 1/(i + 1)!
 	//
-	float log1p5; // log(1.5)
-	float f2div3; // 2/3
 	float logCoeff[logN];
-	float sqrt2;
-	float inv_sqrt2;
 	float logLimit; // 1/32
 	float one;
-	float mhalf; // -0.5
-	float f1div3; // 1/3
+	float c3; // 1/3
 	static const size_t L = 4;
 	static const size_t LN = 1 << L;
 	float logTbl1[LN];
@@ -58,8 +53,6 @@ struct ConstVar {
 	{
 		log2 = std::log(2.0f);
 		log2_e = 1.0f / log2;
-//		log1p5 = std::log(1.5f);
-//		f2div3 = 2.0f/3;
 		// maxe=1.938668e-06
 		const uint32_t expTbl[expN] = {
 			0x3f800000,
@@ -85,15 +78,12 @@ struct ConstVar {
 		for (size_t i = 0; i < logN; i++) {
 			logCoeff[i] = logTbl[i];
 		}
-		sqrt2 = sqrt(2);
-		inv_sqrt2 = 1 / sqrt2;
 		logLimit = 1.0 / 16;
 		one = 1;
-		mhalf = -0.5;
-		f1div3 = 1.0 / 3;
+		c3 = 1.0 / 3;
 		for (size_t i = 0; i < LN; i++) {
 			fi fi;
-			fi.i = (127 << 23) | (i << (23 - L));
+			fi.i = (127 << 23) | ((i*2+1) << (23 - L - 1));
 			logTbl1[i] = 1 / fi.f;
 			logTbl2[i] = log(logTbl1[i]);
 		}
@@ -154,13 +144,10 @@ struct LogParam {
 	Zmm fMInf;
 	Zmm x7fffffff;
 	Zmm one;
-	Zmm half;
-	Zmm sqrt2;
-	Zmm inv_sqrt2;
-	Zmm f1div3;
+	Zmm c2;
+	Zmm c3;
 	Zmm preciseBoundary;
-	Zmm fm1div4;
-	Zmm f1div5;
+	Zmm c4;
 	LogParam(const Label& constVarL, UsedReg& usedReg)
 		: constVarL(constVarL)
 		, i127shl23(usedReg.allocRegIdx())
@@ -170,13 +157,10 @@ struct LogParam {
 		, fMInf(usedReg.allocRegIdx())
 		, x7fffffff(usedReg.allocRegIdx())
 		, one(usedReg.allocRegIdx())
-		, half(usedReg.allocRegIdx())
-		, sqrt2(usedReg.allocRegIdx())
-		, inv_sqrt2(usedReg.allocRegIdx())
-		, f1div3(usedReg.allocRegIdx())
+		, c2(usedReg.allocRegIdx())
+		, c3(usedReg.allocRegIdx())
 		, preciseBoundary(usedReg.allocRegIdx())
-		, fm1div4(usedReg.allocRegIdx())
-		, f1div5(usedReg.allocRegIdx())
+		, c4(usedReg.allocRegIdx())
 	{
 	}
 };
@@ -366,26 +350,15 @@ struct Code : public Xbyak::CodeGenerator {
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
 		vcmpps(k2, t[2], p.preciseBoundary, 1 /* lt */);
 		vsubps(t[0]|k2, keepX, p.one); // c = t[0] = x-1
-		vxorps(t[3]|k2, t[3]); // h = t[3] = 0
+		vxorps(t[3]|k2, t[3]); // log_b = t[3] = 0
 		vxorps(t[1]|k2, t[1]); // n = 0
 #endif
 
-		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
+		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - log_b
 		vmovaps(t[2], t[0]);
-	if (ConstVar::L == 4) {
-#if 0
-		vfmadd213ps(t[2], p.f1div5, p.fm1div4); // f = y * 1/5 + (-1/4)
-		vfmadd213ps(t[2], t[0], p.f1div3); // f = y(y * 1/5 + (-1/4)) + 1/3
-		vfmsub213ps(t[2], t[0], p.half); // f = f * y - 0.5
-#else
-		vfmadd213ps(t[2], p.fm1div4, p.f1div3); // f = y * (-1/4) + 1/3
-		vfmsub213ps(t[2], t[0], p.half); // f = f * y - 0.5
-#endif
-		vfmadd213ps(t[2], t[0], p.f1div5); // f = f * y + 1
-	} else {
-		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
+		vfmadd213ps(t[2], p.c4, p.c3); // f = y * (-1/4) + (1/3)
+		vfmadd213ps(t[2], t[0], p.c2); // f = f * y + (-1/2)
 		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
-	}
 		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
 #ifdef FMATH_LOG_NOT_POSITIVE
 		// check x < 0 or x == 0
@@ -447,13 +420,10 @@ struct Code : public Xbyak::CodeGenerator {
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
-			{ para.sqrt2, sqrt(2.0f) },
-			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
 			{ para.preciseBoundary, 1.0f / 16 },
-			{ para.f1div5, .999999270802542918550911 },
-			{ para.half, .499999097253386239335 /*0.5f*/ },
-			{ para.f1div3, .334203707329478676114 /*1.0f / 3*/ },
-			{ para.fm1div4, -.2508311271129865825  /*-1.0f / 4*/ },
+			{ para.c2, -0.49999909725f },
+			{ para.c3, 0.333942362961f },
+			{ para.c4, -0.250831127f },
 		};
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
