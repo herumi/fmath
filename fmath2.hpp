@@ -345,21 +345,21 @@ struct Code : public Xbyak::CodeGenerator {
 		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl1)]); // b
 		vfmsub213ps(t[0], t[3], p.one); // c = a * b - 1
 		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl2)]); // log_b
+		vfmsub213ps(t[1], p.log2, t[3]); // z = n * log2 - log_b
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
-		vcmpps(k2, t[2], p.preciseBoundary, 1 /* lt */);
+		vcmpltps(k2, t[2], p.preciseBoundary);
 		vsubps(t[0]|k2, keepX, p.one); // c = t[0] = x-1
-		vxorps(t[3]|k2, t[3]); // log_b = t[3] = 0
-		vxorps(t[1]|k2, t[1]); // n = 0
+		vxorps(t[1]|k2, t[1]); // z = 0
 #endif
 
-		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - log_b
 		vmovaps(t[2], t[0]);
-		vfmadd213ps(t[2], p.c4, p.c3); // f = y * (-1/4) + (1/3)
-		vfmadd213ps(t[2], t[0], p.c2); // f = f * y + (-1/2)
-		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
-		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
+		vfmadd213ps(t[2], p.c4, p.c3); // t = c * (-1/4) + (1/3)
+		vfmadd213ps(t[2], t[0], p.c2); // t = t * c + (-1/2)
+		vfmadd213ps(t[2], t[0], p.one); // t = t * c + 1
+
+		vfmadd213ps(t[0], t[2], t[1]); // c = c * t + z
 #ifdef FMATH_LOG_NOT_POSITIVE
 		// check x < 0 or x == 0
 		const uint8_t neg = 1 << 6;
