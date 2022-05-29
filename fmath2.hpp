@@ -95,7 +95,7 @@ struct ConstVar {
 		for (size_t i = 0; i < LN; i++) {
 			fi fi;
 			fi.i = (127 << 23) | (i << (23 - L));
-			logTbl1[i] = sqrt2 / fi.f;
+			logTbl1[i] = 1 / fi.f;
 			logTbl2[i] = log(logTbl1[i]);
 		}
 	}
@@ -371,34 +371,23 @@ struct Code : public Xbyak::CodeGenerator {
 //int3();
 		vmovaps(keepX, t[0]);
 
-		vmulps(t[0], t[0], p.sqrt2);
 		vpsubd(t[1], t[0], p.i127shl23);
 		vpsrad(t[1], t[1], 23); // n
 		vcvtdq2ps(t[1], t[1]); // int -> float
 		vpandd(t[0], t[0], p.x7fffff);
 		vpsrad(t[2], t[0], 23 - ConstVar::L); // d
-		vpord(t[0], t[0], p.i127shl23); // y
-		vmulps(t[0], t[0], p.inv_sqrt2);
+		vpord(t[0], t[0], p.i127shl23); // a
 		lea(rax, ptr[rip + p.constVarL]);
-	if (ConstVar::L == 4) {
-		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl1)]);
-	} else {
-		kxnord(k2, k2, k2);
-		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl1)]); // f
-	}
-		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
-	if (ConstVar::L == 4) {
-		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl2)]); // h
-	} else {
-		kxnord(k2, k2, k2);
-		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
-	}
+		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl1)]); // b
+		vfmsub213ps(t[0], t[3], p.one); // c = a * b - 1
+		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl2)]); // log_b
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
 		vcmpps(k2, t[2], p.preciseBoundary, 1 /* lt */);
-		vsubps(t[0]|k2, keepX, p.one); // y = t[0] = x-1
+		vsubps(t[0]|k2, keepX, p.one); // c = t[0] = x-1
 		vxorps(t[3]|k2, t[3]); // h = t[3] = 0
+		vxorps(t[1]|k2, t[1]); // n = 0
 #endif
 
 		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
