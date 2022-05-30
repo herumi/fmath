@@ -435,7 +435,7 @@ struct Code : public Xbyak::CodeGenerator {
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
-			{ para.preciseBoundary, 1.0f / 16 },
+			{ para.preciseBoundary, 0.02f },
 			{ para.c2, -0.49999909725f },
 			{ para.c3, 0.333942362961f },
 			{ para.c4, -0.250831127f },
