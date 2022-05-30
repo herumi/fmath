@@ -436,9 +436,15 @@ struct Code : public Xbyak::CodeGenerator {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
 			{ para.preciseBoundary, 0.02f },
+#if 1
+			{ para.c2, -0.49999999f },
+			{ para.c3, 0.3333955701f },
+			{ para.c4, -0.25008487f },
+#else
 			{ para.c2, -0.49999909725f },
 			{ para.c3, 0.333942362961f },
 			{ para.c4, -0.250831127f },
+#endif
 		};
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
