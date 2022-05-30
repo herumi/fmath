@@ -146,8 +146,10 @@ struct LogParam {
 	Zmm one;
 	Zmm c2;
 	Zmm c3;
-	Zmm preciseBoundary;
 	Zmm c4;
+	Zmm preciseBoundary;
+	Zmm tbl1;
+	Zmm tbl2;
 	LogParam(const Label& constVarL, UsedReg& usedReg)
 		: constVarL(constVarL)
 		, i127shl23(usedReg.allocRegIdx())
@@ -159,8 +161,10 @@ struct LogParam {
 		, one(usedReg.allocRegIdx())
 		, c2(usedReg.allocRegIdx())
 		, c3(usedReg.allocRegIdx())
-		, preciseBoundary(usedReg.allocRegIdx())
 		, c4(usedReg.allocRegIdx())
+		, preciseBoundary(usedReg.allocRegIdx())
+		, tbl1(usedReg.allocRegIdx())
+		, tbl2(usedReg.allocRegIdx())
 	{
 	}
 };
@@ -327,6 +331,17 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 #endif
 	}
+	/*
+		x = 2^n a (1 <= a < 2)
+		log x = n * log2 + log a
+		L = 4
+		d = (f2u(a) & mask(23)) >> (23 - L)
+		b = T1[d] = approximate of 1/a
+		log b = T2[d]
+		c = ab - 1 is near zero
+		a = (1 + c) / b
+		log a = log(1 + c) - log b
+	*/
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
 	void genLogOneAVX512(const Args& t, const LogParam& p)
@@ -342,9 +357,9 @@ struct Code : public Xbyak::CodeGenerator {
 		vpsrad(t[2], t[0], 23 - ConstVar::L); // d
 		vpord(t[0], t[0], p.i127shl23); // a
 		lea(rax, ptr[rip + p.constVarL]);
-		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl1)]); // b
+		vpermps(t[3], t[2], p.tbl1); // b
 		vfmsub213ps(t[0], t[3], p.one); // c = a * b - 1
-		vpermps(t[3], t[2], ptr[rax + offsetof(ConstVar, logTbl2)]); // log_b
+		vpermps(t[3], t[2], p.tbl2); // log_b
 		vfmsub213ps(t[1], p.log2, t[3]); // z = n * log2 - log_b
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
@@ -428,6 +443,9 @@ struct Code : public Xbyak::CodeGenerator {
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
 		}
+		lea(rax, ptr[rip + para.constVarL]);
+		vmovups(para.tbl1, ptr[rax + offsetof(ConstVar, logTbl1)]);
+		vmovups(para.tbl2, ptr[rax + offsetof(ConstVar, logTbl2)]);
 
 		// main loop
 		Label mod16, exit;
