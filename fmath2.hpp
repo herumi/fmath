@@ -31,7 +31,6 @@ inline uint32_t f2u(float x)
 	return fi.i;
 }
 
-//#define FMATH_LOG_TBL // use gather(slow)
 #define FMATH_LOG_PRECISE // more exact for |x-1| is small
 #define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
 
@@ -42,16 +41,11 @@ struct ConstVar {
 	float log2_e; // log_2(e) = 1 / log2
 	float expCoeff[expN]; // near to 1/(i + 1)!
 	//
-	float log1p5; // log(1.5)
-	float f2div3; // 2/3
 	float logCoeff[logN];
-	float sqrt2;
-	float inv_sqrt2;
 	float logLimit; // 1/32
 	float one;
-	float mhalf; // -0.5
-	float f1div3; // 1/3
-	static const size_t L = 5;
+	float c3; // 1/3
+	static const size_t L = 4;
 	static const size_t LN = 1 << L;
 	float logTbl1[LN];
 	float logTbl2[LN];
@@ -59,8 +53,6 @@ struct ConstVar {
 	{
 		log2 = std::log(2.0f);
 		log2_e = 1.0f / log2;
-//		log1p5 = std::log(1.5f);
-//		f2div3 = 2.0f/3;
 		// maxe=1.938668e-06
 		const uint32_t expTbl[expN] = {
 			0x3f800000,
@@ -86,16 +78,13 @@ struct ConstVar {
 		for (size_t i = 0; i < logN; i++) {
 			logCoeff[i] = logTbl[i];
 		}
-		sqrt2 = sqrt(2);
-		inv_sqrt2 = 1 / sqrt2;
-		logLimit = 1.0 / 32;
+		logLimit = 1.0 / 16;
 		one = 1;
-		mhalf = -0.5;
-		f1div3 = 1.0 / 3;
+		c3 = 1.0 / 3;
 		for (size_t i = 0; i < LN; i++) {
 			fi fi;
-			fi.i = (127 << 23) | (i << (23 - L));
-			logTbl1[i] = sqrt2 / fi.f;
+			fi.i = (127 << 23) | ((i*2+1) << (23 - L - 1));
+			logTbl1[i] = 1 / fi.f;
 			logTbl2[i] = log(logTbl1[i]);
 		}
 	}
@@ -155,18 +144,12 @@ struct LogParam {
 	Zmm fMInf;
 	Zmm x7fffffff;
 	Zmm one;
-#ifdef FMATH_LOG_TBL
-	Zmm half;
-	Zmm sqrt2;
-	Zmm inv_sqrt2;
-	Zmm f1div3;
-	Zmm f1div32;
-#else
-	Zmm log1p5;
-	Zmm f2div3;
-	Zmm f1div8;
-	Zmm logCoeff[ConstVar::logN];
-#endif
+	Zmm c2;
+	Zmm c3;
+	Zmm c4;
+	Zmm preciseBoundary;
+	Zmm tbl1;
+	Zmm tbl2;
 	LogParam(const Label& constVarL, UsedReg& usedReg)
 		: constVarL(constVarL)
 		, i127shl23(usedReg.allocRegIdx())
@@ -176,23 +159,13 @@ struct LogParam {
 		, fMInf(usedReg.allocRegIdx())
 		, x7fffffff(usedReg.allocRegIdx())
 		, one(usedReg.allocRegIdx())
-#ifdef FMATH_LOG_TBL
-		, half(usedReg.allocRegIdx())
-		, sqrt2(usedReg.allocRegIdx())
-		, inv_sqrt2(usedReg.allocRegIdx())
-		, f1div3(usedReg.allocRegIdx())
-		, f1div32(usedReg.allocRegIdx())
-#else
-		, log1p5(usedReg.allocRegIdx())
-		, f2div3(usedReg.allocRegIdx())
-		, f1div8(usedReg.allocRegIdx())
-#endif
+		, c2(usedReg.allocRegIdx())
+		, c3(usedReg.allocRegIdx())
+		, c4(usedReg.allocRegIdx())
+		, preciseBoundary(usedReg.allocRegIdx())
+		, tbl1(usedReg.allocRegIdx())
+		, tbl2(usedReg.allocRegIdx())
 	{
-#ifndef FMATH_LOG_TBL
-		for (int i = 0; i < (int)ConstVar::logN; i++) {
-			logCoeff[i] = Zmm(usedReg.allocRegIdx());
-		}
-#endif
 	}
 };
 
@@ -358,69 +331,50 @@ struct Code : public Xbyak::CodeGenerator {
 		}
 #endif
 	}
+	/*
+		x = 2^n a (1 <= a < 2)
+		log x = n * log2 + log a
+		L = 4
+		d = (f2u(a) & mask(23)) >> (23 - L)
+		b = T1[d] = approximate of 1/a
+		log b = T2[d]
+		c = ab - 1 is near zero
+		a = (1 + c) / b
+		log a = log(1 + c) - log b
+	*/
 	// zm0 = log(zm0)
 	// use zm0, zm1, zm2
 	void genLogOneAVX512(const Args& t, const LogParam& p)
 	{
-#ifdef FMATH_LOG_TBL
 		const Zmm& keepX = t[4];
 //int3();
 		vmovaps(keepX, t[0]);
 
-		vmulps(t[0], t[0], p.sqrt2);
 		vpsubd(t[1], t[0], p.i127shl23);
 		vpsrad(t[1], t[1], 23); // n
 		vcvtdq2ps(t[1], t[1]); // int -> float
 		vpandd(t[0], t[0], p.x7fffff);
 		vpsrad(t[2], t[0], 23 - ConstVar::L); // d
-		vpord(t[0], t[0], p.i127shl23); // y
-		vmulps(t[0], t[0], p.inv_sqrt2);
-		kxnord(k2, k2, k2);
+		vpord(t[0], t[0], p.i127shl23); // a
 		lea(rax, ptr[rip + p.constVarL]);
-		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl1)]); // f
-		vfmsub213ps(t[0], t[3], p.one); // y = y * f - 1
-		kxnord(k2, k2, k2);
-		vgatherdps(t[3]|k2, ptr[rax + t[2] * 4 + offsetof(ConstVar, logTbl2)]); // h
+		vpermps(t[3], t[2], p.tbl1); // b
+		vfmsub213ps(t[0], t[3], p.one); // c = a * b - 1
+		vpermps(t[3], t[2], p.tbl2); // log_b
+		vfmsub213ps(t[1], p.log2, t[3]); // z = n * log2 - log_b
 #ifdef FMATH_LOG_PRECISE // for |x-1| < 1/32
 		vsubps(t[2], keepX, p.one); // x-1
 		vandps(t[2], t[2], p.x7fffffff); // |x-1|
-		vcmpps(k2, t[2], p.f1div32, 1 /* lt */);
-		vsubps(t[0]|k2, keepX, p.one); // y = t[0] = x-1
-		vxorps(t[3]|k2, t[3]); // h = t[3] = 0
+		vcmpltps(k2, t[2], p.preciseBoundary);
+		vsubps(t[0]|k2, keepX, p.one); // c = t[0] = x-1
+		vxorps(t[1]|k2, t[1]); // z = 0
 #endif
 
-		vfmsub213ps(t[1], p.log2, t[3]); // x = n * log2 - h
 		vmovaps(t[2], t[0]);
-		vfmsub213ps(t[2], p.f1div3, p.half); // y * (1/3) - 0.5
-		vfmadd213ps(t[2], t[0], p.one); // f = f * y + 1
-		vfmadd213ps(t[0], t[2], t[1]); // y = y * f + x
-#else
-		const Zmm& keepX = t[3];
-		vmovaps(keepX, t[0]);
+		vfmadd213ps(t[2], p.c4, p.c3); // t = c * (-1/4) + (1/3)
+		vfmadd213ps(t[2], t[0], p.c2); // t = t * c + (-1/2)
+		vfmadd213ps(t[2], t[0], p.one); // t = t * c + 1
 
-		vpsubd(t[1], t[0], p.i127shl23);
-		vpsrad(t[1], t[1], 23); // e
-		vcvtdq2ps(t[1], t[1]); // float(e)
-		vpandd(t[0], t[0], p.x7fffff);
-		vpord(t[0], t[0], p.i127shl23); // y
-
-		vfmsub213ps(t[0], p.f2div3, p.logCoeff[0]); // a
-		vfmadd213ps(t[1], p.log2, p.log1p5); // e
-#ifdef FMATH_LOG_PRECISE // for |x-1| < 1/8
-		vsubps(t[2], keepX, p.one); // x-1
-		vandps(t[2], t[2], p.x7fffffff); // |x-1|
-		vcmpps(k2, t[2], p.f1div8, 1 /* lt */);
-		vsubps(t[0]|k2, keepX, p.one); // a = t[0] = x-1
-		vxorps(t[1]|k2, t[1]); // e = t[1] = 0
-#endif
-
-		int logN = ConstVar::logN;
-		vmovaps(t[2], p.logCoeff[logN - 1]);
-		for (int i = logN - 2; i >= 0; i--) {
-			vfmadd213ps(t[2], t[0], p.logCoeff[i]);
-		}
-		vfmadd213ps(t[0], t[2], t[1]);
-#endif
+		vfmadd213ps(t[0], t[2], t[1]); // c = c * t + z
 #ifdef FMATH_LOG_NOT_POSITIVE
 		// check x < 0 or x == 0
 		const uint8_t neg = 1 << 6;
@@ -445,11 +399,7 @@ struct Code : public Xbyak::CodeGenerator {
 	void genLogAVX512(const Xbyak::Label& constVarL)
 	{
 		UsedReg usedReg;
-#ifdef FMATH_LOG_TBL
 		int regN = 5;
-#else
-		int regN = 4;
-#endif
 		Args args;
 		for (int i = 0; i < regN; i++) {
 			args.push_back(Zmm(usedReg.allocRegIdx()));
@@ -485,26 +435,23 @@ struct Code : public Xbyak::CodeGenerator {
 		} floatTbl[] = {
 			{ para.log2, log(2.0f) },
 			{ para.one, 1.0f },
-#ifdef FMATH_LOG_TBL
-			{ para.half, 0.5f },
-			{ para.sqrt2, sqrt(2.0f) },
-			{ para.inv_sqrt2, 1 / sqrt(2.0f) },
-			{ para.f1div3, 1.0f / 3 },
-			{ para.f1div32, 1.0f / 32 },
+			{ para.preciseBoundary, 0.02f },
+#if 1
+			{ para.c2, -0.49999999f },
+			{ para.c3, 0.3333955701f },
+			{ para.c4, -0.25008487f },
 #else
-			{ para.log1p5, log(1.5f) },
-			{ para.f2div3, 2.0f / 3 },
-			{ para.f1div8, 1.0f / 8 },
+			{ para.c2, -0.49999909725f },
+			{ para.c3, 0.333942362961f },
+			{ para.c4, -0.250831127f },
 #endif
 		};
 		for (size_t i = 0; i < sizeof(floatTbl)/sizeof(floatTbl[0]); i++) {
 			setFloat(floatTbl[i].z, floatTbl[i].x);
 		}
-#ifndef FMATH_LOG_TBL
-		for (size_t i = 0; i < ConstVar::logN; i++) {
-			setFloat(para.logCoeff[i], constVar->logCoeff[i]);
-		}
-#endif
+		lea(rax, ptr[rip + para.constVarL]);
+		vmovups(para.tbl1, ptr[rax + offsetof(ConstVar, logTbl1)]);
+		vmovups(para.tbl2, ptr[rax + offsetof(ConstVar, logTbl2)]);
 
 		// main loop
 		Label mod16, exit;
