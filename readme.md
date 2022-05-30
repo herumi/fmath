@@ -54,6 +54,7 @@ Please change #if 1 in fmath.hpp:423 if you worry about it. But it causes a litt
 
 # History
 
+* 2022/May/30 log for AVX-512 got 1.5 times faster
 * 2020/Jul/10 add expf_v and logf_v for AVX-512
 * 2012/Oct/30 fix fmath::expd for small value
 * 2011/Aug/26 add fmath::expd_v

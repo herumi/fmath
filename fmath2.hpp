@@ -32,7 +32,7 @@ inline uint32_t f2u(float x)
 }
 
 #define FMATH_LOG_PRECISE // more exact for |x-1| is small
-//#define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
+#define FMATH_LOG_NOT_POSITIVE // return -inf/Nan for x <= 0
 
 struct ConstVar {
 	static const size_t expN = 5;
