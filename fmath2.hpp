@@ -7,6 +7,7 @@
 #include <xbyak/xbyak_util.h>
 #include <cmath>
 #include <vector>
+#include <stdexcept>
 
 namespace fmath {
 
