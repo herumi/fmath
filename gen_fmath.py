@@ -5,7 +5,10 @@ import argparse
 LOG_2 = 'log2'
 LOG2_E = 'log2_e'
 EXP_COEF = 'exp_coef'
-EXP_N = 5
+EXP_COEF_N = 5
+EXP_CONST_N = EXP_COEF_N + 2 # coeff[], log2, log2_e
+EXP_TMP_N = 3
+EXP_LOOP_N = 1
 
 # expand args
 # Loop(2, op, [xm0, xm1], [xm2, xm3], xm4)
@@ -41,7 +44,7 @@ class ExpGen:
       0x3d2b89cc,
       0x3c091331,
     ]
-    assert len(expTbl) == EXP_N
+    assert len(expTbl) == EXP_COEF_N
     makeLabel(EXP_COEF)
     for v in expTbl:
       dd_(hex(v))
@@ -65,17 +68,17 @@ class ExpGen:
   def code(self):
     align(16)
     with FuncProc('fmath_exp_v_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=5+EXP_N, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*EXP_LOOP_N+EXP_CONST_N, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
         self.log2 = sf.v[3]
         self.log2_e = sf.v[4]
-        self.expCoeff = sf.v[5:5+EXP_N]
+        self.expCoeff = sf.v[5:5+EXP_COEF_N]
         lea(rax, rip(LOG_2))
         vbroadcastss(self.log2, rip(LOG_2))
         vbroadcastss(self.log2_e, rip(LOG2_E))
-        for i in range(EXP_N):
+        for i in range(EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], rip(EXP_COEF + '+' + str(4 * i)))
 
         mod16L = Label()
