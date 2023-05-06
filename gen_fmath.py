@@ -9,6 +9,7 @@ EXP_COEF_N = 5
 EXP_CONST_N = EXP_COEF_N + 2 # coeff[], log2, log2_e
 EXP_TMP_N = 3
 EXP_UNROLL = 4
+SIMD_BYTE = 64
 
 # expand args
 # Loop(2, op, [xm0, xm1], [xm2, xm3], xm4)
@@ -21,6 +22,8 @@ def Loop(n, op, *args):
     for e in xs:
       if isinstance(e, list):
         ys.append(e[i])
+      elif isinstance(e, Address) and not e.broadcast:
+        ys.append(e.addOffset(SIMD_BYTE*i))
       else:
         ys.append(e)
     op(*ys)
@@ -96,12 +99,10 @@ class ExpGen:
         jmp(check1L)
 
         L(lpUnrollL)
-        for i in range(EXP_UNROLL):
-          vmovups(v0[i], ptr(src+64*i))
+        Loop(EXP_UNROLL, vmovups, v0, ptr(src))
         add(src, 64*EXP_UNROLL)
         self.genExpOneAVX512n(EXP_UNROLL, v0, v1, v2)
-        for i in range(EXP_UNROLL):
-          vmovups(ptr(dst+64*i), v0[i])
+        Loop(EXP_UNROLL, vmovups, ptr(dst), v0)
         add(dst, 64*EXP_UNROLL)
         sub(n, 16*EXP_UNROLL)
         L(check1L)
