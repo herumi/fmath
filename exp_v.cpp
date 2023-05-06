@@ -5,6 +5,34 @@
 #include <cybozu/benchmark.hpp>
 #include <cybozu/inttype.hpp>
 
+#ifdef FMATH_NEW
+#include <xbyak/xbyak_util.h>
+#include <cmath>
+namespace local {
+
+union fi {
+	float f;
+	uint32_t i;
+};
+
+inline float u2f(uint32_t x)
+{
+	fi fi;
+	fi.i = x;
+	return fi.f;
+}
+
+inline uint32_t f2u(float x)
+{
+	fi fi;
+	fi.f = x;
+	return fi.i;
+}
+
+} // local
+
+#endif
+
 float g_maxe;
 
 float diff(float x, float y)
@@ -33,6 +61,50 @@ inline float split(int *pn, float x)
 
 inline float expfC(float x)
 {
+#ifdef FMATH_NEW
+#if 0
+	return std::exp(x);
+#else
+	struct {
+		float log2;
+		float log2_e;
+		float expCoeff[5];
+	} C;
+	C.log2 = std::log(2.0f);
+	C.log2_e = 1.0f / C.log2;
+	const uint32_t expTbl[] = {
+		0x3f800000,
+		0x3effff12,
+		0x3e2aaa56,
+		0x3d2b89cc,
+		0x3c091331,
+	};
+	for (int i = 0; i < 5; i++) {
+		local::fi fi;
+		fi.i = expTbl[i];
+		C.expCoeff[i] = fi.f;
+	}
+	x *= C.log2_e;
+	int n;
+	float a = split(&n, x);
+	/* |a| <= 0.5 */
+	a *= C.log2;
+	/* |a| <= 0.3466 */
+	local::fi fi;
+	fi.i = (n + 127) << 23; // 2^n
+	/*
+		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
+		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
+	*/
+	x = C.expCoeff[4];
+	x = a * x + C.expCoeff[3];
+	x = a * x + C.expCoeff[2];
+	x = a * x + C.expCoeff[1];
+	x = a * x + C.expCoeff[0];
+	x = a * x + C.expCoeff[0];
+	return x * fi.f;
+#endif
+#else
 	using namespace fmath;
 	const local::ConstVar& C = *local::Inst<>::code.constVar;
 	x *= C.log2_e;
@@ -54,6 +126,7 @@ inline float expfC(float x)
 	x = a * x + C.expCoeff[0];
 	x = a * x + C.expCoeff[0];
 	return x * fi.f;
+#endif
 }
 
 void std_exp_v(float *dst, const float *src, size_t n)

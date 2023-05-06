@@ -4,6 +4,21 @@
 	@note modified new BSD license
 	http://opensource.org/licenses/BSD-3-Clause
 */
+#ifdef FMATH_NEW
+#include <stddef.h>
+extern "C" {
+void fmath_exp_v_avx512(float *dst, const float *src, size_t n);
+}
+
+namespace fmath {
+
+inline void expf_v(float *dst, const float *src, size_t n)
+{
+	fmath_exp_v_avx512(dst, src, n);
+}
+
+} // fmath
+#else
 #include <xbyak/xbyak_util.h>
 #include <cmath>
 #include <vector>
@@ -508,3 +523,4 @@ inline void logf_v(float *dst, const float *src, size_t n)
 }
 
 } // fmath
+#endif
