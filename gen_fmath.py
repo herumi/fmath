@@ -8,7 +8,7 @@ EXP_COEF = 'exp_coef'
 EXP_COEF_N = 5
 EXP_CONST_N = EXP_COEF_N + 2 # coeff[], log2, log2_e
 EXP_TMP_N = 3
-EXP_LOOP_N = 1
+EXP_UNROLL = 4
 
 # expand args
 # Loop(2, op, [xm0, xm1], [xm2, xm3], xm4)
@@ -68,13 +68,17 @@ class ExpGen:
   def code(self):
     align(16)
     with FuncProc('fmath_exp_v_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*EXP_LOOP_N+EXP_CONST_N, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*EXP_UNROLL+EXP_CONST_N, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        self.log2 = sf.v[3]
-        self.log2_e = sf.v[4]
-        self.expCoeff = sf.v[5:5+EXP_COEF_N]
+        v0 = sf.v[0:EXP_UNROLL]
+        v1 = sf.v[1*EXP_UNROLL:2*EXP_UNROLL]
+        v2 = sf.v[2*EXP_UNROLL:3*EXP_UNROLL]
+        constPos = EXP_TMP_N*EXP_UNROLL
+        self.log2 = sf.v[constPos]
+        self.log2_e = sf.v[constPos+1]
+        self.expCoeff = sf.v[constPos+2:constPos+2+EXP_COEF_N]
         lea(rax, rip(LOG_2))
         vbroadcastss(self.log2, rip(LOG_2))
         vbroadcastss(self.log2_e, rip(LOG2_E))
@@ -84,9 +88,27 @@ class ExpGen:
         mod16L = Label()
         exitL = Label()
         lpL = Label()
+        check1L = Label()
+        check2L = Label()
+        lpUnrollL = Label()
+
         mov(rcx, n)
-        and_(n, ~15)
-        jz(mod16L)
+        jmp(check1L)
+
+        L(lpUnrollL)
+        for i in range(EXP_UNROLL):
+          vmovups(v0[i], ptr(src+64*i))
+        add(src, 64*EXP_UNROLL)
+        self.genExpOneAVX512n(EXP_UNROLL, v0, v1, v2)
+        for i in range(EXP_UNROLL):
+          vmovups(ptr(dst+64*i), v0[i])
+        add(dst, 64*EXP_UNROLL)
+        sub(n, 16*EXP_UNROLL)
+        L(check1L)
+        cmp(n, 16*EXP_UNROLL)
+        jae(lpUnrollL)
+
+        jmp(check2L)
 
         L(lpL)
         vmovups(zm0, ptr(src))
@@ -95,7 +117,9 @@ class ExpGen:
         vmovups(ptr(dst), zm0)
         add(dst, 64)
         sub(n, 16)
-        jnz(lpL)
+        L(check2L)
+        cmp(n, 16)
+        jae(lpL)
 
         L(mod16L)
         and_(ecx, 15)
