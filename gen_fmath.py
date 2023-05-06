@@ -7,6 +7,21 @@ LOG2_E = 'log2_e'
 EXP_COEF = 'exp_coef'
 EXP_N = 5
 
+# expand args
+# Loop(2, op, [xm0, xm1], [xm2, xm3], xm4)
+# -> op(xm0, xm2, xm4)
+#    op(xm1, xm3, xm4)
+def Loop(n, op, *args):
+  xs = list(args)
+  for i in range(n):
+    ys = []
+    for e in xs:
+      if isinstance(e, list):
+        ys.append(e[i])
+      else:
+        ys.append(e)
+    op(*ys)
+
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen:
   def data(self):
@@ -31,18 +46,21 @@ class ExpGen:
     for v in expTbl:
       dd_(hex(v))
 
+  def genExpOneAVX512n(self, n, v0, v1, v2):
+    Loop(n, vmulps, v0, v0, self.log2_e)
+    Loop(n, vrndscaleps, v1, v0, 0) # n = round(x)
+    Loop(n, vsubps, v0, v0, v1) # a = x - n
+    Loop(n, vmulps, v0, v0, self.log2) # a *= log2
+    Loop(n, vmovaps, v2, self.expCoeff[4])
+    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[3])
+    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[2])
+    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[1])
+    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[0])
+    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[0])
+    Loop(n, vscalefps, v0, v2, v1) # v2 * 2^v1
+
   def genExpOneAVX512(self):
-    vmulps(zm0, zm0, self.log2_e)
-    vrndscaleps(zm1, zm0, 0) # n = round(x)
-    vsubps(zm0, zm0, zm1) # a = x - n
-    vmulps(zm0, zm0, self.log2) # a *= log2
-    vmovaps(zm2, self.expCoeff[4])
-    vfmadd213ps(zm2, zm0, self.expCoeff[3])
-    vfmadd213ps(zm2, zm0, self.expCoeff[2])
-    vfmadd213ps(zm2, zm0, self.expCoeff[1])
-    vfmadd213ps(zm2, zm0, self.expCoeff[0])
-    vfmadd213ps(zm2, zm0, self.expCoeff[0])
-    vscalefps(zm0, zm2, zm1) # zm2 * 2^zm1
+    self.genExpOneAVX512n(1, [zm0], [zm1], [zm2])
 
   def code(self):
     align(16)
