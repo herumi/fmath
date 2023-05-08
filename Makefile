@@ -57,7 +57,7 @@ fmath.S: gen_fmath.py
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
 clean:
-	$(RM) *.o $(TARGET) exp_v log_v
+	$(RM) *.o $(TARGET) exp_v log_v *.S
 
 test: exp_v
 	./exp_v
