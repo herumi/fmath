@@ -23,7 +23,7 @@ def Loop(n, op, *args):
       if isinstance(e, list):
         ys.append(e[i])
       elif isinstance(e, Address) and not e.broadcast:
-        ys.append(e.addOffset(SIMD_BYTE*i))
+        ys.append(e + SIMD_BYTE*i)
       else:
         ys.append(e)
     op(*ys)
@@ -82,11 +82,11 @@ class ExpGen:
         self.log2 = sf.v[constPos]
         self.log2_e = sf.v[constPos+1]
         self.expCoeff = sf.v[constPos+2:constPos+2+EXP_COEF_N]
-        lea(rax, rip(LOG_2))
-        vbroadcastss(self.log2, rip(LOG_2))
-        vbroadcastss(self.log2_e, rip(LOG2_E))
+        lea(rax, ptr(rip+LOG_2))
+        vbroadcastss(self.log2, ptr(rip+LOG_2))
+        vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
         for i in range(EXP_COEF_N):
-          vbroadcastss(self.expCoeff[i], rip(EXP_COEF + '+' + str(4 * i)))
+          vbroadcastss(self.expCoeff[i], ptr(rip + EXP_COEF + 4 * i))
 
         mod16L = Label()
         exitL = Label()
