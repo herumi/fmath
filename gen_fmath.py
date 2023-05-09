@@ -12,10 +12,10 @@ EXP_UNROLL = 4
 SIMD_BYTE = 64
 
 # expand args
-# Loop(2, op, [xm0, xm1], [xm2, xm3], xm4)
+# Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
 #    op(xm1, xm3, xm4)
-def Loop(n, op, *args):
+def Unroll(n, op, *args):
   xs = list(args)
   for i in range(n):
     ys = []
@@ -27,6 +27,11 @@ def Loop(n, op, *args):
       else:
         ys.append(e)
     op(*ys)
+
+def genUnrollFunc(n):
+  def fn(op, *args):
+    Unroll(n, op, *args)
+  return fn
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen:
@@ -53,17 +58,18 @@ class ExpGen:
       dd_(hex(v))
 
   def genExpOneAVX512n(self, n, v0, v1, v2):
-    Loop(n, vmulps, v0, v0, self.log2_e)
-    Loop(n, vrndscaleps, v1, v0, 0) # n = round(x)
-    Loop(n, vsubps, v0, v0, v1) # a = x - n
-    Loop(n, vmulps, v0, v0, self.log2) # a *= log2
-    Loop(n, vmovaps, v2, self.expCoeff[4])
-    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[3])
-    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[2])
-    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[1])
-    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[0])
-    Loop(n, vfmadd213ps , v2, v0, self.expCoeff[0])
-    Loop(n, vscalefps, v0, v2, v1) # v2 * 2^v1
+    un = genUnrollFunc(n)
+    un(vmulps, v0, v0, self.log2_e)
+    un(vrndscaleps, v1, v0, 0) # n = round(x)
+    un(vsubps, v0, v0, v1) # a = x - n
+    un(vmulps, v0, v0, self.log2) # a *= log2
+    un(vmovaps, v2, self.expCoeff[4])
+    un(vfmadd213ps, v2, v0, self.expCoeff[3])
+    un(vfmadd213ps, v2, v0, self.expCoeff[2])
+    un(vfmadd213ps, v2, v0, self.expCoeff[1])
+    un(vfmadd213ps, v2, v0, self.expCoeff[0])
+    un(vfmadd213ps, v2, v0, self.expCoeff[0])
+    un(vscalefps, v0, v2, v1) # v2 * 2^v1
 
   def genExpOneAVX512(self):
     self.genExpOneAVX512n(1, [zm0], [zm1], [zm2])
@@ -99,10 +105,10 @@ class ExpGen:
         jmp(check1L)
 
         L(lpUnrollL)
-        Loop(EXP_UNROLL, vmovups, v0, ptr(src))
+        Unroll(EXP_UNROLL, vmovups, v0, ptr(src))
         add(src, 64*EXP_UNROLL)
         self.genExpOneAVX512n(EXP_UNROLL, v0, v1, v2)
-        Loop(EXP_UNROLL, vmovups, ptr(dst), v0)
+        Unroll(EXP_UNROLL, vmovups, ptr(dst), v0)
         add(dst, 64*EXP_UNROLL)
         sub(n, 16*EXP_UNROLL)
         L(check1L)
