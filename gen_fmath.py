@@ -93,6 +93,7 @@ class ExpGen:
         self.log2 = sf.v[constPos]
         self.log2_e = sf.v[constPos+1]
         self.expCoeff = sf.v[constPos+2:constPos+2+EXP_COEF_N]
+        un = genUnrollFunc(EXP_UNROLL)
         lea(rax, ptr(rip+LOG_2))
         vbroadcastss(self.log2, ptr(rip+LOG_2))
         vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
@@ -110,10 +111,10 @@ class ExpGen:
         jmp(check1L)
 
         L(lpUnrollL)
-        Unroll(EXP_UNROLL, vmovups, v0, ptr(src))
+        un(vmovups)(v0, ptr(src))
         add(src, 64*EXP_UNROLL)
         self.genExpOneAVX512n(EXP_UNROLL, v0, v1, v2)
-        Unroll(EXP_UNROLL, vmovups, ptr(dst), v0)
+        un(vmovups)(ptr(dst), v0)
         add(dst, 64*EXP_UNROLL)
         sub(n, 16*EXP_UNROLL)
         L(check1L)
