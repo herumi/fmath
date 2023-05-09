@@ -45,7 +45,15 @@ class ExpGen:
     dd_(hex(float2uint32(v)))
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
-    expTbl = [
+    expTblSollya = [
+      1.0,
+      0.69314697759916432673321,
+      0.24022242085378028852993,
+      5.55073374325413607111023e-2,
+      9.67151263952592023243060e-3,
+      1.32647271963665363408990e-3,
+    ]
+    expTblMaple = [
       1.0,
       0.69314720006209416366,
       0.24022309327839673134,
@@ -53,6 +61,7 @@ class ExpGen:
       0.96672496496672653297e-2,
       0.13395279182003177132e-2,
     ]
+    expTbl = expTblMaple
     assert len(expTbl) == EXP_COEF_N
     makeLabel(EXP_COEF)
     for v in expTbl:
