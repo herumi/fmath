@@ -5,7 +5,7 @@ import argparse
 LOG_2 = 'log2'
 LOG2_E = 'log2_e'
 EXP_COEF = 'exp_coef'
-EXP_COEF_N = 5
+EXP_COEF_N = 6
 EXP_CONST_N = EXP_COEF_N + 2 # coeff[], log2, log2_e
 EXP_TMP_N = 3
 EXP_UNROLL = 4
@@ -50,6 +50,7 @@ class ExpGen:
       makeLabel(name)
       dd_(hex(float2uint32(v)))
 
+    """
     expTbl = [
       0x3f800000,
       0x3effff12,
@@ -58,15 +59,31 @@ class ExpGen:
       0x3c091331,
     ]
     assert len(expTbl) == EXP_COEF_N
+    """
+    expTbl = [
+      1.0,
+      0.69314720006209416366,
+      0.24022309327839673134,
+      0.55503406821502749265e-1,
+      0.96672496496672653297e-2,
+      0.13395279182003177132e-2,
+    ]
     makeLabel(EXP_COEF)
     for v in expTbl:
-      dd_(hex(v))
+      dd_(hex(float2uint32(v)))
 
   def genExpOneAVX512n(self, n, v0, v1, v2):
     un = genUnrollFunc(n)
     un(vmulps)(v0, v0, self.log2_e)
     un(vrndscaleps)(v1, v0, 0) # n = round(x)
     un(vsubps)(v0, v0, v1) # a = x - n
+    un(vmovaps)(v2, self.expCoeff[5])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[4])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[3])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[2])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[1])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
+    """
     un(vmulps)(v0, v0, self.log2) # a *= log2
     un(vmovaps)(v2, self.expCoeff[4])
     un(vfmadd213ps)(v2, v0, self.expCoeff[3])
@@ -74,6 +91,7 @@ class ExpGen:
     un(vfmadd213ps)(v2, v0, self.expCoeff[1])
     un(vfmadd213ps)(v2, v0, self.expCoeff[0])
     un(vfmadd213ps)(v2, v0, self.expCoeff[0])
+    """
     un(vscalefps)(v0, v2, v1) # v2 * 2^v1
 
   def genExpOneAVX512(self):
