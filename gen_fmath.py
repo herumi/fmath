@@ -2,11 +2,10 @@ from s_xbyak import *
 import math
 import argparse
 
-LOG_2 = 'log2'
 LOG2_E = 'log2_e'
 EXP_COEF = 'exp_coef'
 EXP_COEF_N = 6
-EXP_CONST_N = EXP_COEF_N + 2 # coeff[], log2, log2_e
+EXP_CONST_N = EXP_COEF_N + 1 # coeff[], log2_e
 EXP_TMP_N = 3
 EXP_UNROLL = 4
 SIMD_BYTE = 64
@@ -41,25 +40,11 @@ def genUnrollFunc(n):
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen:
   def data(self):
-    log2 = math.log(2)
-    constTbl = [
-      (LOG_2, log2),
-      (LOG2_E, 1 / log2),
-    ]
-    for (name, v) in constTbl:
-      makeLabel(name)
-      dd_(hex(float2uint32(v)))
+    makeLabel(LOG2_E)
+    v = 1 / math.log(2)
+    dd_(hex(float2uint32(v)))
 
-    """
-    expTbl = [
-      0x3f800000,
-      0x3effff12,
-      0x3e2aaa56,
-      0x3d2b89cc,
-      0x3c091331,
-    ]
-    assert len(expTbl) == EXP_COEF_N
-    """
+    # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTbl = [
       1.0,
       0.69314720006209416366,
@@ -68,6 +53,7 @@ class ExpGen:
       0.96672496496672653297e-2,
       0.13395279182003177132e-2,
     ]
+    assert len(expTbl) == EXP_COEF_N
     makeLabel(EXP_COEF)
     for v in expTbl:
       dd_(hex(float2uint32(v)))
@@ -83,15 +69,6 @@ class ExpGen:
     un(vfmadd213ps)(v2, v0, self.expCoeff[2])
     un(vfmadd213ps)(v2, v0, self.expCoeff[1])
     un(vfmadd213ps)(v2, v0, self.expCoeff[0])
-    """
-    un(vmulps)(v0, v0, self.log2) # a *= log2
-    un(vmovaps)(v2, self.expCoeff[4])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[3])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[2])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[1])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
-    """
     un(vscalefps)(v0, v2, v1) # v2 * 2^v1
 
   def genExpOneAVX512(self):
@@ -108,12 +85,9 @@ class ExpGen:
         v1 = sf.v[1*EXP_UNROLL:2*EXP_UNROLL]
         v2 = sf.v[2*EXP_UNROLL:3*EXP_UNROLL]
         constPos = EXP_TMP_N*EXP_UNROLL
-        self.log2 = sf.v[constPos]
-        self.log2_e = sf.v[constPos+1]
-        self.expCoeff = sf.v[constPos+2:constPos+2+EXP_COEF_N]
+        self.expCoeff = sf.v[constPos:constPos+EXP_COEF_N]
+        self.log2_e = sf.v[constPos+EXP_COEF_N]
         un = genUnrollFunc(EXP_UNROLL)
-        lea(rax, ptr(rip+LOG_2))
-        vbroadcastss(self.log2, ptr(rip+LOG_2))
         vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
         for i in range(EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip + EXP_COEF + 4 * i))
