@@ -29,8 +29,13 @@ def Unroll(n, op, *args):
     op(*ys)
 
 def genUnrollFunc(n):
-  def fn(op, *args):
-    Unroll(n, op, *args)
+  """
+    return a function takes op and outputs a function that takes *args and outputs n unrolled op
+  """
+  def fn(op):
+    def gn(*args):
+      Unroll(n, op, *args)
+    return gn
   return fn
 
 # exp_v(float *dst, const float *src, size_t n);
@@ -59,17 +64,17 @@ class ExpGen:
 
   def genExpOneAVX512n(self, n, v0, v1, v2):
     un = genUnrollFunc(n)
-    un(vmulps, v0, v0, self.log2_e)
-    un(vrndscaleps, v1, v0, 0) # n = round(x)
-    un(vsubps, v0, v0, v1) # a = x - n
-    un(vmulps, v0, v0, self.log2) # a *= log2
-    un(vmovaps, v2, self.expCoeff[4])
-    un(vfmadd213ps, v2, v0, self.expCoeff[3])
-    un(vfmadd213ps, v2, v0, self.expCoeff[2])
-    un(vfmadd213ps, v2, v0, self.expCoeff[1])
-    un(vfmadd213ps, v2, v0, self.expCoeff[0])
-    un(vfmadd213ps, v2, v0, self.expCoeff[0])
-    un(vscalefps, v0, v2, v1) # v2 * 2^v1
+    un(vmulps)(v0, v0, self.log2_e)
+    un(vrndscaleps)(v1, v0, 0) # n = round(x)
+    un(vsubps)(v0, v0, v1) # a = x - n
+    un(vmulps)(v0, v0, self.log2) # a *= log2
+    un(vmovaps)(v2, self.expCoeff[4])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[3])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[2])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[1])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
+    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
+    un(vscalefps)(v0, v2, v1) # v2 * 2^v1
 
   def genExpOneAVX512(self):
     self.genExpOneAVX512n(1, [zm0], [zm1], [zm2])
