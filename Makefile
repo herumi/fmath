@@ -46,20 +46,20 @@ new_exp_v: exp_v.o fmath.o
 
 unroll_test_n: exp_v.o
 	$(PYTHON) gen_fmath.py -m gas -un $(UN) > fmath$(UN).S
-	$(CXX) -o exp_v$(UN) exp_v.o fmath$(UN).S $(CFLAGS)
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
-	./exp_v$(UN) b
+	$(CXX) -o exp_v$(UN).exe exp_v.o fmath$(UN).S $(CFLAGS)
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
+	./exp_v$(UN).exe b
 
 unroll_test: exp_v.o
-	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo $$i; make unroll_test_n UN=$$i; done'
+	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo UN=$$i; make unroll_test_n UN=$$i; done'
 
 fmath.o: fmath.S
 	$(CC) -c $< -o $@
@@ -74,7 +74,7 @@ fmath.S: gen_fmath.py
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
 clean:
-	$(RM) *.o $(TARGET) exp_v log_v *.S
+	$(RM) *.o $(TARGET) exp_v log_v *.S *.exe
 
 test: exp_v
 	./exp_v
