@@ -83,7 +83,9 @@ class ExpGen:
   def genExpOneAVX512(self):
     self.genExpOneAVX512n(1, [zm0], [zm1], [zm2])
 
-  def code(self):
+  def code(self, param):
+    global EXP_UNROLL
+    EXP_UNROLL = param.unroll
     align(16)
     with FuncProc('fmath_exp_v_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*EXP_UNROLL+EXP_CONST_N, vType=T_ZMM) as sf:
@@ -150,7 +152,7 @@ class ExpGen:
 
 def main():
   parser = getDefaultParser()
-#  parser.add_argument('-n', '--num', help='max size of Unit', type=int, default=9)
+  parser.add_argument('-un', '--unroll', help='number of unroll', type=int, default=1)
   global param
   param = parser.parse_args()
 
@@ -160,7 +162,7 @@ def main():
   exp.data()
 
   segment('text')
-  exp.code()
+  exp.code(param)
 
   term()
 

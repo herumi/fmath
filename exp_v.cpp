@@ -1,3 +1,4 @@
+#define CYBOZU_TEST_DISABLE_AUTO_RUN
 #include "fmath2.hpp"
 #include <vector>
 #include <float.h>
@@ -275,3 +276,26 @@ CYBOZU_TEST_AUTO(expLimit)
 	limitTest(std::exp, fmath_expf);
 }
 
+void bench()
+{
+	Fvec x, y0, y1;
+	const size_t n = 4096 * 16;
+	x.resize(n);
+	y0.resize(n);
+	y1.resize(n);
+	const int C = 50000;
+	for (size_t i = 0; i < n; i++) {
+		x[i] = sin(i / float(n) * 7) * 20;
+	}
+	CYBOZU_BENCH_C("", C, fmath::expf_v, &y1[0], &x[0], n);
+	putClk("fmath::expf_v", C * (n / 16));
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc > 1) {
+		bench();
+		return 0;
+	}
+	return cybozu::test::autoRun.run(argc, argv);
+}
