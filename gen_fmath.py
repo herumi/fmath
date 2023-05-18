@@ -72,12 +72,10 @@ class ExpGen:
     un(vmulps)(v0, v0, self.log2_e)
     un(vrndscaleps)(v1, v0, 0) # n = round(x)
     un(vsubps)(v0, v0, v1) # a = x - n
+
     un(vmovaps)(v2, self.expCoeff[5])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[4])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[3])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[2])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[1])
-    un(vfmadd213ps)(v2, v0, self.expCoeff[0])
+    for i in range(4, -1, -1):
+      un(vfmadd213ps)(v2, v0, self.expCoeff[i])
     un(vscalefps)(v0, v2, v1) # v2 * 2^v1
 
   def genExpOneAVX512(self):

@@ -50,6 +50,13 @@ unroll_test_n: exp_v.o
 	./exp_v$(UN) b
 	./exp_v$(UN) b
 	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
+	./exp_v$(UN) b
 
 unroll_test: exp_v.o
 	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo $$i; make unroll_test_n UN=$$i; done'
