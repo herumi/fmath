@@ -71,7 +71,7 @@ class ExpGen:
     un = genUnrollFunc(n)
     un(vmulps)(v0, v0, self.log2_e)
     un(vreduceps)(v1, v0, 0) # a = x - n
-    un(vrndscaleps)(v0, v0, 0) # n = round(x)
+    un(vsubps)(v0, v0, v1) # n = x - a = round(x)
 
     un(vmovaps)(v2, self.expCoeff[5])
     for i in range(4, -1, -1):
