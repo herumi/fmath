@@ -37,6 +37,62 @@ def genUnrollFunc(n):
     return gn
   return fn
 
+# generate a function of void (*f)(float *dst, const float *src, size_t n);
+# dst : dst pointer register
+# src : src pointer register
+# n : size of array
+# unrollN : number of unroll
+# v0 = args[0] : input/output parameters
+# args[1:] : temporary parameter
+def framework(func, dst, src, n, unrollN, args):
+  un = genUnrollFunc(unrollN)
+  v0 = args[0]
+  mod16L = Label()
+  exitL = Label()
+  lpL = Label()
+  check1L = Label()
+  check2L = Label()
+  lpUnrollL = Label()
+
+  mov(rcx, n)
+  jmp(check1L)
+
+  L(lpUnrollL)
+  un(vmovups)(v0, ptr(src))
+  add(src, 64*unrollN)
+  func(unrollN, args)
+  un(vmovups)(ptr(dst), v0)
+  add(dst, 64*unrollN)
+  sub(n, 16*unrollN)
+  L(check1L)
+  cmp(n, 16*unrollN)
+  jae(lpUnrollL)
+
+  jmp(check2L)
+
+  L(lpL)
+  vmovups(zm0, ptr(src))
+  add(src, 64)
+  func(1, args)
+  vmovups(ptr(dst), zm0)
+  add(dst, 64)
+  sub(n, 16)
+  L(check2L)
+  cmp(n, 16)
+  jae(lpL)
+
+  L(mod16L)
+  and_(ecx, 15)
+  jz(exitL)
+  mov(eax, 1)    # eax = 1
+  shl(eax, cl)   # eax = 1 << n
+  sub(eax, 1)
+  kmovd(k1, eax)
+  vmovups(zm0|k1|T_z, ptr(src))
+  func(1, args)
+  vmovups(ptr(dst)|k1, zm0)
+  L(exitL)
+
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen:
   def data(self):
@@ -67,7 +123,8 @@ class ExpGen:
     for v in expTbl:
       dd_(hex(float2uint32(v)))
 
-  def genExpOneAVX512n(self, n, v0, v1, v2):
+  def expCore(self, n, args):
+    (v0, v1, v2) = args
     un = genUnrollFunc(n)
     un(vmulps)(v0, v0, self.log2_e)
     un(vreduceps)(v1, v0, 0) # a = x - n
@@ -77,9 +134,6 @@ class ExpGen:
     for i in range(4, -1, -1):
       un(vfmadd213ps)(v2, v1, self.expCoeff[i])
     un(vscalefps)(v0, v2, v0) # v2 * 2^v1
-
-  def genExpOneAVX512(self):
-    self.genExpOneAVX512n(1, [zm0], [zm1], [zm2])
 
   def code(self, param):
     global EXP_UNROLL
@@ -96,57 +150,11 @@ class ExpGen:
         constPos = EXP_TMP_N*EXP_UNROLL
         self.expCoeff = sf.v[constPos:constPos+EXP_COEF_N]
         self.log2_e = sf.v[constPos+EXP_COEF_N]
-        un = genUnrollFunc(EXP_UNROLL)
         vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
         for i in range(EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip + EXP_COEF + 4 * i))
 
-        mod16L = Label()
-        exitL = Label()
-        lpL = Label()
-        check1L = Label()
-        check2L = Label()
-        lpUnrollL = Label()
-
-        mov(rcx, n)
-        jmp(check1L)
-
-        L(lpUnrollL)
-        un(vmovups)(v0, ptr(src))
-        add(src, 64*EXP_UNROLL)
-        self.genExpOneAVX512n(EXP_UNROLL, v0, v1, v2)
-        un(vmovups)(ptr(dst), v0)
-        add(dst, 64*EXP_UNROLL)
-        sub(n, 16*EXP_UNROLL)
-        L(check1L)
-        cmp(n, 16*EXP_UNROLL)
-        jae(lpUnrollL)
-
-        jmp(check2L)
-
-        L(lpL)
-        vmovups(zm0, ptr(src))
-        add(src, 64)
-        self.genExpOneAVX512()
-        vmovups(ptr(dst), zm0)
-        add(dst, 64)
-        sub(n, 16)
-        L(check2L)
-        cmp(n, 16)
-        jae(lpL)
-
-        L(mod16L)
-        and_(ecx, 15)
-        jz(exitL)
-        mov(eax, 1)
-        shl(eax, cl)
-        sub(eax, 1)
-        kmovd(k1, eax)
-        vmovups(zm0|k1|T_z, ptr(src))
-        self.genExpOneAVX512()
-        vmovups(ptr(dst)|k1, zm0)
-        L(exitL)
-        
+        framework(self.expCore, dst, src, n, EXP_UNROLL, (v0, v1, v2))
 
 def main():
   parser = getDefaultParser()
