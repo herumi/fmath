@@ -14,7 +14,7 @@ SIMD_BYTE = 64
 # Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
 #    op(xm1, xm3, xm4)
-def Unroll(n, op, *args):
+def Unroll(n, op, *args, addrOffset=SIMD_BYTE):
   xs = list(args)
   for i in range(n):
     ys = []
@@ -22,7 +22,7 @@ def Unroll(n, op, *args):
       if isinstance(e, list):
         ys.append(e[i])
       elif isinstance(e, Address) and not e.broadcast:
-        ys.append(e + SIMD_BYTE*i)
+        ys.append(e + addrOffset*i)
       else:
         ys.append(e)
     op(*ys)
@@ -31,9 +31,9 @@ def genUnrollFunc(n):
   """
     return a function takes op and outputs a function that takes *args and outputs n unrolled op
   """
-  def fn(op):
+  def fn(op, addrOffset=SIMD_BYTE):
     def gn(*args):
-      Unroll(n, op, *args)
+      Unroll(n, op, *args, addrOffset=addrOffset)
     return gn
   return fn
 
