@@ -3,11 +3,6 @@ import math
 import argparse
 
 LOG2_E = 'log2_e'
-EXP_COEF = 'exp_coef'
-EXP_COEF_N = 6
-EXP_CONST_N = EXP_COEF_N + 1 # coeff[], log2_e
-EXP_TMP_N = 3
-EXP_UNROLL = 4
 SIMD_BYTE = 64
 
 # expand args
@@ -117,10 +112,13 @@ class ExpGen:
       0.96672496496672653297e-2,
       0.13395279182003177132e-2,
     ]
-    expTbl = expTblMaple
-    assert len(expTbl) == EXP_COEF_N
-    makeLabel(EXP_COEF)
-    for v in expTbl:
+    self.expTbl = expTblMaple
+    self.EXP_COEF = 'exp_coef'
+    self.EXP_COEF_N = 6
+    self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
+    assert len(self.expTbl) == self.EXP_COEF_N
+    makeLabel(self.EXP_COEF)
+    for v in self.expTbl:
       dd_(hex(float2uint32(v)))
 
   def expCore(self, n, args):
@@ -136,29 +134,29 @@ class ExpGen:
     un(vscalefps)(v0, v2, v0) # v2 * 2^v1
 
   def code(self, param):
-    global EXP_UNROLL
-    EXP_UNROLL = param.unroll
+    EXP_TMP_N = 3
+    unrollN = param.unroll
     align(16)
     with FuncProc('fmath_exp_v_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*EXP_UNROLL+EXP_CONST_N, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*unrollN+self.EXP_CONST_N, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        v0 = sf.v[0:EXP_UNROLL]
-        v1 = sf.v[1*EXP_UNROLL:2*EXP_UNROLL]
-        v2 = sf.v[2*EXP_UNROLL:3*EXP_UNROLL]
-        constPos = EXP_TMP_N*EXP_UNROLL
-        self.expCoeff = sf.v[constPos:constPos+EXP_COEF_N]
-        self.log2_e = sf.v[constPos+EXP_COEF_N]
+        v0 = sf.v[0:unrollN]
+        v1 = sf.v[1*unrollN:2*unrollN]
+        v2 = sf.v[2*unrollN:3*unrollN]
+        constPos = EXP_TMP_N*unrollN
+        self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
+        self.log2_e = sf.v[constPos+self.EXP_COEF_N]
         vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
-        for i in range(EXP_COEF_N):
-          vbroadcastss(self.expCoeff[i], ptr(rip + EXP_COEF + 4 * i))
+        for i in range(self.EXP_COEF_N):
+          vbroadcastss(self.expCoeff[i], ptr(rip + self.EXP_COEF + 4 * i))
 
-        framework(self.expCore, dst, src, n, EXP_UNROLL, (v0, v1, v2))
+        framework(self.expCore, dst, src, n, unrollN, (v0, v1, v2))
 
 def main():
   parser = getDefaultParser()
-  parser.add_argument('-un', '--unroll', help='number of unroll', type=int, default=1)
+  parser.add_argument('-un', '--unroll', help='number of unroll', type=int, default=4)
   global param
   param = parser.parse_args()
 
