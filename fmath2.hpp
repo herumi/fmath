@@ -8,6 +8,7 @@
 #include <stddef.h>
 extern "C" {
 void fmath_exp_v_avx512(float *dst, const float *src, size_t n);
+void fmath_log_v_avx512(float *dst, const float *src, size_t n);
 }
 
 namespace fmath {
@@ -15,6 +16,11 @@ namespace fmath {
 inline void expf_v(float *dst, const float *src, size_t n)
 {
 	fmath_exp_v_avx512(dst, src, n);
+}
+
+inline void logf_v(float *dst, const float *src, size_t n)
+{
+	fmath_log_v_avx512(dst, src, n);
 }
 
 } // fmath

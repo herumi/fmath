@@ -4,6 +4,34 @@
 #include <float.h>
 #include <vector>
 
+#ifdef FMATH_NEW
+#include <xbyak/xbyak_util.h>
+#include <cmath>
+namespace local {
+
+union fi {
+	float f;
+	uint32_t i;
+};
+
+inline float u2f(uint32_t x)
+{
+	fi fi;
+	fi.i = x;
+	return fi.f;
+}
+
+inline uint32_t f2u(float x)
+{
+	fi fi;
+	fi.f = x;
+	return fi.i;
+}
+
+} // local
+
+#endif
+
 float g_maxe;
 
 float diff(float x, float y)
