@@ -32,6 +32,13 @@ def genUnrollFunc(n):
     return gn
   return fn
 
+def setInt(r, v):
+  mov(eax, v)
+  vpbroadcastd(r, eax)
+
+def setFloat(r, v):
+  setInt(r, float2uint(v))
+
 # generate a function of void (*f)(float *dst, const float *src, size_t n);
 # dst : dst pointer register
 # src : src pointer register
@@ -93,7 +100,7 @@ class ExpGen:
   def data(self):
     makeLabel(LOG2_E)
     v = 1 / math.log(2)
-    dd_(hex(float2uint32(v)))
+    dd_(hex(float2uint(v)))
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTblSollya = [
@@ -119,7 +126,7 @@ class ExpGen:
     assert len(self.expTbl) == self.EXP_COEF_N
     makeLabel(self.EXP_COEF)
     for v in self.expTbl:
-      dd_(hex(float2uint32(v)))
+      dd_(hex(float2uint(v)))
 
   def expCore(self, n, args):
     (v0, v1, v2) = args
@@ -154,6 +161,91 @@ class ExpGen:
 
         framework(self.expCore, dst, src, n, unrollN, (v0, v1, v2))
 
+# log_v(float *dst, const float *src, size_t n);
+class LogGen:
+  def data(self):
+    self.c2 = -0.49999999
+    self.c3 = 0.3333955701
+    self.c4 = -0.25008487
+    self.logTbl1 = []
+    self.logTbl2 = []
+    self.L = 4
+    LN = 1 << self.L
+    for i in range(LN):
+      u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
+      v = 1 / uint2float(u)
+      self.logTbl1.append(v)
+      self.logTbl2.append(math.log(v))
+    self.LOG_TBL1 = 'log_tbl1'
+    self.LOG_TBL2 = 'log_tbl2'
+    makeLabel(self.LOG_TBL1)
+    for i in range(LN):
+      dd_(hex(float2uint(self.logTbl1[i])))
+    makeLabel(self.LOG_TBL2)
+    for i in range(LN):
+      dd_(hex(float2uint(self.logTbl2[i])))
+
+  def logCore(self, n, args):
+    (v0, v1, v2, v3) = args
+    t = self.t
+    un = genUnrollFunc(n)
+    setInt(v3[0], 127 << 23)
+    un(vpsubd)(v1, v0, v3[0])
+    un(vpsrad)(v1, v1, 23) # n
+    un(vcvtdq2ps)(v1, v1) # int -> float
+    setInt(t, 0x7fffff)
+    un(vpandd)(v0, v0, t)
+    un(vpsrad)(v2, v0, 23 - self.L) # d
+    setInt(v3[0], 127 << 23)
+    un(vpord)(v0, v0, v3[0]) # a
+    un(vpermps)(v3, v2, self.tbl1) # b
+    un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
+    un(vpermps)(v3, v2, self.tbl2) # log_b
+    setFloat(t, math.log(2))
+    un(vfmsub213ps)(v1, t, v3) # z = n * log2 - log_b
+
+    """ # log precise # for |x-1| < 1/32
+    un(vsubps)(v2, keepX, p.one) # x-1
+    un(vandps)(v2, v2, p.x7fffffff) # |x-1|
+    un(vcmpltps)(k2, v2, p.preciseBoundary)
+    un(vsubps)(v0|k2, keepX, p.one) # c = v0 = x-1
+    un(vxorps)(v1|k2, v1) # z = 0
+    """
+
+    un(vmovaps)(v2, v0)
+    setFloat(t, self.c4)
+    setFloat(v3[0], self.c3)
+    un(vfmadd213ps)(v2, t, v3[0]) # t = c * (-1/4) + (1/3)
+    setFloat(t, self.c2)
+    un(vfmadd213ps)(v2, v0, t) # t = t * c + (-1/2)
+    un(vfmadd213ps)(v2, v0, self.one) # t = t * c + 1
+    un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
+
+  def code(self, param):
+    LOG_TMP_N = 4
+    LOG_CONST_N = 4 # one, tbl1, tbl2, t
+    unrollN = param.unroll
+    align(16)
+    with FuncProc('fmath_log_v_avx512'):
+      with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
+        dst = sf.p[0]
+        src = sf.p[1]
+        n = sf.p[2]
+        v0 = sf.v[0:unrollN]
+        v1 = sf.v[1*unrollN:2*unrollN]
+        v2 = sf.v[2*unrollN:3*unrollN]
+        v3 = sf.v[3*unrollN:4*unrollN]
+        constPos = LOG_TMP_N*unrollN
+        self.one = sf.v[constPos]
+        self.tbl1 = sf.v[constPos+1]
+        self.tbl2 = sf.v[constPos+2]
+        self.t = sf.v[constPos+3]
+        setFloat(self.one, 1.0)
+        vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
+        vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
+
+        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3))
+
 def main():
   parser = getDefaultParser()
   parser.add_argument('-un', '--unroll', help='number of unroll', type=int, default=4)
@@ -162,11 +254,14 @@ def main():
 
   init(param)
   exp = ExpGen()
+  log = LogGen()
   segment('data')
   exp.data()
+  log.data()
 
   segment('text')
   exp.code(param)
+  log.code(param)
 
   term()
 
