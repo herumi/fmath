@@ -174,6 +174,7 @@ class LogGen:
     for i in range(LN):
       u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
       v = 1 / uint2float(u)
+      v = uint2float(float2uint(v)) # enforce C float type instead of double
       self.logTbl1.append(v)
       self.logTbl2.append(math.log(v))
     self.LOG_TBL1 = 'log_tbl1'
@@ -196,7 +197,6 @@ class LogGen:
     setInt(t, 0x7fffff)
     un(vpandd)(v0, v0, t)
     un(vpsrad)(v2, v0, 23 - self.L) # d
-    setInt(v3[0], 127 << 23)
     un(vpord)(v0, v0, v3[0]) # a
     un(vpermps)(v3, v2, self.tbl1) # b
     un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
