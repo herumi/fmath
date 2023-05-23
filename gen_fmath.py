@@ -175,6 +175,7 @@ class LogGen:
       u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
       v = 1 / uint2float(u)
       v = uint2float(float2uint(v)) # enforce C float type instead of double
+      # v = numpy.float32(v)
       self.logTbl1.append(v)
       self.logTbl2.append(math.log(v))
     self.LOG_TBL1 = 'log_tbl1'
