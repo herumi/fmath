@@ -9,14 +9,19 @@ SIMD_BYTE = 64
 # Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
 #    op(xm1, xm3, xm4)
-def Unroll(n, op, *args, addrOffset=SIMD_BYTE):
+def Unroll(n, op, *args, addrOffset=None):
   xs = list(args)
   for i in range(n):
     ys = []
     for e in xs:
       if isinstance(e, list):
         ys.append(e[i])
-      elif isinstance(e, Address) and not e.broadcast:
+      elif isinstance(e, Address):
+        if addrOffset == None:
+          if e.broadcast:
+            addrOffset = 0
+          else:
+            addrOffset = SIMD_BYTE
         ys.append(e + addrOffset*i)
       else:
         ys.append(e)
@@ -26,7 +31,7 @@ def genUnrollFunc(n):
   """
     return a function takes op and outputs a function that takes *args and outputs n unrolled op
   """
-  def fn(op, addrOffset=SIMD_BYTE):
+  def fn(op, addrOffset=None):
     def gn(*args):
       Unroll(n, op, *args, addrOffset=addrOffset)
     return gn
@@ -97,6 +102,9 @@ def framework(func, dst, src, n, unrollN, args):
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen:
+  def __init__(self, param):
+    self.unrollN = param.exp_unrollN
+    self.mode = param.exp_mode
   def data(self):
     makeLabel(LOG2_E)
     v = 1 / math.log(2)
@@ -121,12 +129,14 @@ class ExpGen:
     ]
     self.expTbl = expTblMaple
     self.EXP_COEF = 'exp_coef'
-    self.EXP_COEF_N = 6
+    if self.mode == 'allreg':
+      self.EXP_COEF_N = 6
+      makeLabel(self.EXP_COEF)
+      for v in self.expTbl:
+        dd_(hex(float2uint(v)))
+    else:
+      self.EXP_COEF_N = 0
     self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
-    assert len(self.expTbl) == self.EXP_COEF_N
-    makeLabel(self.EXP_COEF)
-    for v in self.expTbl:
-      dd_(hex(float2uint(v)))
 
   def expCore(self, n, args):
     (v0, v1, v2) = args
@@ -135,14 +145,43 @@ class ExpGen:
     un(vreduceps)(v1, v0, 0) # a = x - n
     un(vsubps)(v0, v0, v1) # n = x - a = round(x)
 
-    un(vmovaps)(v2, self.expCoeff[5])
-    for i in range(4, -1, -1):
-      un(vfmadd213ps)(v2, v1, self.expCoeff[i])
-    un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+    if self.mode == 'allreg':
+      un(vmovaps)(v2, self.expCoeff[5])
+      for i in range(4, -1, -1):
+        un(vfmadd213ps)(v2, v1, self.expCoeff[i])
+      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+    """
+    if False:
+      lea(rax, ptr(rip+self.EXP_COEF))
+      vpbroadcastd(v2[0], ptr(rax+5*4))
+      for i in range(1, n):
+        un(vmovaps)(v2[i], v2[0])
+      for i in range(4, -1, -1):
+        un(vfmadd213ps)(v2, v1, ptr_b(rax+i*4))
+    """
+    if False:
+      lea(rax, ptr(rip+self.EXP_COEF))
+      vpbroadcastd(v2[0], ptr(rax+5*4))
+      for i in range(1, n):
+        un(vmovaps)(v2[i], v2[0])
 
-  def code(self, param):
+      for i in range(4, -1, -1):
+        vpbroadcastd(self.expCoeff[0], ptr(rax+i*4))
+        un(vfmadd213ps)(v2, v1, self.expCoeff[0])
+    if False:
+      mov(eax, float2uint(self.expTbl[5]))
+      vpbroadcastd(v2[0], eax)
+      for i in range(1, n):
+        un(vmovaps)(v2[i], v2[0])
+
+      for i in range(4, -1, -1):
+        mov(eax, float2uint(self.expTbl[i]))
+        vpbroadcastd(self.expCoeff[0], eax)
+        un(vfmadd213ps)(v2, v1, self.expCoeff[0])
+
+  def code(self):
+    unrollN = self.unrollN
     EXP_TMP_N = 3
-    unrollN = param.unroll
     align(16)
     with FuncProc('fmath_expf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*unrollN+self.EXP_CONST_N, vType=T_ZMM) as sf:
@@ -163,6 +202,9 @@ class ExpGen:
 
 # log_v(float *dst, const float *src, size_t n);
 class LogGen:
+  def __init__(self, param):
+    self.unrollN = param.log_unrollN
+    self.mode = param.log_mode
   def data(self):
     self.c2 = -0.49999999
     self.c3 = 0.3333955701
@@ -222,10 +264,10 @@ class LogGen:
     un(vfmadd213ps)(v2, v0, self.one) # t = t * c + 1
     un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
 
-  def code(self, param):
+  def code(self):
+    unrollN = self.unrollN
     LOG_TMP_N = 4
     LOG_CONST_N = 4 # one, tbl1, tbl2, t
-    unrollN = param.unroll
     align(16)
     with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
@@ -249,20 +291,23 @@ class LogGen:
 
 def main():
   parser = getDefaultParser()
-  parser.add_argument('-un', '--unroll', help='number of unroll', type=int, default=4)
+  parser.add_argument('-exp_un', '--exp_unrollN', help='number of unroll exp', type=int, default=4)
+  parser.add_argument('-exp_mode', '--exp_mode', help='exp mode', type=str, default='allreg')
+  parser.add_argument('-log_un', '--log_unrollN', help='number of unroll log', type=int, default=4)
+  parser.add_argument('-log_mode', '--log_mode', help='log mode', type=str, default='allreg')
   global param
   param = parser.parse_args()
 
   init(param)
-  exp = ExpGen()
-  log = LogGen()
+  exp = ExpGen(param)
+  log = LogGen(param)
   segment('data')
   exp.data()
   log.data()
 
   segment('text')
-  exp.code(param)
-  log.code(param)
+  exp.code()
+  log.code()
 
   term()
 

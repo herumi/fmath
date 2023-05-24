@@ -48,7 +48,7 @@ new_log_v: log_v.o fmath.o
 	$(CXX) -o $@ log_v.o fmath.o
 
 unroll_test_n: exp_v.o
-	@$(PYTHON) gen_fmath.py -m gas -un $(UN) > fmath$(UN).S
+	@$(PYTHON) gen_fmath.py -m gas -exp_un $(UN) > fmath$(UN).S
 	@$(CXX) -o exp_v$(UN).exe exp_v.o fmath$(UN).S $(CFLAGS)
 	@./exp_v$(UN).exe b
 	@./exp_v$(UN).exe b
