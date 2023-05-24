@@ -129,14 +129,22 @@ class ExpGen:
     ]
     self.expTbl = expTblMaple
     self.EXP_COEF = 'exp_coef'
+    makeLabel(self.EXP_COEF)
+    for v in self.expTbl:
+      dd_(hex(float2uint(v)))
+
     if self.mode == 'allreg':
       self.EXP_COEF_N = 6
-      makeLabel(self.EXP_COEF)
-      for v in self.expTbl:
-        dd_(hex(float2uint(v)))
+      self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
+    elif self.mode == 'allimm':
+      self.EXP_COEF_N = 0
+      self.EXP_CONST_N = 2 # coeff[], log2_e, tx
+    elif self.mode == 'allimm2':
+      self.EXP_COEF_N = 0
+      self.EXP_CONST_N = 3 # coeff[], log2_e, tx, tx2
     else:
       self.EXP_COEF_N = 0
-    self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
+      self.EXP_CONST_N = 1 # log2_e
 
   def expCore(self, n, args):
     (v0, v1, v2) = args
@@ -150,25 +158,17 @@ class ExpGen:
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, self.expCoeff[i])
       un(vscalefps)(v0, v2, v0) # v2 * 2^v1
-    """
-    if False:
+
+    if self.mode == 'allmem':
       lea(rax, ptr(rip+self.EXP_COEF))
       vpbroadcastd(v2[0], ptr(rax+5*4))
       for i in range(1, n):
         un(vmovaps)(v2[i], v2[0])
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, ptr_b(rax+i*4))
-    """
-    if False:
-      lea(rax, ptr(rip+self.EXP_COEF))
-      vpbroadcastd(v2[0], ptr(rax+5*4))
-      for i in range(1, n):
-        un(vmovaps)(v2[i], v2[0])
+      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
 
-      for i in range(4, -1, -1):
-        vpbroadcastd(self.expCoeff[0], ptr(rax+i*4))
-        un(vfmadd213ps)(v2, v1, self.expCoeff[0])
-    if False:
+    if self.mode == 'allimm':
       mov(eax, float2uint(self.expTbl[5]))
       vpbroadcastd(v2[0], eax)
       for i in range(1, n):
@@ -176,8 +176,37 @@ class ExpGen:
 
       for i in range(4, -1, -1):
         mov(eax, float2uint(self.expTbl[i]))
-        vpbroadcastd(self.expCoeff[0], eax)
-        un(vfmadd213ps)(v2, v1, self.expCoeff[0])
+        vpbroadcastd(self.tx, eax)
+        un(vfmadd213ps)(v2, v1, self.tx)
+      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+
+    if self.mode == 'allimm2':
+      mov(eax, float2uint(self.expTbl[5]))
+      vpbroadcastd(v2[0], eax)
+      mov(eax, float2uint(self.expTbl[4]))
+      vpbroadcastd(self.tx, eax)
+      for i in range(1, n):
+        un(vmovaps)(v2[i], v2[0])
+
+      mov(eax, float2uint(self.expTbl[3]))
+      vpbroadcastd(self.tx2, eax)
+      un(vfmadd213ps)(v2, v1, self.tx)
+
+      mov(eax, float2uint(self.expTbl[2]))
+      vpbroadcastd(self.tx, eax)
+      un(vfmadd213ps)(v2, v1, self.tx2)
+
+      mov(eax, float2uint(self.expTbl[1]))
+      vpbroadcastd(self.tx2, eax)
+      un(vfmadd213ps)(v2, v1, self.tx)
+
+      mov(eax, float2uint(self.expTbl[0]))
+      vpbroadcastd(self.tx, eax)
+      un(vfmadd213ps)(v2, v1, self.tx2)
+
+      un(vfmadd213ps)(v2, v1, self.tx)
+
+      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
 
   def code(self):
     unrollN = self.unrollN
@@ -194,6 +223,12 @@ class ExpGen:
         constPos = EXP_TMP_N*unrollN
         self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
         self.log2_e = sf.v[constPos+self.EXP_COEF_N]
+        if self.mode == 'allimm':
+          self.tx = sf.v[constPos+self.EXP_COEF_N+1]
+        if self.mode == 'allimm2':
+          self.tx = sf.v[constPos+self.EXP_COEF_N+1]
+          self.tx2 = sf.v[constPos+self.EXP_COEF_N+2]
+
         vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip + self.EXP_COEF + 4 * i))

@@ -47,28 +47,30 @@ new_exp_v: exp_v.o fmath.o
 new_log_v: log_v.o fmath.o
 	$(CXX) -o $@ log_v.o fmath.o
 
+EXP_MODE?=allreg
+EXP_UN?=4
 unroll_test_n: exp_v.o
-	@$(PYTHON) gen_fmath.py -m gas -exp_un $(UN) > fmath$(UN).S
-	@$(CXX) -o exp_v$(UN).exe exp_v.o fmath$(UN).S $(CFLAGS)
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
-	@./exp_v$(UN).exe b
+	@$(PYTHON) gen_fmath.py -m gas -exp_un $(EXP_UN) -exp_mode $(EXP_MODE) > fmath$(EXP_UN).S
+	@$(CXX) -o exp_v$(EXP_UN).exe exp_v.o fmath$(EXP_UN).S $(CFLAGS)
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
 
 unroll_test: exp_v.o
-	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo UN=$$i; make -s unroll_test_n UN=$$i; done'
+	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo EXP_UN=$$i; make -s unroll_test_n EXP_UN=$$i; done'
 
 fmath.o: fmath.S
 	$(CC) -c $< -o $@
 
 fmath.S: gen_fmath.py
-	$(PYTHON) gen_fmath.py -m gas > fmath.S
+	$(PYTHON) gen_fmath.py -m gas -exp_mode $(EXP_MODE) > fmath.S
 
 .cpp.o:
 	$(CXX) -c $< -o $@ $(CFLAGS)
