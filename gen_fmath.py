@@ -144,7 +144,7 @@ class ExpGen:
     EXP_TMP_N = 3
     unrollN = param.unroll
     align(16)
-    with FuncProc('fmath_exp_v_avx512'):
+    with FuncProc('fmath_expf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*unrollN+self.EXP_CONST_N, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
@@ -227,7 +227,7 @@ class LogGen:
     LOG_CONST_N = 4 # one, tbl1, tbl2, t
     unrollN = param.unroll
     align(16)
-    with FuncProc('fmath_log_v_avx512'):
+    with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
