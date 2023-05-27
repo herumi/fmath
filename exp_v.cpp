@@ -279,7 +279,8 @@ CYBOZU_TEST_AUTO(expLimit)
 void bench()
 {
 	Fvec x, y0, y1;
-	const size_t n = 4096 * 16;
+	const size_t base = 5 * 7 * 11 * 9 * 16;
+	const size_t n = (65536 / base) * base;
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
@@ -288,7 +289,7 @@ void bench()
 		x[i] = sin(i / float(n) * 7) * 20;
 	}
 	CYBOZU_BENCH_C("", C, fmath::expf_v, &y1[0], &x[0], n);
-	putClk("fmath::expf_v", C * (n / 16));
+	putClk("fmath::expf_v", C * (n / 32));
 }
 
 int main(int argc, char *argv[])
