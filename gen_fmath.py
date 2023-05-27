@@ -64,6 +64,7 @@ def framework(func, dst, src, n, unrollN, args):
   mov(rcx, n)
   jmp(check1L)
 
+  align(32)
   L(lpUnrollL)
   un(vmovups)(v0, ptr(src))
   add(src, 64*unrollN)
@@ -77,6 +78,7 @@ def framework(func, dst, src, n, unrollN, args):
 
   jmp(check2L)
 
+  align(32)
   L(lpL)
   vmovups(zm0, ptr(src))
   add(src, 64)
