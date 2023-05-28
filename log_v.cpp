@@ -164,5 +164,22 @@ int main(int argc, char *argv[])
 		bench();
 		return 0;
 	}
+#if 0
+	puts("small");
+	for (float x = 1e-3; x < 0.03; x += 1e-3) {
+		float y = logf(x);
+		float z = fmath_logf(x);
+		float d = fabs(y - z);
+		printf("x=%f y=%f z=%f %e\n", x, y, z, d);
+	}
+	puts("large");
+	for (float x = 0.1; x < 1; x += 0.1) {
+		float y = logf(x);
+		float z = fmath_logf(x);
+		float d = fabs(y - z);
+		printf("x=%f y=%f z=%f %e\n", x, y, z, d);
+	}
+	return 0;
+#endif
 	return cybozu::test::autoRun.run(argc, argv);
 }
