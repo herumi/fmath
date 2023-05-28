@@ -37,6 +37,15 @@ def genUnrollFunc(n):
     return gn
   return fn
 
+def zipOr(v, k):
+  """
+    return [v[i]|v[i]]
+  """
+  r = []
+  for i in range(len(v)):
+    r.append(v[i]|k[i])
+  return r
+
 def setInt(r, v):
   mov(eax, v)
   vpbroadcastd(r, eax)
@@ -240,8 +249,9 @@ class ExpGen:
 # log_v(float *dst, const float *src, size_t n);
 class LogGen:
   def __init__(self, param):
-    self.unrollN = param.log_unrollN
+    self.unrollN = 1 # param.log_unrollN
     self.mode = param.log_mode
+    self.precise = True
   def data(self):
     self.c2 = -0.49999999
     self.c3 = 0.3333955701
@@ -267,9 +277,12 @@ class LogGen:
       dd_(hex(float2uint(self.logTbl2[i])))
 
   def logCore(self, n, args):
-    (v0, v1, v2, v3) = args
+    (v0, v1, v2, v3, keepX, vk) = args
     t = self.t
     un = genUnrollFunc(n)
+    if self.precise:
+      un(vmovaps)(keepX, v0)
+
     setInt(v3[0], 127 << 23)
     un(vpsubd)(v1, v0, v3[0])
     un(vpsrad)(v1, v1, 23) # n
@@ -284,13 +297,15 @@ class LogGen:
     setFloat(t, math.log(2))
     un(vfmsub213ps)(v1, t, v3) # z = n * log2 - log_b
 
-    """ # log precise # for |x-1| < 1/32
-    un(vsubps)(v2, keepX, p.one) # x-1
-    un(vandps)(v2, v2, p.x7fffffff) # |x-1|
-    un(vcmpltps)(k2, v2, p.preciseBoundary)
-    un(vsubps)(v0|k2, keepX, p.one) # c = v0 = x-1
-    un(vxorps)(v1|k2, v1) # z = 0
-    """
+    # precise log for small |x-1|
+    if self.precise:
+      un(vsubps)(v2, keepX, self.one) # x-1
+      setInt(t, 0x7fffffff)
+      un(vandps)(v2, v2, t) # |x-1|
+      setFloat(t, 0.02)
+      un(vcmpltps)(vk, v2, t)
+      un(vsubps)(zipOr(v0, vk), keepX, self.one) # c = v0 = x-1
+      un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
     un(vmovaps)(v2, v0)
     setFloat(t, self.c4)
@@ -302,8 +317,10 @@ class LogGen:
     un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
 
   def code(self):
-    unrollN = self.unrollN
+    unrollN = 1 # self.unrollN
     LOG_TMP_N = 4
+    if self.precise:
+      LOG_TMP_N += 1
     LOG_CONST_N = 4 # one, tbl1, tbl2, t
     align(16)
     with FuncProc('fmath_logf_avx512'):
@@ -315,6 +332,13 @@ class LogGen:
         v1 = sf.v[1*unrollN:2*unrollN]
         v2 = sf.v[2*unrollN:3*unrollN]
         v3 = sf.v[3*unrollN:4*unrollN]
+        vk = []
+        if self.precise:
+          keepX = sf.v[4*unrollN:5*unrollN]
+          for i in range(unrollN):
+            vk.append(MaskReg(i+2))
+        else:
+          keepX = []
         constPos = LOG_TMP_N*unrollN
         self.one = sf.v[constPos]
         self.tbl1 = sf.v[constPos+1]
@@ -324,7 +348,7 @@ class LogGen:
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
 
-        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3))
+        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3, keepX, vk))
 
 def main():
   parser = getDefaultParser()
