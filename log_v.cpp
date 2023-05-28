@@ -1,3 +1,4 @@
+#define CYBOZU_TEST_DISABLE_AUTO_RUN
 #include "fmath2.hpp"
 #include <cybozu/test.hpp>
 #include <cybozu/benchmark.hpp>
@@ -111,7 +112,8 @@ void putClk(const char *msg, size_t n)
 CYBOZU_TEST_AUTO(bench)
 {
 	Fvec x, y0, y1;
-	const size_t n = 1024 * 16;
+	const size_t base = 5 * 7 * 11 * 9 * 16;
+	const size_t n = (65536 / base) * base;
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
@@ -121,9 +123,9 @@ CYBOZU_TEST_AUTO(bench)
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("", C, std_log_v, &y0[0], &x[0], n);
-	putClk("std_log_v", C * (n / 16));
+	putClk("std_log_v", C * (n / 32));
 	CYBOZU_BENCH_C("", C, fmath::logf_v, &y1[0], &x[0], n);
-	putClk("fmath::logf_v", C * (n / 16));
+	putClk("fmath::logf_v", C * (n / 32));
 	checkDiff(y0.data(), y1.data(), n);
 }
 
@@ -138,4 +140,29 @@ CYBOZU_TEST_AUTO(limit)
 	for (size_t i = 0; i < n; i++) {
 		printf("x=%.8e std=%.8e fmath2=%.8e diff=%e\n", x[i], y0[i], y1[i], diff(y0[i], y1[i]));
 	}
+}
+
+void bench()
+{
+	Fvec x, y0, y1;
+	const size_t base = 5 * 7 * 11 * 9 * 16;
+	const size_t n = (65536 / base) * base;
+	x.resize(n);
+	y0.resize(n);
+	y1.resize(n);
+	const int C = 50000;
+	for (size_t i = 0; i < n; i++) {
+		x[i] = sin(i / float(n) * 7) * 20;
+	}
+	CYBOZU_BENCH_C("", C, fmath::logf_v, &y1[0], &x[0], n);
+	putClk("fmath::logf_v", C * (n / 32));
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc > 1) {
+		bench();
+		return 0;
+	}
+	return cybozu::test::autoRun.run(argc, argv);
 }
