@@ -16,6 +16,12 @@ CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -W
 CFLAGS+=$(CFLAGS_WARN)
 LDFLAGS+=fmath.o
 
+SRC=$(shell ls *.cpp)
+#SRC=exp_v.cpp log_v.cpp
+DEP=$(SRC:.cpp=.d)
+-include $(DEP)
+
+
 HEADER= fmath.hpp
 
 TARGET=bench fastexp
@@ -64,7 +70,7 @@ fmath.S: gen_fmath.py
 	$(CXX) -o $@ $< $(LDFLAGS)
 
 clean:
-	$(RM) *.o $(TARGET) exp_v log_v *.S *.exe
+	$(RM) *.o $(TARGET) *.exe *.S
 
 test: exp_v
 	./exp_v
@@ -72,3 +78,5 @@ test: exp_v
 bench.o: bench.cpp $(HEADER)
 fastexp.o: fastexp.cpp $(HEADER)
 
+# don't remove these files automatically
+.SECONDARY: $(addprefix $(OBJ_DIR)/, $(ALL_SRC:.cpp=.o))
