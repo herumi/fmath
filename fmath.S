@@ -237,18 +237,10 @@ vmovaps %zmm2, %zmm18
 vmovaps %zmm3, %zmm19
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm12
-vpsubd %zmm12, %zmm0, %zmm4
-vpsubd %zmm12, %zmm1, %zmm5
-vpsubd %zmm12, %zmm2, %zmm6
-vpsubd %zmm12, %zmm3, %zmm7
-vpsrad $23, %zmm4, %zmm4
-vpsrad $23, %zmm5, %zmm5
-vpsrad $23, %zmm6, %zmm6
-vpsrad $23, %zmm7, %zmm7
-vcvtdq2ps %zmm4, %zmm4
-vcvtdq2ps %zmm5, %zmm5
-vcvtdq2ps %zmm6, %zmm6
-vcvtdq2ps %zmm7, %zmm7
+vgetexpps %zmm0, %zmm4
+vgetexpps %zmm1, %zmm5
+vgetexpps %zmm2, %zmm6
+vgetexpps %zmm3, %zmm7
 mov $8388607, %eax
 vpbroadcastd %eax, %zmm23
 vpandd %zmm23, %zmm0, %zmm0
@@ -368,9 +360,7 @@ add $64, %rsi
 vmovaps %zmm0, %zmm16
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm12
-vpsubd %zmm12, %zmm0, %zmm4
-vpsrad $23, %zmm4, %zmm4
-vcvtdq2ps %zmm4, %zmm4
+vgetexpps %zmm0, %zmm4
 mov $8388607, %eax
 vpbroadcastd %eax, %zmm23
 vpandd %zmm23, %zmm0, %zmm0
@@ -427,9 +417,7 @@ vmovups (%rsi), %zmm0{%k1}{z}
 vmovaps %zmm0, %zmm16
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm12
-vpsubd %zmm12, %zmm0, %zmm4
-vpsrad $23, %zmm4, %zmm4
-vcvtdq2ps %zmm4, %zmm4
+vgetexpps %zmm0, %zmm4
 mov $8388607, %eax
 vpbroadcastd %eax, %zmm23
 vpandd %zmm23, %zmm0, %zmm0

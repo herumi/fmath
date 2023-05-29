@@ -249,7 +249,7 @@ class ExpGen:
 # log_v(float *dst, const float *src, size_t n);
 class LogGen:
   def __init__(self, param):
-    self.unrollN = 1 # param.log_unrollN
+    self.unrollN = param.log_unrollN
     self.mode = param.log_mode
     self.precise = True
     self.checkSign = True # return -Inf for 0 and NaN for negative
@@ -285,9 +285,7 @@ class LogGen:
       un(vmovaps)(keepX, v0)
 
     setInt(v3[0], 127 << 23)
-    un(vpsubd)(v1, v0, v3[0])
-    un(vpsrad)(v1, v1, 23) # n
-    un(vcvtdq2ps)(v1, v1) # int -> float
+    un(vgetexpps)(v1, v0)
     setInt(t, 0x7fffff)
     un(vpandd)(v0, v0, t)
     un(vpsrad)(v2, v0, 23 - self.L) # d
