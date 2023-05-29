@@ -277,6 +277,17 @@ class LogGen:
     for i in range(LN):
       dd_(hex(float2uint(self.logTbl2[i])))
 
+  """
+  x = 2^n a (1 <= a < 2)
+  log x = n * log2 + log a
+  L = 4
+  d = (f2u(a) & mask(23)) >> (23 - L)
+  b = T1[d] = approximate of 1/a
+  log b = T2[d]
+  c = ab - 1 is near zero
+  a = (1 + c) / b
+  log a = log(1 + c) - log b
+  """
   def logCore(self, n, args):
     (v0, v1, v2, v3, keepX, vk) = args
     t = self.t
@@ -284,8 +295,8 @@ class LogGen:
     if self.precise:
       un(vmovaps)(keepX, v0)
 
-    un(vgetexpps)(v1, v0)
-    un(vgetmantps)(v0, v0, 0)
+    un(vgetexpps)(v1, v0) # n
+    un(vgetmantps)(v0, v0, 0) # a
     un(vpsrad)(v2, v0, 23 - self.L) # d
     un(vpermps)(v3, v2, self.tbl1) # b
     un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
