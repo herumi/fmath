@@ -1,11 +1,10 @@
 #define CYBOZU_TEST_DISABLE_AUTO_RUN
-#include "fmath2.hpp"
+#include "fmath.h"
 #include <cybozu/test.hpp>
 #include <cybozu/benchmark.hpp>
 #include <float.h>
 #include <vector>
 
-#ifdef FMATH_NEW
 #include <xbyak/xbyak_util.h>
 #include <cmath>
 namespace local {
@@ -30,8 +29,6 @@ inline uint32_t f2u(float x)
 }
 
 } // local
-
-#endif
 
 float g_maxe;
 

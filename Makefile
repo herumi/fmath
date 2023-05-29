@@ -10,15 +10,11 @@ ifeq ($(AVX2),flags)
 	HAS_AVX2=-mavx2
 endif
 PYTHON?=python3
-# ----------------------------------------------------------------
 INC_DIR= -I../src -I../xbyak -I./include
 CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
-ifeq ($(NEW),1)
-  CFLAGS+=-DFMATH_NEW
-endif
-# ----------------------------------------------------------------
+LDFLAGS+=fmath.o
 
 HEADER= fmath.hpp
 
@@ -35,17 +31,6 @@ fastexp: fastexp.o
 
 avx2: avx2.cpp fmath.hpp
 	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
-
-exp_v: exp_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
-log_v: log_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
-
-new_exp_v: exp_v.o fmath.o
-	$(CXX) -o $@ exp_v.o fmath.o
-
-new_log_v: log_v.o fmath.o
-	$(CXX) -o $@ log_v.o fmath.o
 
 EXP_MODE?=allreg
 EXP_UN?=4
@@ -72,11 +57,11 @@ fmath.o: fmath.S
 fmath.S: gen_fmath.py
 	$(PYTHON) gen_fmath.py -m gas -exp_mode $(EXP_MODE) > fmath.S
 
-.cpp.o:
-	$(CXX) -c $< -o $@ $(CFLAGS)
+%.o: %.cpp
+	$(CXX) -o $@ $< -c $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
-.c.o:
-	$(CXX) -c $< -o $@ $(CFLAGS)
+%.exe: %.o fmath.o
+	$(CXX) -o $@ $< $(LDFLAGS)
 
 clean:
 	$(RM) *.o $(TARGET) exp_v log_v *.S *.exe
