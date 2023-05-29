@@ -284,12 +284,9 @@ class LogGen:
     if self.precise:
       un(vmovaps)(keepX, v0)
 
-    setInt(v3[0], 127 << 23)
     un(vgetexpps)(v1, v0)
-    setInt(t, 0x7fffff)
-    un(vpandd)(v0, v0, t)
+    un(vgetmantps)(v0, v0, 0)
     un(vpsrad)(v2, v0, 23 - self.L) # d
-    un(vpord)(v0, v0, v3[0]) # a
     un(vpermps)(v3, v2, self.tbl1) # b
     un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
     un(vpermps)(v3, v2, self.tbl2) # log_b
