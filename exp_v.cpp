@@ -1,9 +1,35 @@
-#include "fmath2.hpp"
+#define CYBOZU_TEST_DISABLE_AUTO_RUN
+#include "fmath.h"
 #include <vector>
 #include <float.h>
 #include <cybozu/test.hpp>
 #include <cybozu/benchmark.hpp>
 #include <cybozu/inttype.hpp>
+
+#include <xbyak/xbyak_util.h>
+#include <cmath>
+namespace local {
+
+union fi {
+	float f;
+	uint32_t i;
+};
+
+inline float u2f(uint32_t x)
+{
+	fi fi;
+	fi.i = x;
+	return fi.f;
+}
+
+inline uint32_t f2u(float x)
+{
+	fi fi;
+	fi.f = x;
+	return fi.i;
+}
+
+} // local
 
 float g_maxe;
 
@@ -33,8 +59,25 @@ inline float split(int *pn, float x)
 
 inline float expfC(float x)
 {
-	using namespace fmath;
-	const local::ConstVar& C = *local::Inst<>::code.constVar;
+	struct {
+		float log2;
+		float log2_e;
+		float expCoeff[5];
+	} C;
+	C.log2 = std::log(2.0f);
+	C.log2_e = 1.0f / C.log2;
+	const uint32_t expTbl[] = {
+		0x3f800000,
+		0x3effff12,
+		0x3e2aaa56,
+		0x3d2b89cc,
+		0x3c091331,
+	};
+	for (int i = 0; i < 5; i++) {
+		local::fi fi;
+		fi.i = expTbl[i];
+		C.expCoeff[i] = fi.f;
+	}
 	x *= C.log2_e;
 	int n;
 	float a = split(&n, x);
@@ -202,3 +245,27 @@ CYBOZU_TEST_AUTO(expLimit)
 	limitTest(std::exp, fmath_expf);
 }
 
+void bench()
+{
+	Fvec x, y0, y1;
+	const size_t base = 5 * 7 * 11 * 9 * 16;
+	const size_t n = (65536 / base) * base;
+	x.resize(n);
+	y0.resize(n);
+	y1.resize(n);
+	const int C = 50000;
+	for (size_t i = 0; i < n; i++) {
+		x[i] = sin(i / float(n) * 7) * 20;
+	}
+	CYBOZU_BENCH_C("", C, fmath::expf_v, &y1[0], &x[0], n);
+	putClk("fmath::expf_v", C * (n / 32));
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc > 1) {
+		bench();
+		return 0;
+	}
+	return cybozu::test::autoRun.run(argc, argv);
+}

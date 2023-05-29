@@ -9,12 +9,12 @@ AVX2=$(shell head -27 /proc/cpuinfo 2>/dev/null |awk '/avx2/ {print $$1}')
 ifeq ($(AVX2),flags)
 	HAS_AVX2=-mavx2
 endif
-# ----------------------------------------------------------------
+PYTHON?=python3
 INC_DIR= -I../src -I../xbyak -I./include
 CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
-# ----------------------------------------------------------------
+LDFLAGS+=fmath.o
 
 HEADER= fmath.hpp
 
@@ -32,19 +32,39 @@ fastexp: fastexp.o
 avx2: avx2.cpp fmath.hpp
 	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
 
-exp_v: exp_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
-log_v: log_v.cpp fmath2.hpp
-	$(CXX) -o $@ $< -O3 -Iinclude -I../xbyak $(CFLAGS)
+EXP_MODE?=allreg
+EXP_UN?=4
+unroll_test_n: exp_v.o
+	@$(PYTHON) gen_fmath.py -m gas -exp_un $(EXP_UN) -exp_mode $(EXP_MODE) > fmath$(EXP_UN).S
+	@$(CXX) -o exp_v$(EXP_UN).exe exp_v.o fmath$(EXP_UN).S $(CFLAGS)
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
+	@./exp_v$(EXP_UN).exe b
 
-.cpp.o:
-	$(CXX) -c $< -o $@ $(CFLAGS)
+unroll_test: exp_v.o
+	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo EXP_UN=$$i; make -s unroll_test_n EXP_UN=$$i; done'
 
-.c.o:
-	$(CXX) -c $< -o $@ $(CFLAGS)
+fmath.o: fmath.S
+	$(CC) -c $< -o $@
+
+fmath.S: gen_fmath.py
+	$(PYTHON) gen_fmath.py -m gas -exp_mode $(EXP_MODE) > fmath.S
+
+%.o: %.cpp
+	$(CXX) -o $@ $< -c $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
+
+%.exe: %.o fmath.o
+	$(CXX) -o $@ $< $(LDFLAGS)
 
 clean:
-	$(RM) *.o $(TARGET) exp_v log_v
+	$(RM) *.o $(TARGET) exp_v log_v *.S *.exe
 
 test: exp_v
 	./exp_v
