@@ -22,6 +22,11 @@ PRE(exp_coef):
 .long 0x3d63578a
 .long 0x3c1e6362
 .long 0x3aaf9319
+PRE(log_coef):
+.long 0x3f800000
+.long 0xbf000000
+.long 0x3eaab2d3
+.long 0xbe800b20
 PRE(log_tbl1):
 .long 0x3f783e10
 .long 0x3f6a0ea1
@@ -293,20 +298,17 @@ vmovaps %zmm0, %zmm8
 vmovaps %zmm1, %zmm9
 vmovaps %zmm2, %zmm10
 vmovaps %zmm3, %zmm11
-mov $3196062496, %eax
-vpbroadcastd %eax, %zmm23
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
 mov $1051374291, %eax
 vpbroadcastd %eax, %zmm12
-vfmadd213ps %zmm12, %zmm23, %zmm8
-vfmadd213ps %zmm12, %zmm23, %zmm9
-vfmadd213ps %zmm12, %zmm23, %zmm10
-vfmadd213ps %zmm12, %zmm23, %zmm11
-mov $3204448256, %eax
-vpbroadcastd %eax, %zmm23
-vfmadd213ps %zmm23, %zmm0, %zmm8
-vfmadd213ps %zmm23, %zmm1, %zmm9
-vfmadd213ps %zmm23, %zmm2, %zmm10
-vfmadd213ps %zmm23, %zmm3, %zmm11
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm9
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm10
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm11
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm1, %zmm9
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm2, %zmm10
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm3, %zmm11
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm1, %zmm9
 vfmadd213ps %zmm20, %zmm2, %zmm10
@@ -369,14 +371,11 @@ vcmpltps %zmm23, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
 vmovaps %zmm0, %zmm8
-mov $3196062496, %eax
-vpbroadcastd %eax, %zmm23
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
 mov $1051374291, %eax
 vpbroadcastd %eax, %zmm12
-vfmadd213ps %zmm12, %zmm23, %zmm8
-mov $3204448256, %eax
-vpbroadcastd %eax, %zmm23
-vfmadd213ps %zmm23, %zmm0, %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
 vfpclassps $64, %zmm16, %k2
@@ -421,14 +420,11 @@ vcmpltps %zmm23, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
 vmovaps %zmm0, %zmm8
-mov $3196062496, %eax
-vpbroadcastd %eax, %zmm23
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
 mov $1051374291, %eax
 vpbroadcastd %eax, %zmm12
-vfmadd213ps %zmm12, %zmm23, %zmm8
-mov $3204448256, %eax
-vpbroadcastd %eax, %zmm23
-vfmadd213ps %zmm23, %zmm0, %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
 vfpclassps $64, %zmm16, %k2

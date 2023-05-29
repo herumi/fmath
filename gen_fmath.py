@@ -251,9 +251,13 @@ class LogGen:
     self.precise = True
     self.checkSign = True # return -Inf for 0 and NaN for negative
   def data(self):
+    self.LOG_COEF = 'log_coef'
     self.c2 = -0.49999999
     self.c3 = 0.3333955701
     self.c4 = -0.25008487
+    makeLabel(self.LOG_COEF)
+    for v in [1.0, self.c2, self.c3, self.c4]:
+      dd_(hex(float2uint(v)))
     self.logTbl1 = []
     self.logTbl2 = []
     self.L = 4
@@ -312,11 +316,10 @@ class LogGen:
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
     un(vmovaps)(v2, v0)
-    setFloat(t, self.c4)
+    vpbroadcastd(t, ptr(rip+self.LOG_COEF+3*4))
     setFloat(v3[0], self.c3)
-    un(vfmadd213ps)(v2, t, v3[0]) # t = c * (-1/4) + (1/3)
-    setFloat(t, self.c2)
-    un(vfmadd213ps)(v2, v0, t) # t = t * c + (-1/2)
+    un(vfmadd213ps)(v2, t, ptr_b(rip+self.LOG_COEF+2*4)) # t = c * c4 + c3
+    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * c + c2
     un(vfmadd213ps)(v2, v0, self.one) # t = t * c + 1
     un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
 

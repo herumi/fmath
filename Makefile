@@ -16,11 +16,10 @@ CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -W
 CFLAGS+=$(CFLAGS_WARN)
 LDFLAGS+=fmath.o
 
-SRC=$(shell ls *.cpp)
-#SRC=exp_v.cpp log_v.cpp
+#SRC=$(shell ls *.cpp)
+SRC=exp_v.cpp log_v.cpp
 DEP=$(SRC:.cpp=.d)
 -include $(DEP)
-
 
 HEADER= fmath.hpp
 
