@@ -252,6 +252,7 @@ class LogGen:
     self.unrollN = 1 # param.log_unrollN
     self.mode = param.log_mode
     self.precise = True
+    self.checkSign = True # return -Inf for 0 and NaN for negative
   def data(self):
     self.c2 = -0.49999999
     self.c3 = 0.3333955701
@@ -315,6 +316,17 @@ class LogGen:
     un(vfmadd213ps)(v2, v0, t) # t = t * c + (-1/2)
     un(vfmadd213ps)(v2, v0, self.one) # t = t * c + 1
     un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
+
+    if self.checkSign:
+      # check x < 0 or x == 0
+      NEG = 1 << 6
+      ZERO = (1 << 1) | (1 << 2)
+      un(vfpclassps)(vk, keepX, NEG)
+      setInt(t, 0x7fc00000) # NaN
+      un(vmovaps)(zipOr(v0, vk), t)
+      un(vfpclassps)(vk, keepX, ZERO)
+      setInt(t, 0xff800000) # -Inf
+      un(vmovaps)(zipOr(v0, vk), t)
 
   def code(self):
     unrollN = 1 # self.unrollN
