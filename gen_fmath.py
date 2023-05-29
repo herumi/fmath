@@ -2,7 +2,6 @@ from s_xbyak import *
 import math
 import argparse
 
-LOG2_E = 'log2_e'
 SIMD_BYTE = 64
 
 # expand args
@@ -117,9 +116,7 @@ class ExpGen:
     self.unrollN = param.exp_unrollN
     self.mode = param.exp_mode
   def data(self):
-    makeLabel(LOG2_E)
-    v = 1 / math.log(2)
-    dd_(hex(float2uint(v)))
+    align(32)
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTblSollya = [
@@ -240,7 +237,7 @@ class ExpGen:
           self.tx = sf.v[constPos+self.EXP_COEF_N+1]
           self.tx2 = sf.v[constPos+self.EXP_COEF_N+2]
 
-        vbroadcastss(self.log2_e, ptr(rip+LOG2_E))
+        setFloat(self.log2_e, 1/math.log(2))
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip + self.EXP_COEF + 4 * i))
 

@@ -14,8 +14,7 @@
   #define SIZE(x)
 #endif
 .data
-PRE(log2_e):
-.long 0x3fb8aa3b
+.align 32
 PRE(exp_coef):
 .long 0x3f800000
 .long 0x3f317218
@@ -75,7 +74,8 @@ vmovups %zmm15, 512(%rsp)
 vmovups %zmm16, 576(%rsp)
 vmovups %zmm17, 640(%rsp)
 vmovups %zmm18, 704(%rsp)
-vbroadcastss PRE(log2_e)(%rip), %zmm18
+mov $1069066811, %eax
+vpbroadcastd %eax, %zmm18
 vbroadcastss PRE(exp_coef)(%rip), %zmm12
 vbroadcastss PRE(exp_coef)+4(%rip), %zmm13
 vbroadcastss PRE(exp_coef)+8(%rip), %zmm14
