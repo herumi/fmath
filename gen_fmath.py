@@ -329,7 +329,7 @@ class LogGen:
       un(vmovaps)(zipOr(v0, vk), t)
 
   def code(self):
-    unrollN = 1 # self.unrollN
+    unrollN = 4 # self.unrollN
     LOG_TMP_N = 4
     if self.precise:
       LOG_TMP_N += 1
