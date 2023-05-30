@@ -294,17 +294,14 @@ vxorps %zmm4, %zmm4, %zmm4{%k2}
 vxorps %zmm5, %zmm5, %zmm5{%k3}
 vxorps %zmm6, %zmm6, %zmm6{%k4}
 vxorps %zmm7, %zmm7, %zmm7{%k5}
-vmovaps %zmm0, %zmm8
-vmovaps %zmm1, %zmm9
-vmovaps %zmm2, %zmm10
-vmovaps %zmm3, %zmm11
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
-mov $1051374291, %eax
-vpbroadcastd %eax, %zmm12
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm9
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm10
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm11
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
+vmovaps %zmm8, %zmm9
+vmovaps %zmm8, %zmm10
+vmovaps %zmm8, %zmm11
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm1, %zmm9
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm2, %zmm10
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm3, %zmm11
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm1, %zmm9
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm2, %zmm10
@@ -370,11 +367,8 @@ vpbroadcastd %eax, %zmm23
 vcmpltps %zmm23, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vmovaps %zmm0, %zmm8
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
-mov $1051374291, %eax
-vpbroadcastd %eax, %zmm12
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
@@ -419,11 +413,8 @@ vpbroadcastd %eax, %zmm23
 vcmpltps %zmm23, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vmovaps %zmm0, %zmm8
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm23
-mov $1051374291, %eax
-vpbroadcastd %eax, %zmm12
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm23, %zmm8
+vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0

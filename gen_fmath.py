@@ -315,13 +315,13 @@ class LogGen:
       un(vsubps)(zipOr(v0, vk), keepX, self.one) # c = v0 = x-1
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
-    un(vmovaps)(v2, v0)
-    vpbroadcastd(t, ptr(rip+self.LOG_COEF+3*4))
-    setFloat(v3[0], self.c3)
-    un(vfmadd213ps)(v2, t, ptr_b(rip+self.LOG_COEF+2*4)) # t = c * c4 + c3
-    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * c + c2
-    un(vfmadd213ps)(v2, v0, self.one) # t = t * c + 1
-    un(vfmadd213ps)(v0, v2, v1) # c = c * t + z
+    vpbroadcastd(v2[0], ptr(rip+self.LOG_COEF+3*4))
+    for i in range(1,n):
+      vmovaps(v2[i], v2[0])
+    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
+    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
+    un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
+    un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
 
     if self.checkSign:
       # check x < 0 or x == 0
