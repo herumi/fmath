@@ -252,11 +252,8 @@ class LogGen:
     self.checkSign = True # return -Inf for 0 and NaN for negative
   def data(self):
     self.LOG_COEF = 'log_coef'
-    self.c2 = -0.49999999
-    self.c3 = 0.3333955701
-    self.c4 = -0.25008487
     makeLabel(self.LOG_COEF)
-    for v in [1.0, self.c2, self.c3, self.c4]:
+    for v in [1.0, -0.49999999, 0.3333955701, -0.25008487]:
       dd_(hex(float2uint(v)))
     self.logTbl1 = []
     self.logTbl2 = []
