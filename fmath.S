@@ -22,11 +22,14 @@ PRE(exp_coef):
 .long 0x3d63578a
 .long 0x3c1e6362
 .long 0x3aaf9319
+.align 32
 PRE(log_coef):
 .long 0x3f800000
 .long 0xbf000000
 .long 0x3eaab2d3
 .long 0xbe800b20
+PRE(log2):
+.long 0x3f317218
 PRE(log_tbl1):
 .long 0x3f783e10
 .long 0x3f6a0ea1
@@ -264,12 +267,10 @@ vpermps %zmm22, %zmm8, %zmm12
 vpermps %zmm22, %zmm9, %zmm13
 vpermps %zmm22, %zmm10, %zmm14
 vpermps %zmm22, %zmm11, %zmm15
-mov $1060205080, %eax
-vpbroadcastd %eax, %zmm23
-vfmsub213ps %zmm12, %zmm23, %zmm4
-vfmsub213ps %zmm13, %zmm23, %zmm5
-vfmsub213ps %zmm14, %zmm23, %zmm6
-vfmsub213ps %zmm15, %zmm23, %zmm7
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm13, %zmm5
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm14, %zmm6
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm15, %zmm7
 vsubps %zmm20, %zmm16, %zmm8
 vsubps %zmm20, %zmm17, %zmm9
 vsubps %zmm20, %zmm18, %zmm10
@@ -355,9 +356,7 @@ vpsrad $19, %zmm0, %zmm8
 vpermps %zmm21, %zmm8, %zmm12
 vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
-mov $1060205080, %eax
-vpbroadcastd %eax, %zmm23
-vfmsub213ps %zmm12, %zmm23, %zmm4
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
 mov $2147483647, %eax
 vpbroadcastd %eax, %zmm23
@@ -401,9 +400,7 @@ vpsrad $19, %zmm0, %zmm8
 vpermps %zmm21, %zmm8, %zmm12
 vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
-mov $1060205080, %eax
-vpbroadcastd %eax, %zmm23
-vfmsub213ps %zmm12, %zmm23, %zmm4
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
 mov $2147483647, %eax
 vpbroadcastd %eax, %zmm23

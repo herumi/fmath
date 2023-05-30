@@ -251,10 +251,14 @@ class LogGen:
     self.precise = True
     self.checkSign = True # return -Inf for 0 and NaN for negative
   def data(self):
+    align(32)
     self.LOG_COEF = 'log_coef'
     makeLabel(self.LOG_COEF)
     for v in [1.0, -0.49999999, 0.3333955701, -0.25008487]:
       dd_(hex(float2uint(v)))
+    self.LOG2 = 'log2'
+    makeLabel(self.LOG2)
+    dd_(hex(float2uint(math.log(2))))
     self.logTbl1 = []
     self.logTbl2 = []
     self.L = 4
@@ -299,8 +303,7 @@ class LogGen:
     un(vpermps)(v3, v2, self.tbl1) # b
     un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
     un(vpermps)(v3, v2, self.tbl2) # log_b
-    setFloat(t, math.log(2))
-    un(vfmsub213ps)(v1, t, v3) # z = n * log2 - log_b
+    un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
 
     # precise log for small |x-1|
     if self.precise:
