@@ -39,7 +39,7 @@ avx2: avx2.cpp fmath.hpp
 
 EXP_MODE?=allreg
 EXP_UN?=4
-unroll_test_n: exp_v.o
+exp_unroll_n: exp_v.o
 	@$(PYTHON) gen_fmath.py -m gas -exp_un $(EXP_UN) -exp_mode $(EXP_MODE) > fmath$(EXP_UN).S
 	@$(CXX) -o exp_v$(EXP_UN).exe exp_v.o fmath$(EXP_UN).S $(CFLAGS)
 	@./exp_v$(EXP_UN).exe b
@@ -53,8 +53,27 @@ unroll_test_n: exp_v.o
 	@./exp_v$(EXP_UN).exe b
 	@./exp_v$(EXP_UN).exe b
 
-unroll_test: exp_v.o
-	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo EXP_UN=$$i; make -s unroll_test_n EXP_UN=$$i; done'
+exp_unroll: exp_v.o
+	@sh -ec 'for i in 1 2 3 4 5 6 7 8; do echo EXP_UN=$$i; make -s exp_unroll_n EXP_UN=$$i; done'
+
+LOG_MODE?=allreg
+LOG_UN?=4
+log_unroll_n: log_v.o
+	@$(PYTHON) gen_fmath.py -m gas -log_un $(LOG_UN) -log_mode $(LOG_MODE) > fmath$(LOG_UN).S
+	@$(CXX) -o log_v$(LOG_UN).exe log_v.o fmath$(LOG_UN).S $(CFLAGS)
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+	@./log_v$(LOG_UN).exe b
+
+log_unroll: log_v.o
+	@sh -ec 'for i in 1 2 3 4 5; do echo LOG_UN=$$i; make -s log_unroll_n LOG_UN=$$i; done'
 
 fmath.o: fmath.S
 	$(CC) -c $< -o $@
