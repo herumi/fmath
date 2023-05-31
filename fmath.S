@@ -30,6 +30,10 @@ PRE(log_coef):
 .long 0xbe800b20
 PRE(log2):
 .long 0x3f317218
+PRE(abs_mask):
+.long 0x7fffffff
+PRE(log_boundary):
+.long 0x3ca3d70a
 PRE(log_tbl1):
 .long 0x3f783e10
 .long 0x3f6a0ea1
@@ -275,18 +279,14 @@ vsubps %zmm20, %zmm16, %zmm8
 vsubps %zmm20, %zmm17, %zmm9
 vsubps %zmm20, %zmm18, %zmm10
 vsubps %zmm20, %zmm19, %zmm11
-mov $2147483647, %eax
-vpbroadcastd %eax, %zmm23
-vandps %zmm23, %zmm8, %zmm8
-vandps %zmm23, %zmm9, %zmm9
-vandps %zmm23, %zmm10, %zmm10
-vandps %zmm23, %zmm11, %zmm11
-mov $1017370378, %eax
-vpbroadcastd %eax, %zmm23
-vcmpltps %zmm23, %zmm8, %k2
-vcmpltps %zmm23, %zmm9, %k3
-vcmpltps %zmm23, %zmm10, %k4
-vcmpltps %zmm23, %zmm11, %k5
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
+vandps PRE(abs_mask)(%rip){1to16}, %zmm9, %zmm9
+vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm10
+vandps PRE(abs_mask)(%rip){1to16}, %zmm11, %zmm11
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm9, %k3
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm10, %k4
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k5
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vsubps %zmm20, %zmm17, %zmm1{%k3}
 vsubps %zmm20, %zmm18, %zmm2{%k4}
@@ -358,12 +358,8 @@ vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
-mov $2147483647, %eax
-vpbroadcastd %eax, %zmm23
-vandps %zmm23, %zmm8, %zmm8
-mov $1017370378, %eax
-vpbroadcastd %eax, %zmm23
-vcmpltps %zmm23, %zmm8, %k2
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
 vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
@@ -402,12 +398,8 @@ vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
-mov $2147483647, %eax
-vpbroadcastd %eax, %zmm23
-vandps %zmm23, %zmm8, %zmm8
-mov $1017370378, %eax
-vpbroadcastd %eax, %zmm23
-vcmpltps %zmm23, %zmm8, %k2
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
 vsubps %zmm20, %zmm16, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
 vpbroadcastd PRE(log_coef)+12(%rip), %zmm8

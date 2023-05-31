@@ -319,8 +319,6 @@ class LogGen:
     if self.precise:
       un(vsubps)(v2, keepX, self.one) # x-1
       un(vandps)(v2, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
-      setFloat(t, 0.02)
-#      un(vcmpltps)(vk, v2, t)
       un(vcmpltps)(vk, v2, ptr_b(rip+self.BOUNDARY))
       un(vsubps)(zipOr(v0, vk), keepX, self.one) # c = v0 = x-1
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
