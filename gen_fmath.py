@@ -165,7 +165,7 @@ class ExpGen:
       un(vmovaps)(v2, self.expCoeff[5])
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, self.expCoeff[i])
-      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+      un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
     if self.mode == 'allmem':
       lea(rax, ptr(rip+self.EXP_COEF))
@@ -174,7 +174,7 @@ class ExpGen:
         un(vmovaps)(v2[i], v2[0])
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, ptr_b(rax+i*4))
-      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+      un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
     if self.mode == 'allimm':
       mov(eax, float2uint(self.expTbl[5]))
@@ -186,7 +186,7 @@ class ExpGen:
         mov(eax, float2uint(self.expTbl[i]))
         vpbroadcastd(self.tx, eax)
         un(vfmadd213ps)(v2, v1, self.tx)
-      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+      un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
     if self.mode == 'allimm2':
       mov(eax, float2uint(self.expTbl[5]))
@@ -214,7 +214,7 @@ class ExpGen:
 
       un(vfmadd213ps)(v2, v1, self.tx)
 
-      un(vscalefps)(v0, v2, v0) # v2 * 2^v1
+      un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
   def code(self):
     unrollN = self.unrollN
