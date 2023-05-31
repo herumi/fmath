@@ -256,9 +256,19 @@ class LogGen:
     makeLabel(self.LOG_COEF)
     for v in [1.0, -0.49999999, 0.3333955701, -0.25008487]:
       dd_(hex(float2uint(v)))
+
     self.LOG2 = 'log2'
     makeLabel(self.LOG2)
     dd_(hex(float2uint(math.log(2))))
+
+    self.C_0x7fffffff = 'abs_mask'
+    makeLabel(self.C_0x7fffffff)
+    dd_(hex(0x7fffffff))
+
+    self.BOUNDARY = 'log_boundary'
+    makeLabel(self.BOUNDARY)
+    dd_(hex(float2uint(0.02)))
+
     self.logTbl1 = []
     self.logTbl2 = []
     self.L = 4
@@ -308,10 +318,10 @@ class LogGen:
     # precise log for small |x-1|
     if self.precise:
       un(vsubps)(v2, keepX, self.one) # x-1
-      setInt(t, 0x7fffffff)
-      un(vandps)(v2, v2, t) # |x-1|
+      un(vandps)(v2, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
       setFloat(t, 0.02)
-      un(vcmpltps)(vk, v2, t)
+#      un(vcmpltps)(vk, v2, t)
+      un(vcmpltps)(vk, v2, ptr_b(rip+self.BOUNDARY))
       un(vsubps)(zipOr(v0, vk), keepX, self.one) # c = v0 = x-1
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
@@ -335,7 +345,7 @@ class LogGen:
       un(vmovaps)(zipOr(v0, vk), t)
 
   def code(self):
-    unrollN = 4 # self.unrollN
+    unrollN = self.unrollN
     LOG_TMP_N = 4
     if self.precise:
       LOG_TMP_N += 1
