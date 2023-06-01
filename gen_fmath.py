@@ -249,7 +249,7 @@ class LogGen:
     self.unrollN = param.log_unrollN
     self.mode = param.log_mode
     self.precise = True
-    self.checkSign = True # return -Inf for 0 and NaN for negative
+    self.checkSign = False # return -Inf for 0 and NaN for negative
   def data(self):
     align(32)
     self.LOG_COEF = 'log_coef'

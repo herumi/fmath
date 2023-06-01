@@ -373,22 +373,6 @@ vfmadd213ps %zmm4, %zmm8, %zmm0
 vfmadd213ps %zmm5, %zmm9, %zmm1
 vfmadd213ps %zmm6, %zmm10, %zmm2
 vfmadd213ps %zmm7, %zmm11, %zmm3
-vfpclassps $64, %zmm16, %k2
-vfpclassps $64, %zmm17, %k3
-vfpclassps $64, %zmm18, %k4
-vfpclassps $64, %zmm19, %k5
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm1, %zmm1{%k3}
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm2, %zmm2{%k4}
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm3, %zmm3{%k5}
-vfpclassps $6, %zmm16, %k2
-vfpclassps $6, %zmm17, %k3
-vfpclassps $6, %zmm18, %k4
-vfpclassps $6, %zmm19, %k5
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm1, %zmm1{%k3}
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm2, %zmm2{%k4}
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm3, %zmm3{%k5}
 vmovups %zmm0, (%rdi)
 vmovups %zmm1, 64(%rdi)
 vmovups %zmm2, 128(%rdi)
@@ -421,10 +405,6 @@ vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
-vfpclassps $64, %zmm16, %k2
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
-vfpclassps $6, %zmm16, %k2
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vmovups %zmm0, (%rdi)
 add $64, %rdi
 sub $16, %rdx
@@ -457,10 +437,6 @@ vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
-vfpclassps $64, %zmm16, %k2
-vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
-vfpclassps $6, %zmm16, %k2
-vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vmovups %zmm0, (%rdi){%k1}
 .L12:
 vmovups (%rsp), %zmm7
