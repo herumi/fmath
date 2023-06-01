@@ -34,6 +34,10 @@ PRE(abs_mask):
 .long 0x7fffffff
 PRE(log_boundary):
 .long 0x3ca3d70a
+PRE(log_nan):
+.long 0x7fc00000
+PRE(log_mInf):
+.long 0xff800000
 PRE(log_tbl1):
 .long 0x3f783e10
 .long 0x3f6a0ea1
@@ -319,22 +323,18 @@ vfpclassps $64, %zmm16, %k2
 vfpclassps $64, %zmm17, %k3
 vfpclassps $64, %zmm18, %k4
 vfpclassps $64, %zmm19, %k5
-mov $2143289344, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
-vmovaps %zmm23, %zmm1{%k3}
-vmovaps %zmm23, %zmm2{%k4}
-vmovaps %zmm23, %zmm3{%k5}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm1, %zmm1{%k3}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm2, %zmm2{%k4}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm3, %zmm3{%k5}
 vfpclassps $6, %zmm16, %k2
 vfpclassps $6, %zmm17, %k3
 vfpclassps $6, %zmm18, %k4
 vfpclassps $6, %zmm19, %k5
-mov $4286578688, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
-vmovaps %zmm23, %zmm1{%k3}
-vmovaps %zmm23, %zmm2{%k4}
-vmovaps %zmm23, %zmm3{%k5}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm1, %zmm1{%k3}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm2, %zmm2{%k4}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm3, %zmm3{%k5}
 vmovups %zmm0, (%rdi)
 vmovups %zmm1, 64(%rdi)
 vmovups %zmm2, 128(%rdi)
@@ -368,13 +368,9 @@ vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
 vfpclassps $64, %zmm16, %k2
-mov $2143289344, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vfpclassps $6, %zmm16, %k2
-mov $4286578688, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vmovups %zmm0, (%rdi)
 add $64, %rdi
 sub $16, %rdx
@@ -408,13 +404,9 @@ vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
 vfmadd213ps %zmm4, %zmm8, %zmm0
 vfpclassps $64, %zmm16, %k2
-mov $2143289344, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
+vblendmps PRE(log_nan)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vfpclassps $6, %zmm16, %k2
-mov $4286578688, %eax
-vpbroadcastd %eax, %zmm23
-vmovaps %zmm23, %zmm0{%k2}
+vblendmps PRE(log_mInf)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vmovups %zmm0, (%rdi){%k1}
 .L12:
 vmovups (%rsp), %zmm7

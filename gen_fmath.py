@@ -269,6 +269,13 @@ class LogGen:
     makeLabel(self.BOUNDARY)
     dd_(hex(float2uint(0.02)))
 
+    self.NaN = 'log_nan'
+    makeLabel(self.NaN)
+    dd_(hex(0x7fc00000))
+    self.mInf = 'log_mInf'
+    makeLabel(self.mInf)
+    dd_(hex(0xff800000))
+
     self.logTbl1 = []
     self.logTbl2 = []
     self.L = 4
@@ -336,11 +343,9 @@ class LogGen:
       NEG = 1 << 6
       ZERO = (1 << 1) | (1 << 2)
       un(vfpclassps)(vk, keepX, NEG)
-      setInt(t, 0x7fc00000) # NaN
-      un(vmovaps)(zipOr(v0, vk), t)
+      un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.NaN))
       un(vfpclassps)(vk, keepX, ZERO)
-      setInt(t, 0xff800000) # -Inf
-      un(vmovaps)(zipOr(v0, vk), t)
+      un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.mInf))
 
   def code(self):
     unrollN = self.unrollN
