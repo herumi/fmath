@@ -16,6 +16,14 @@ dd 3eaab2d3h
 dd 0be800b20h
 log2:
 dd 3f317218h
+abs_mask:
+dd 7fffffffh
+log_boundary:
+dd 3ca3d70ah
+log_nan:
+dd 7fc00000h
+log_mInf:
+dd 0ff800000h
 log_tbl1:
 dd 3f783e10h
 dd 3f6a0ea1h
@@ -266,18 +274,14 @@ vsubps zmm8, zmm16, zmm20
 vsubps zmm9, zmm17, zmm20
 vsubps zmm10, zmm18, zmm20
 vsubps zmm11, zmm19, zmm20
-mov eax, 2147483647
-vpbroadcastd zmm23, eax
-vandps zmm8, zmm8, zmm23
-vandps zmm9, zmm9, zmm23
-vandps zmm10, zmm10, zmm23
-vandps zmm11, zmm11, zmm23
-mov eax, 1017370378
-vpbroadcastd zmm23, eax
-vcmpltps k2, zmm8, zmm23
-vcmpltps k3, zmm9, zmm23
-vcmpltps k4, zmm10, zmm23
-vcmpltps k5, zmm11, zmm23
+vandps zmm8, zmm8, dword bcst abs_mask
+vandps zmm9, zmm9, dword bcst abs_mask
+vandps zmm10, zmm10, dword bcst abs_mask
+vandps zmm11, zmm11, dword bcst abs_mask
+vcmpltps k2, zmm8, dword bcst log_boundary
+vcmpltps k3, zmm9, dword bcst log_boundary
+vcmpltps k4, zmm10, dword bcst log_boundary
+vcmpltps k5, zmm11, dword bcst log_boundary
 vsubps zmm0{k2}, zmm16, zmm20
 vsubps zmm1{k3}, zmm17, zmm20
 vsubps zmm2{k4}, zmm18, zmm20
@@ -310,22 +314,18 @@ vfpclassps k2, zmm16, 64
 vfpclassps k3, zmm17, 64
 vfpclassps k4, zmm18, 64
 vfpclassps k5, zmm19, 64
-mov eax, 2143289344
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
-vmovaps zmm1{k3}, zmm23
-vmovaps zmm2{k4}, zmm23
-vmovaps zmm3{k5}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_nan
+vblendmps zmm1{k3}, zmm1, dword bcst log_nan
+vblendmps zmm2{k4}, zmm2, dword bcst log_nan
+vblendmps zmm3{k5}, zmm3, dword bcst log_nan
 vfpclassps k2, zmm16, 6
 vfpclassps k3, zmm17, 6
 vfpclassps k4, zmm18, 6
 vfpclassps k5, zmm19, 6
-mov eax, 4286578688
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
-vmovaps zmm1{k3}, zmm23
-vmovaps zmm2{k4}, zmm23
-vmovaps zmm3{k5}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_mInf
+vblendmps zmm1{k3}, zmm1, dword bcst log_mInf
+vblendmps zmm2{k4}, zmm2, dword bcst log_mInf
+vblendmps zmm3{k5}, zmm3, dword bcst log_mInf
 vmovups zmmword ptr [r10], zmm0
 vmovups zmmword ptr [r10+64], zmm1
 vmovups zmmword ptr [r10+128], zmm2
@@ -349,12 +349,8 @@ vfmsub213ps zmm0, zmm12, zmm20
 vpermps zmm12, zmm8, zmm22
 vfmsub132ps zmm4, zmm12, dword bcst log2
 vsubps zmm8, zmm16, zmm20
-mov eax, 2147483647
-vpbroadcastd zmm23, eax
-vandps zmm8, zmm8, zmm23
-mov eax, 1017370378
-vpbroadcastd zmm23, eax
-vcmpltps k2, zmm8, zmm23
+vandps zmm8, zmm8, dword bcst abs_mask
+vcmpltps k2, zmm8, dword bcst log_boundary
 vsubps zmm0{k2}, zmm16, zmm20
 vxorps zmm4{k2}, zmm4, zmm4
 vpbroadcastd zmm8, dword ptr log_coef+12
@@ -363,13 +359,9 @@ vfmadd213ps zmm8, zmm0, dword bcst log_coef+4
 vfmadd213ps zmm8, zmm0, zmm20
 vfmadd213ps zmm0, zmm8, zmm4
 vfpclassps k2, zmm16, 64
-mov eax, 2143289344
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_nan
 vfpclassps k2, zmm16, 6
-mov eax, 4286578688
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_mInf
 vmovups zmmword ptr [r10], zmm0
 add r10, 64
 sub r8, 16
@@ -393,12 +385,8 @@ vfmsub213ps zmm0, zmm12, zmm20
 vpermps zmm12, zmm8, zmm22
 vfmsub132ps zmm4, zmm12, dword bcst log2
 vsubps zmm8, zmm16, zmm20
-mov eax, 2147483647
-vpbroadcastd zmm23, eax
-vandps zmm8, zmm8, zmm23
-mov eax, 1017370378
-vpbroadcastd zmm23, eax
-vcmpltps k2, zmm8, zmm23
+vandps zmm8, zmm8, dword bcst abs_mask
+vcmpltps k2, zmm8, dword bcst log_boundary
 vsubps zmm0{k2}, zmm16, zmm20
 vxorps zmm4{k2}, zmm4, zmm4
 vpbroadcastd zmm8, dword ptr log_coef+12
@@ -407,13 +395,9 @@ vfmadd213ps zmm8, zmm0, dword bcst log_coef+4
 vfmadd213ps zmm8, zmm0, zmm20
 vfmadd213ps zmm0, zmm8, zmm4
 vfpclassps k2, zmm16, 64
-mov eax, 2143289344
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_nan
 vfpclassps k2, zmm16, 6
-mov eax, 4286578688
-vpbroadcastd zmm23, eax
-vmovaps zmm0{k2}, zmm23
+vblendmps zmm0{k2}, zmm0, dword bcst log_mInf
 vmovups zmmword ptr [r10]{k1}, zmm0
 @L12:
 vmovups zmm5, zmmword ptr [rsp]
