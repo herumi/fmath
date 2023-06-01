@@ -383,7 +383,7 @@ class LogGen:
 
 def main():
   parser = getDefaultParser()
-  parser.add_argument('-exp_un', '--exp_unrollN', help='number of unroll exp', type=int, default=4)
+  parser.add_argument('-exp_un', '--exp_unrollN', help='number of unroll exp', type=int, default=7)
   parser.add_argument('-exp_mode', '--exp_mode', help='exp mode', type=str, default='allreg')
   parser.add_argument('-log_un', '--log_unrollN', help='number of unroll log', type=int, default=4)
   parser.add_argument('-log_mode', '--log_mode', help='log mode', type=str, default='allreg')
