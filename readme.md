@@ -25,10 +25,17 @@ f.get(x) returns pow(x, 1.234);
 
 ### for AVX-512
 
-`fmath2.hpp` provides the following functions:
+`fmath.h` provides the following functions:
 
-- void expf_v(float *dst, const float *src, size_t n);
-- void logf_v(float *dst, const float *src, size_t n);
+```c
+void fmath_expf_avx512(float *dst, const float *src, size_t n);
+void fmath_logf_avx512(float *dst, const float *src, size_t n);
+```
+
+```cpp
+void fmath::expf_v(float *dst, const float *src, size_t n);
+void fmath::logf_v(float *dst, const float *src, size_t n);
+```
 
 ## Experimental
 
