@@ -254,7 +254,8 @@ class LogGen:
     align(32)
     self.LOG_COEF = 'log_coef'
     makeLabel(self.LOG_COEF)
-    for v in [1.0, -0.49999999, 0.3333955701, -0.25008487]:
+    self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
+    for v in self.ctbl:
       dd_(hex(float2uint(v)))
 
     self.LOG2 = 'log2'
@@ -330,9 +331,7 @@ class LogGen:
       un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
-    vpbroadcastd(v2[0], ptr(rip+self.LOG_COEF+3*4))
-    for i in range(1,n):
-      vmovaps(v2[i], v2[0])
+    un(vmovaps)(v2, self.c3)
     un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
     un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
     un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
@@ -352,7 +351,7 @@ class LogGen:
     LOG_TMP_N = 4
     if self.precise:
       LOG_TMP_N += 1
-    LOG_CONST_N = 4 # one, tbl1, tbl2, t
+    LOG_CONST_N = 5 # one, tbl1, tbl2, t, c[3]
     align(16)
     with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
@@ -375,7 +374,9 @@ class LogGen:
         self.tbl1 = sf.v[constPos+1]
         self.tbl2 = sf.v[constPos+2]
         self.t = sf.v[constPos+3]
+        self.c3 = sf.v[constPos+4]
         setFloat(self.one, 1.0)
+        setFloat(self.c3, self.ctbl[3])
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
 
