@@ -325,9 +325,9 @@ class LogGen:
     # precise log for small |x-1|
     if self.precise:
       un(vsubps)(v2, keepX, self.one) # x-1
-      un(vandps)(v2, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
-      un(vcmpltps)(vk, v2, ptr_b(rip+self.BOUNDARY))
-      un(vsubps)(zipOr(v0, vk), keepX, self.one) # c = v0 = x-1
+      un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
+      un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
+      un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
     vpbroadcastd(v2[0], ptr(rip+self.LOG_COEF+3*4))
