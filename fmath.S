@@ -270,7 +270,7 @@ SIZE(fmath_expf_avx512)
 .global PRE(fmath_logf_avx512)
 PRE(fmath_logf_avx512):
 TYPE(fmath_logf_avx512)
-sub $1096, %rsp
+sub $1160, %rsp
 vmovups %zmm7, (%rsp)
 vmovups %zmm8, 64(%rsp)
 vmovups %zmm9, 128(%rsp)
@@ -288,8 +288,11 @@ vmovups %zmm20, 832(%rsp)
 vmovups %zmm21, 896(%rsp)
 vmovups %zmm22, 960(%rsp)
 vmovups %zmm23, 1024(%rsp)
+vmovups %zmm24, 1088(%rsp)
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm20
+mov $3196062496, %eax
+vpbroadcastd %eax, %zmm24
 vmovups PRE(log_tbl1)(%rip), %zmm21
 vmovups PRE(log_tbl2)(%rip), %zmm22
 mov %rdx, %rcx
@@ -337,26 +340,26 @@ vsubps %zmm20, %zmm16, %zmm8
 vsubps %zmm20, %zmm17, %zmm9
 vsubps %zmm20, %zmm18, %zmm10
 vsubps %zmm20, %zmm19, %zmm11
-vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
-vandps PRE(abs_mask)(%rip){1to16}, %zmm9, %zmm9
-vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm10
-vandps PRE(abs_mask)(%rip){1to16}, %zmm11, %zmm11
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm9, %k3
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm10, %k4
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k5
-vsubps %zmm20, %zmm16, %zmm0{%k2}
-vsubps %zmm20, %zmm17, %zmm1{%k3}
-vsubps %zmm20, %zmm18, %zmm2{%k4}
-vsubps %zmm20, %zmm19, %zmm3{%k5}
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm12
+vandps PRE(abs_mask)(%rip){1to16}, %zmm9, %zmm13
+vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm14
+vandps PRE(abs_mask)(%rip){1to16}, %zmm11, %zmm15
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm12, %k2
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm13, %k3
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm14, %k4
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm15, %k5
+vmovaps %zmm8, %zmm0{%k2}
+vmovaps %zmm9, %zmm1{%k3}
+vmovaps %zmm10, %zmm2{%k4}
+vmovaps %zmm11, %zmm3{%k5}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
 vxorps %zmm5, %zmm5, %zmm5{%k3}
 vxorps %zmm6, %zmm6, %zmm6{%k4}
 vxorps %zmm7, %zmm7, %zmm7{%k5}
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
-vmovaps %zmm8, %zmm9
-vmovaps %zmm8, %zmm10
-vmovaps %zmm8, %zmm11
+vmovaps %zmm24, %zmm8
+vmovaps %zmm24, %zmm9
+vmovaps %zmm24, %zmm10
+vmovaps %zmm24, %zmm11
 vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm1, %zmm9
 vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm2, %zmm10
@@ -396,11 +399,11 @@ vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
-vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
-vsubps %zmm20, %zmm16, %zmm0{%k2}
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm12
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm12, %k2
+vmovaps %zmm8, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
+vmovaps %zmm24, %zmm8
 vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
@@ -428,11 +431,11 @@ vfmsub213ps %zmm20, %zmm12, %zmm0
 vpermps %zmm22, %zmm8, %zmm12
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
 vsubps %zmm20, %zmm16, %zmm8
-vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm8
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm8, %k2
-vsubps %zmm20, %zmm16, %zmm0{%k2}
+vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm12
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm12, %k2
+vmovaps %zmm8, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vpbroadcastd PRE(log_coef)+12(%rip), %zmm8
+vmovaps %zmm24, %zmm8
 vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
 vfmadd213ps %zmm20, %zmm0, %zmm8
@@ -456,6 +459,7 @@ vmovups 832(%rsp), %zmm20
 vmovups 896(%rsp), %zmm21
 vmovups 960(%rsp), %zmm22
 vmovups 1024(%rsp), %zmm23
-add $1096, %rsp
+vmovups 1088(%rsp), %zmm24
+add $1160, %rsp
 ret
 SIZE(fmath_logf_avx512)
