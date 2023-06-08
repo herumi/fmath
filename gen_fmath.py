@@ -250,6 +250,7 @@ class LogGen:
     self.mode = param.log_mode
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
+    self.L = 4 # table bit size (4 or 5)
   def data(self):
     align(32)
     self.LOG_COEF = 'log_coef'
@@ -268,7 +269,11 @@ class LogGen:
 
     self.BOUNDARY = 'log_boundary'
     makeLabel(self.BOUNDARY)
-    dd_(hex(float2uint(0.02)))
+    if self.L == 4:
+      bound = 0.02
+    else:
+      bound = 0.01
+    dd_(hex(float2uint(bound)))
 
     self.NaN = 'log_nan'
     makeLabel(self.NaN)
@@ -279,7 +284,6 @@ class LogGen:
 
     self.logTbl1 = []
     self.logTbl2 = []
-    self.L = 4
     LN = 1 << self.L
     for i in range(LN):
       u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
@@ -318,9 +322,17 @@ class LogGen:
     un(vgetexpps)(v1, v0) # n
     un(vgetmantps)(v0, v0, 0) # a
     un(vpsrad)(v2, v0, 23 - self.L) # d
-    un(vpermps)(v3, v2, self.tbl1) # b
-    un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
-    un(vpermps)(v3, v2, self.tbl2) # log_b
+
+    if self.L == 4:
+      un(vpermps)(v3, v2, self.tbl1) # b
+      un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
+      un(vpermps)(v3, v2, self.tbl2) # log_b
+    elif self.L == 5:
+      un(vmovaps)(v3, v2)
+      un(vpermi2ps)(v2, self.tbl1, self.tbl1H) # b
+      un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
+      un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
+
     un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
 
     # precise log for small |x-1|
@@ -332,7 +344,8 @@ class LogGen:
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
     un(vmovaps)(v2, self.c3)
-    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
+    if self.L == 4:
+      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
     un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
     un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
     un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
@@ -352,6 +365,8 @@ class LogGen:
     if self.precise:
       LOG_TMP_N += 1
     LOG_CONST_N = 5 # one, tbl1, tbl2, t, c[3]
+    if self.L == 5:
+      LOG_CONST_N += 2 # tbl1H, tbl2H
     align(16)
     with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
@@ -374,11 +389,17 @@ class LogGen:
         self.tbl1 = sf.v[constPos+1]
         self.tbl2 = sf.v[constPos+2]
         self.t = sf.v[constPos+3]
-        self.c3 = sf.v[constPos+4]
         setFloat(self.one, 1.0)
-        setFloat(self.c3, self.ctbl[3])
+        if self.L == 4:
+          self.c3 = sf.v[constPos+4]
+          setFloat(self.c3, self.ctbl[3])
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
+        if self.L == 5:
+          self.tbl1H = sf.v[constPos+5]
+          self.tbl2H = sf.v[constPos+6]
+          vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
+          vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
 
         framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3, keepX, vk))
 
