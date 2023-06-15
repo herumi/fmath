@@ -251,11 +251,16 @@ class LogGen:
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size (4 or 5)
+    self.deg = 4 # degree of poly (4 or 3)
   def data(self):
     align(32)
     self.LOG_COEF = 'log_coef'
     makeLabel(self.LOG_COEF)
-    self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
+    if self.deg == 3:
+      self.ctbl = [1.0, -0.50004360205995410, 0.3333713161833]
+    else:
+      self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
+# self.ctbl = [1.0, -0.4999999964869, 0.3333713161833, -0.250051797]
     for v in self.ctbl:
       dd_(hex(float2uint(v)))
 
@@ -344,7 +349,7 @@ class LogGen:
       un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
     un(vmovaps)(v2, self.c3)
-    if self.L == 4:
+    if self.deg == 4:
       un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
     un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
     un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
@@ -364,7 +369,7 @@ class LogGen:
     LOG_TMP_N = 4
     if self.precise:
       LOG_TMP_N += 1
-    LOG_CONST_N = 5 # one, tbl1, tbl2, t, c[3]
+    LOG_CONST_N = 5 # tbl1, tbl2, t, one, c[deg]
     if self.L == 5:
       LOG_CONST_N += 2 # tbl1H, tbl2H
     align(16)
@@ -390,9 +395,8 @@ class LogGen:
         self.tbl2 = sf.v[constPos+2]
         self.t = sf.v[constPos+3]
         setFloat(self.one, 1.0)
-        if self.L == 4:
-          self.c3 = sf.v[constPos+4]
-          setFloat(self.c3, self.ctbl[3])
+        self.c3 = sf.v[constPos+4]
+        setFloat(self.c3, self.ctbl[self.deg - 1])
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
         if self.L == 5:
