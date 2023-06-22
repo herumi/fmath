@@ -114,29 +114,44 @@ class Algo:
   def __init__(self, unrollN, mode):
     self.unrollN = unrollN
     self.mode = mode
+    self.tmpRegN = 0 # # of temporary registers
+    self.constRegN = 0 # # of constant (permanent) registers
 
   def setTmpRegN(self, tmpRegN):
-    """
-    set the number of temporary registers
-    """
     self.tmpRegN = tmpRegN
 
   def setConstRegN(self, constRegN):
-    """
-    set the number of constant (permanent) registers
-    """
     self.constRegN = constRegN
 
   def getTotalRegN(self):
-    """
-    get the total number of registers
-    """
     return self.tmpRegN * self.unrollN + self.constRegN
+
+  def getTmpRegs(self, sf, idx):
+    """
+    get idx-th (unrollN elements) tmp regs
+    """
+    if 0 <= idx < self.tmpRegN:
+      return sf.v[idx*self.unrollN:(idx+1)*self.unrollN]
+    else:
+      raise Exception('bad idx', idx, self.tmpRegN)
+
+  def getMaskRegs(self, n):
+    """
+    get n elements mask regs
+    v0 is not exists and v1 is reserved, so idx begins with number 2
+    """
+    vk = []
+    for i in range(self.unrollN):
+      vk.append(MaskReg(i+2))
+    return vk
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen(Algo):
   def __init__(self, unrollN, mode):
     super().__init__(unrollN, mode)
+    self.setTmpRegN(3)
+    self.EXP_COEF_N = 6
+    self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], log2_e
 
   def data(self):
     align(32)
@@ -164,9 +179,6 @@ class ExpGen(Algo):
     for v in self.expTbl:
       dd_(hex(float2uint(v)))
 
-    self.EXP_COEF_N = 6
-    self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
-
   def expCore(self, n, args):
     (v0, v1, v2) = args
     un = genUnrollFunc(n)
@@ -181,17 +193,16 @@ class ExpGen(Algo):
 
   def code(self):
     unrollN = self.unrollN
-    EXP_TMP_N = 3
     align(16)
     with FuncProc('fmath_expf_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=EXP_TMP_N*unrollN+self.EXP_CONST_N, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        v0 = sf.v[0:unrollN]
-        v1 = sf.v[1*unrollN:2*unrollN]
-        v2 = sf.v[2*unrollN:3*unrollN]
-        constPos = EXP_TMP_N*unrollN
+        v0 = self.getTmpRegs(sf, 0)
+        v1 = self.getTmpRegs(sf, 1)
+        v2 = self.getTmpRegs(sf, 2)
+        constPos = self.tmpRegN*unrollN
         self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
         self.log2_e = sf.v[constPos+self.EXP_COEF_N]
 
@@ -338,15 +349,14 @@ class LogGen(Algo):
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        v0 = sf.v[0:unrollN]
-        v1 = sf.v[1*unrollN:2*unrollN]
-        v2 = sf.v[2*unrollN:3*unrollN]
-        v3 = sf.v[3*unrollN:4*unrollN]
+        v0 = self.getTmpRegs(sf, 0)
+        v1 = self.getTmpRegs(sf, 1)
+        v2 = self.getTmpRegs(sf, 2)
+        v3 = self.getTmpRegs(sf, 3)
         vk = []
         if self.precise:
-          keepX = sf.v[4*unrollN:5*unrollN]
-          for i in range(unrollN):
-            vk.append(MaskReg(i+2))
+          keepX = self.getTmpRegs(sf, 4)
+          vk = self.getMaskRegs(self.unrollN)
         else:
           keepX = []
         constPos = tmpN*unrollN
