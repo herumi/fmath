@@ -27,7 +27,7 @@ all:$(TARGET)
 
 .SUFFIXES: .cpp
 
-$(LIB): obj/fmath.o
+$(LIB): obj/fmath.o obj/cpu.o
 	$(AR) $(ARFLAGS) $@ $^
 
 obj/fmath.o: src/fmath.S

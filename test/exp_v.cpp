@@ -8,6 +8,7 @@
 
 #include <xbyak/xbyak_util.h>
 #include <cmath>
+
 namespace local {
 
 union fi {
