@@ -164,18 +164,8 @@ class ExpGen(Algo):
     for v in self.expTbl:
       dd_(hex(float2uint(v)))
 
-    if self.mode == 'allreg':
-      self.EXP_COEF_N = 6
-      self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
-    elif self.mode == 'allimm':
-      self.EXP_COEF_N = 0
-      self.EXP_CONST_N = 2 # coeff[], log2_e, tx
-    elif self.mode == 'allimm2':
-      self.EXP_COEF_N = 0
-      self.EXP_CONST_N = 3 # coeff[], log2_e, tx, tx2
-    else:
-      self.EXP_COEF_N = 0
-      self.EXP_CONST_N = 1 # log2_e
+    self.EXP_COEF_N = 6
+    self.EXP_CONST_N = self.EXP_COEF_N + 1 # coeff[], log2_e
 
   def expCore(self, n, args):
     (v0, v1, v2) = args
@@ -204,11 +194,6 @@ class ExpGen(Algo):
         constPos = EXP_TMP_N*unrollN
         self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
         self.log2_e = sf.v[constPos+self.EXP_COEF_N]
-        if self.mode == 'allimm':
-          self.tx = sf.v[constPos+self.EXP_COEF_N+1]
-        if self.mode == 'allimm2':
-          self.tx = sf.v[constPos+self.EXP_COEF_N+1]
-          self.tx2 = sf.v[constPos+self.EXP_COEF_N+2]
 
         setFloat(self.log2_e, 1/math.log(2))
         for i in range(self.EXP_COEF_N):
