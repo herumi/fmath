@@ -184,60 +184,10 @@ class ExpGen(Algo):
     un(vreduceps)(v1, v0, 0) # a = x - n
     un(vsubps)(v0, v0, v1) # n = x - a = round(x)
 
-    if self.mode == 'allreg':
-      un(vmovaps)(v2, self.expCoeff[5])
-      for i in range(4, -1, -1):
-        un(vfmadd213ps)(v2, v1, self.expCoeff[i])
-      un(vscalefps)(v0, v2, v0) # v2 * 2^n
-
-    if self.mode == 'allmem':
-      lea(rax, ptr(rip+self.EXP_COEF))
-      vpbroadcastd(v2[0], ptr(rax+5*4))
-      for i in range(1, n):
-        un(vmovaps)(v2[i], v2[0])
-      for i in range(4, -1, -1):
-        un(vfmadd213ps)(v2, v1, ptr_b(rax+i*4))
-      un(vscalefps)(v0, v2, v0) # v2 * 2^n
-
-    if self.mode == 'allimm':
-      mov(eax, float2uint(self.expTbl[5]))
-      vpbroadcastd(v2[0], eax)
-      for i in range(1, n):
-        un(vmovaps)(v2[i], v2[0])
-
-      for i in range(4, -1, -1):
-        mov(eax, float2uint(self.expTbl[i]))
-        vpbroadcastd(self.tx, eax)
-        un(vfmadd213ps)(v2, v1, self.tx)
-      un(vscalefps)(v0, v2, v0) # v2 * 2^n
-
-    if self.mode == 'allimm2':
-      mov(eax, float2uint(self.expTbl[5]))
-      vpbroadcastd(v2[0], eax)
-      mov(eax, float2uint(self.expTbl[4]))
-      vpbroadcastd(self.tx, eax)
-      for i in range(1, n):
-        un(vmovaps)(v2[i], v2[0])
-
-      mov(eax, float2uint(self.expTbl[3]))
-      vpbroadcastd(self.tx2, eax)
-      un(vfmadd213ps)(v2, v1, self.tx)
-
-      mov(eax, float2uint(self.expTbl[2]))
-      vpbroadcastd(self.tx, eax)
-      un(vfmadd213ps)(v2, v1, self.tx2)
-
-      mov(eax, float2uint(self.expTbl[1]))
-      vpbroadcastd(self.tx2, eax)
-      un(vfmadd213ps)(v2, v1, self.tx)
-
-      mov(eax, float2uint(self.expTbl[0]))
-      vpbroadcastd(self.tx, eax)
-      un(vfmadd213ps)(v2, v1, self.tx2)
-
-      un(vfmadd213ps)(v2, v1, self.tx)
-
-      un(vscalefps)(v0, v2, v0) # v2 * 2^n
+    un(vmovaps)(v2, self.expCoeff[5])
+    for i in range(4, -1, -1):
+      un(vfmadd213ps)(v2, v1, self.expCoeff[i])
+    un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
   def code(self):
     unrollN = self.unrollN
