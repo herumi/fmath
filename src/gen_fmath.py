@@ -110,11 +110,34 @@ def framework(func, dst, src, n, unrollN, args):
   vmovups(ptr(dst)|k1, zm0)
   L(exitL)
 
+class Algo:
+  def __init__(self, unrollN, mode):
+    self.unrollN = unrollN
+    self.mode = mode
+
+  def setTmpRegN(self, tmpRegN):
+    """
+    set the number of temporary registers
+    """
+    self.tmpRegN = tmpRegN
+
+  def setConstRegN(self, constRegN):
+    """
+    set the number of constant (permanent) registers
+    """
+    self.constRegN = constRegN
+
+  def getTotalRegN(self):
+    """
+    get the total number of registers
+    """
+    return self.tmpRegN * self.unrollN + self.constRegN
+
 # exp_v(float *dst, const float *src, size_t n);
-class ExpGen:
-  def __init__(self, param):
-    self.unrollN = param.exp_unrollN
-    self.mode = param.exp_mode
+class ExpGen(Algo):
+  def __init__(self, unrollN, mode):
+    super().__init__(unrollN, mode)
+
   def data(self):
     align(32)
 
@@ -244,14 +267,21 @@ class ExpGen:
         framework(self.expCore, dst, src, n, unrollN, (v0, v1, v2))
 
 # log_v(float *dst, const float *src, size_t n);
-class LogGen:
-  def __init__(self, param):
-    self.unrollN = param.log_unrollN
-    self.mode = param.log_mode
+class LogGen(Algo):
+  def __init__(self, unrollN, mode):
+    super().__init__(unrollN, mode)
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size (4 or 5)
     self.deg = 4 # degree of poly (4 or 3)
+    tmpRegN = 4
+    if self.precise:
+      tmpRegN += 1
+    constRegN = 5 # tbl1, tbl2, t, one, c[deg]
+    if self.L == 5:
+      constRegN += 2 # tbl1H, tbl2H
+    self.setTmpRegN(tmpRegN)
+    self.setConstRegN(constRegN)
   def data(self):
     align(32)
     self.LOG_COEF = 'log_coef'
@@ -366,15 +396,10 @@ class LogGen:
 
   def code(self):
     unrollN = self.unrollN
-    LOG_TMP_N = 4
-    if self.precise:
-      LOG_TMP_N += 1
-    LOG_CONST_N = 5 # tbl1, tbl2, t, one, c[deg]
-    if self.L == 5:
-      LOG_CONST_N += 2 # tbl1H, tbl2H
+    tmpN = self.tmpRegN
     align(16)
     with FuncProc('fmath_logf_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=LOG_TMP_N*unrollN+LOG_CONST_N, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=tmpN*unrollN+self.constRegN, vType=T_ZMM) as sf:
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
@@ -389,7 +414,7 @@ class LogGen:
             vk.append(MaskReg(i+2))
         else:
           keepX = []
-        constPos = LOG_TMP_N*unrollN
+        constPos = tmpN*unrollN
         self.one = sf.v[constPos]
         self.tbl1 = sf.v[constPos+1]
         self.tbl2 = sf.v[constPos+2]
@@ -417,8 +442,8 @@ def main():
   param = parser.parse_args()
 
   init(param)
-  exp = ExpGen(param)
-  log = LogGen(param)
+  exp = ExpGen(param.exp_unrollN, param.exp_mode)
+  log = LogGen(param.log_unrollN, param.log_mode)
   segment('data')
   exp.data()
   log.data()

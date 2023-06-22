@@ -90,7 +90,7 @@ log_unroll: log_v.o
 	@sh -ec 'for i in 1 2 3 4 5; do echo LOG_UN=$$i; make -s log_unroll_n LOG_UN=$$i; done'
 
 clean:
-	$(RM) obj/*.o $(TARGET) bin/*.exe
+	$(RM) obj/*.o $(TARGET) bin/*.exe src/*.S
 
 test: exp_v
 	./exp_v
