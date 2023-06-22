@@ -14,19 +14,33 @@ INC_DIR= -I../src -I../xbyak -I./include
 CFLAGS += $(INC_DIR) -O3 $(HAS_AVX2) $(ADD_OPT) -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
-LDFLAGS+=fmath.o
+LDFLAGS=-L lib -lfmath
+VPATH=test src
 
-#SRC=$(shell ls *.cpp)
 SRC=exp_v.cpp log_v.cpp
-DEP=$(SRC:.cpp=.d)
--include $(DEP)
 
 HEADER= fmath.hpp
+LIB=lib/libfmath.a
 
-TARGET=bench fastexp
+TARGET=$(LIB)
 all:$(TARGET)
 
 .SUFFIXES: .cpp
+
+$(LIB): obj/fmath.o
+	$(AR) $(ARFLAGS) $@ $^
+
+obj/fmath.o: src/fmath.S
+	$(CC) -c $< -o $@
+
+src/fmath.S: src/gen_fmath.py
+	$(PYTHON) $< -m gas -exp_mode $(EXP_MODE) > $@
+
+obj/%.o: %.cpp
+	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
+
+bin/%.exe: obj/%.o $(LIB)
+	$(CXX) -o $@ $< $(LDFLAGS)
 
 bench: bench.o
 	$(CXX) -o $@ $<
@@ -75,20 +89,8 @@ log_unroll_n: log_v.o
 log_unroll: log_v.o
 	@sh -ec 'for i in 1 2 3 4 5; do echo LOG_UN=$$i; make -s log_unroll_n LOG_UN=$$i; done'
 
-fmath.o: fmath.S
-	$(CC) -c $< -o $@
-
-fmath.S: gen_fmath.py
-	$(PYTHON) gen_fmath.py -m gas -exp_mode $(EXP_MODE) > fmath.S
-
-%.o: %.cpp
-	$(CXX) -o $@ $< -c $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
-
-%.exe: %.o fmath.o
-	$(CXX) -o $@ $< $(LDFLAGS)
-
 clean:
-	$(RM) *.o $(TARGET) *.exe *.S
+	$(RM) obj/*.o $(TARGET) bin/*.exe
 
 test: exp_v
 	./exp_v
@@ -97,4 +99,4 @@ bench.o: bench.cpp $(HEADER)
 fastexp.o: fastexp.cpp $(HEADER)
 
 # don't remove these files automatically
-.SECONDARY: $(addprefix $(OBJ_DIR)/, $(ALL_SRC:.cpp=.o))
+.SECONDARY: $(addprefix obj/, $(ALL_SRC:.cpp=.o))
