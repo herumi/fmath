@@ -294,7 +294,7 @@ class LogGen(Algo):
   log a = log(1 + c) - log b
   """
   def logCore(self, n, args):
-    (v0, v1, v2, v3, keepX, vk) = args
+    (v0, v1, v2, v3, keepX) = args
     t = self.t
     un = genUnrollFunc(n)
     if self.precise:
@@ -318,6 +318,7 @@ class LogGen(Algo):
 
     # precise log for small |x-1|
     if self.precise:
+      vk = self.getMaskRegs(self.unrollN)
       un(vsubps)(v2, keepX, self.one) # x-1
       un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
       un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
@@ -356,7 +357,6 @@ class LogGen(Algo):
         vk = []
         if self.precise:
           keepX = self.getTmpRegs(sf, 4)
-          vk = self.getMaskRegs(self.unrollN)
         else:
           keepX = []
         constPos = tmpN*unrollN
@@ -375,7 +375,7 @@ class LogGen(Algo):
           vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
           vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
 
-        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3, keepX, vk))
+        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3, keepX))
 
 def main():
   parser = getDefaultParser()
