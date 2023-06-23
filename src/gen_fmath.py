@@ -139,40 +139,46 @@ class RegManager:
   def allocReg1(self):
     return self.allocReg(1)[0]
 
+def getTypeSize(t):
+  tbl = {
+    'u8' : (int, 8),
+    'u32': (int, 32),
+    'u64': (int, 64),
+    'f32': (float, 32),
+    'f64': (float, 64),
+  }
+  return tbl[t]
+
 class MemData:
   def __init__(self, t, v):
-    self.offset = 0
-    self.t = t
+    (self.t, self.size) = getTypeSize(t)
+    tbl = {
+      (int, 8) : db_,
+      (int, 32) : dd_,
+      (int, 64) : dq_,
+      (float, 32) : dd_,
+      (float, 64) : dq_,
+    }
+    self.writer = tbl[(self.t, self.size)]
     self.v = v
 
   def write(self):
-    floatType = False
-    t = self.t
-    if t == 'u8':
-      writer = db_
-    elif t == 'u16':
-      writer = dw_
-    elif t == 'u32':
-      writer = dd_
-    elif t == 'u64':
-      writer = dq_
-    elif t == 'f32':
-      writer = dd_
-      floatType = True
-    elif t == 'f64':
-      writer = dq_
-      floatType = True
-    else:
-      raise Exception('bad type', t)
     if isinstance(self.v, list):
       v = self.v
     else:
       v = [self.v]
-    if t == 'f32':
-      v = map(lambda x:hex(float2uint(x)), v)
-    elif t == 'f64':
-      v = map(lambda x:hex(double2uint(x)), v)
-    writer(v)
+    if self.t == float:
+      if self.size == 32:
+        v = map(lambda x:hex(float2uint(x)), v)
+      else:
+        v = map(lambda x:hex(double2uint(x)), v)
+    self.writer(v)
+
+class MemManager:
+  def __init__(self):
+    self.v = []
+    self.pos = 0
+
 
 class Algo:
   def __init__(self, unrollN, mode):
@@ -262,11 +268,6 @@ class ExpGen(Algo):
         n = sf.p[2]
         lea(rax, ptr(rip + DATA_BASE))
         v0 = self.regManager.allocReg(unrollN)
-        """
-        constPos = self.tmpRegN*unrollN
-        self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
-        self.log2_e = sf.v[constPos+self.EXP_COEF_N]
-        """
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
         self.log2_e = self.regManager.allocReg1()
 
