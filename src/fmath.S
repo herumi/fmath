@@ -97,14 +97,13 @@ vmovups %zmm25, 1152(%rsp)
 vmovups %zmm26, 1216(%rsp)
 vmovups %zmm27, 1280(%rsp)
 lea PRE(data_base)(%rip), %rax
-mov $1069066811, %eax
-vpbroadcastd %eax, %zmm13
-vbroadcastss PRE(exp_coef)(%rip), %zmm7
-vbroadcastss PRE(exp_coef)+4(%rip), %zmm8
-vbroadcastss PRE(exp_coef)+8(%rip), %zmm9
-vbroadcastss PRE(exp_coef)+12(%rip), %zmm10
-vbroadcastss PRE(exp_coef)+16(%rip), %zmm11
-vbroadcastss PRE(exp_coef)+20(%rip), %zmm12
+vbroadcastss (%rax), %zmm13
+vbroadcastss 4(%rax), %zmm7
+vbroadcastss 8(%rax), %zmm8
+vbroadcastss 12(%rax), %zmm9
+vbroadcastss 16(%rax), %zmm10
+vbroadcastss 20(%rax), %zmm11
+vbroadcastss 24(%rax), %zmm12
 mov %rdx, %rcx
 jmp .L2
 .align 32

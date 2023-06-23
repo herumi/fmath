@@ -162,6 +162,13 @@ class MemData:
     self.writer = tbl[(self.t, self.size)]
     self.v = v
 
+  def getByteSize(self):
+    if isinstance(self.v, list):
+      n = len(self.v)
+    else:
+      n = 1
+    return (self.size // 8) * n
+
   def write(self):
     if isinstance(self.v, list):
       v = self.v
@@ -176,9 +183,14 @@ class MemData:
 
 class MemManager:
   def __init__(self):
-    self.v = []
+    self.v = {}
     self.pos = 0
 
+  def append(self, name, m):
+    self.v[name] = (m, self.pos)
+    self.pos += m.getByteSize()
+  def getPos(self, name):
+    return self.v[name][1]
 
 class Algo:
   def __init__(self, unrollN, mode):
@@ -186,6 +198,7 @@ class Algo:
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
+    self.memManager = MemManager()
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -216,8 +229,9 @@ class ExpGen(Algo):
 
   def data(self):
     align(32)
-    self.log2_e_m = MemData('f32', 1/math.log(2))
-    self.log2_e_m.write()
+    m = MemData('f32', 1/math.log(2))
+    m.write()
+    self.memManager.append('log2_e', m)
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTblSollya = [
@@ -239,8 +253,9 @@ class ExpGen(Algo):
     tbl = expTblMaple
     self.EXP_COEF = 'exp_coef'
     makeLabel(self.EXP_COEF)
-    self.expTbl_m = MemData('f32', tbl)
-    self.expTbl_m.write()
+    m = MemData('f32', tbl)
+    self.memManager.append('exp_coef', m)
+    m.write()
 
   def expCore(self, n, v0):
     with self.regManager.pos:
@@ -271,9 +286,9 @@ class ExpGen(Algo):
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
         self.log2_e = self.regManager.allocReg1()
 
-        setFloat(self.log2_e, 1/math.log(2))
+        vbroadcastss(self.log2_e, ptr(rax + self.memManager.getPos('log2_e')))
         for i in range(self.EXP_COEF_N):
-          vbroadcastss(self.expCoeff[i], ptr(rip + self.EXP_COEF + 4 * i))
+          vbroadcastss(self.expCoeff[i], ptr(rax + self.memManager.getPos('exp_coef') + 4 * i))
 
         framework(self.expCore, dst, src, n, unrollN, v0)
 
