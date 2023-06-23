@@ -110,12 +110,29 @@ def framework(func, dst, src, n, unrollN, args):
   vmovups(ptr(dst)|k1, zm0)
   L(exitL)
 
+class Counter:
+  def __init__(self):
+    self.c = 0
+  def set(self, c):
+    self.c = c
+  def add(self, v):
+    self.c += v
+  def get(self):
+    return self.c
+
+  def __enter__(self):
+    self.keep = self.c
+    return self
+  def __exit__(self, ex_type, ex_value, trace):
+    self.c = self.keep
+
 class Algo:
   def __init__(self, unrollN, mode):
     self.unrollN = unrollN
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
+    self.tmpCurPos = Counter() # position of current tmp regs
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -134,6 +151,11 @@ class Algo:
       return sf.v[idx*self.unrollN:(idx+1)*self.unrollN]
     else:
       raise Exception('bad idx', idx, self.tmpRegN)
+
+  def allocTmpRegs(self):
+    r = self.getTmpRegs(self.sf, self.tmpCurPos.get())
+    self.tmpCurPos.add(1)
+    return r
 
   def getMaskRegs(self, n):
     """
@@ -196,6 +218,7 @@ class ExpGen(Algo):
     align(16)
     with FuncProc('fmath_expf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
+        self.sf = sf
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
@@ -294,52 +317,58 @@ class LogGen(Algo):
   log a = log(1 + c) - log b
   """
   def logCore(self, n, args):
-    (v0, v1, v2, v3, keepX) = args
-    t = self.t
-    un = genUnrollFunc(n)
-    if self.precise:
-      un(vmovaps)(keepX, v0)
+    with self.tmpCurPos:
 
-    un(vgetexpps)(v1, v0) # n
-    un(vgetmantps)(v0, v0, 0) # a
-    un(vpsrad)(v2, v0, 23 - self.L) # d
+      v0 = self.allocTmpRegs()
+      v1 = self.allocTmpRegs()
+      v2 = self.allocTmpRegs()
+      v3 = self.allocTmpRegs()
+      t = self.t
+      un = genUnrollFunc(n)
+      if self.precise:
+        keepX = self.allocTmpRegs()
+        un(vmovaps)(keepX, v0)
 
-    if self.L == 4:
-      un(vpermps)(v3, v2, self.tbl1) # b
-      un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
-      un(vpermps)(v3, v2, self.tbl2) # log_b
-    elif self.L == 5:
-      un(vmovaps)(v3, v2)
-      un(vpermi2ps)(v2, self.tbl1, self.tbl1H) # b
-      un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
-      un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
+      un(vgetexpps)(v1, v0) # n
+      un(vgetmantps)(v0, v0, 0) # a
+      un(vpsrad)(v2, v0, 23 - self.L) # d
 
-    un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
+      if self.L == 4:
+        un(vpermps)(v3, v2, self.tbl1) # b
+        un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
+        un(vpermps)(v3, v2, self.tbl2) # log_b
+      elif self.L == 5:
+        un(vmovaps)(v3, v2)
+        un(vpermi2ps)(v2, self.tbl1, self.tbl1H) # b
+        un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
+        un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
 
-    # precise log for small |x-1|
-    if self.precise:
-      vk = self.getMaskRegs(self.unrollN)
-      un(vsubps)(v2, keepX, self.one) # x-1
-      un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
-      un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
-      un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
-      un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
+      un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
 
-    un(vmovaps)(v2, self.c3)
-    if self.deg == 4:
-      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
-    un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
-    un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
-    un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
+      # precise log for small |x-1|
+      if self.precise:
+        vk = self.getMaskRegs(self.unrollN)
+        un(vsubps)(v2, keepX, self.one) # x-1
+        un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
+        un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
+        un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
+        un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
-    if self.checkSign:
-      # check x < 0 or x == 0
-      NEG = 1 << 6
-      ZERO = (1 << 1) | (1 << 2)
-      un(vfpclassps)(vk, keepX, NEG)
-      un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.NaN))
-      un(vfpclassps)(vk, keepX, ZERO)
-      un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.mInf))
+      un(vmovaps)(v2, self.c3)
+      if self.deg == 4:
+        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
+      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
+      un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
+      un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
+
+      if self.checkSign:
+        # check x < 0 or x == 0
+        NEG = 1 << 6
+        ZERO = (1 << 1) | (1 << 2)
+        un(vfpclassps)(vk, keepX, NEG)
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.NaN))
+        un(vfpclassps)(vk, keepX, ZERO)
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.mInf))
 
   def code(self):
     unrollN = self.unrollN
@@ -347,6 +376,7 @@ class LogGen(Algo):
     align(16)
     with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=tmpN*unrollN+self.constRegN, vType=T_ZMM) as sf:
+        self.sf = sf
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
