@@ -209,13 +209,13 @@ add $64, %rsi
 vmulps %zmm27, %zmm0, %zmm0
 vreduceps $0, %zmm0, %zmm7
 vsubps %zmm7, %zmm0, %zmm0
-vmovaps %zmm26, %zmm14
-vfmadd213ps %zmm25, %zmm7, %zmm14
-vfmadd213ps %zmm24, %zmm7, %zmm14
-vfmadd213ps %zmm23, %zmm7, %zmm14
-vfmadd213ps %zmm22, %zmm7, %zmm14
-vfmadd213ps %zmm21, %zmm7, %zmm14
-vscalefps %zmm0, %zmm14, %zmm0
+vmovaps %zmm26, %zmm8
+vfmadd213ps %zmm25, %zmm7, %zmm8
+vfmadd213ps %zmm24, %zmm7, %zmm8
+vfmadd213ps %zmm23, %zmm7, %zmm8
+vfmadd213ps %zmm22, %zmm7, %zmm8
+vfmadd213ps %zmm21, %zmm7, %zmm8
+vscalefps %zmm0, %zmm8, %zmm0
 vmovups %zmm0, (%rdi)
 add $64, %rdi
 sub $16, %rdx
@@ -233,13 +233,13 @@ vmovups (%rsi), %zmm0{%k1}{z}
 vmulps %zmm27, %zmm0, %zmm0
 vreduceps $0, %zmm0, %zmm7
 vsubps %zmm7, %zmm0, %zmm0
-vmovaps %zmm26, %zmm14
-vfmadd213ps %zmm25, %zmm7, %zmm14
-vfmadd213ps %zmm24, %zmm7, %zmm14
-vfmadd213ps %zmm23, %zmm7, %zmm14
-vfmadd213ps %zmm22, %zmm7, %zmm14
-vfmadd213ps %zmm21, %zmm7, %zmm14
-vscalefps %zmm0, %zmm14, %zmm0
+vmovaps %zmm26, %zmm8
+vfmadd213ps %zmm25, %zmm7, %zmm8
+vfmadd213ps %zmm24, %zmm7, %zmm8
+vfmadd213ps %zmm23, %zmm7, %zmm8
+vfmadd213ps %zmm22, %zmm7, %zmm8
+vfmadd213ps %zmm21, %zmm7, %zmm8
+vscalefps %zmm0, %zmm8, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L6:
 vmovups (%rsp), %zmm7
@@ -390,24 +390,24 @@ jmp .L10
 .L9:
 vmovups (%rsi), %zmm0
 add $64, %rsi
-vmovaps %zmm0, %zmm16
+vmovaps %zmm0, %zmm7
 vgetexpps %zmm0, %zmm4
 vgetmantps $0, %zmm0, %zmm0
-vpsrad $19, %zmm0, %zmm8
-vpermps %zmm21, %zmm8, %zmm12
-vfmsub213ps %zmm20, %zmm12, %zmm0
-vpermps %zmm22, %zmm8, %zmm12
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
-vsubps %zmm20, %zmm16, %zmm8
-vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm12
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm12, %k2
-vmovaps %zmm8, %zmm0{%k2}
+vpsrad $19, %zmm0, %zmm5
+vpermps %zmm21, %zmm5, %zmm6
+vfmsub213ps %zmm20, %zmm6, %zmm0
+vpermps %zmm22, %zmm5, %zmm6
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm6, %zmm4
+vsubps %zmm20, %zmm7, %zmm5
+vandps PRE(abs_mask)(%rip){1to16}, %zmm5, %zmm6
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm6, %k2
+vmovaps %zmm5, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vmovaps %zmm24, %zmm8
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
-vfmadd213ps %zmm20, %zmm0, %zmm8
-vfmadd213ps %zmm4, %zmm8, %zmm0
+vmovaps %zmm24, %zmm5
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm5
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm5
+vfmadd213ps %zmm20, %zmm0, %zmm5
+vfmadd213ps %zmm4, %zmm5, %zmm0
 vmovups %zmm0, (%rdi)
 add $64, %rdi
 sub $16, %rdx
@@ -422,24 +422,24 @@ shl %cl, %eax
 sub $1, %eax
 kmovd %eax, %k1
 vmovups (%rsi), %zmm0{%k1}{z}
-vmovaps %zmm0, %zmm16
+vmovaps %zmm0, %zmm7
 vgetexpps %zmm0, %zmm4
 vgetmantps $0, %zmm0, %zmm0
-vpsrad $19, %zmm0, %zmm8
-vpermps %zmm21, %zmm8, %zmm12
-vfmsub213ps %zmm20, %zmm12, %zmm0
-vpermps %zmm22, %zmm8, %zmm12
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm12, %zmm4
-vsubps %zmm20, %zmm16, %zmm8
-vandps PRE(abs_mask)(%rip){1to16}, %zmm8, %zmm12
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm12, %k2
-vmovaps %zmm8, %zmm0{%k2}
+vpsrad $19, %zmm0, %zmm5
+vpermps %zmm21, %zmm5, %zmm6
+vfmsub213ps %zmm20, %zmm6, %zmm0
+vpermps %zmm22, %zmm5, %zmm6
+vfmsub132ps PRE(log2)(%rip){1to16}, %zmm6, %zmm4
+vsubps %zmm20, %zmm7, %zmm5
+vandps PRE(abs_mask)(%rip){1to16}, %zmm5, %zmm6
+vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm6, %k2
+vmovaps %zmm5, %zmm0{%k2}
 vxorps %zmm4, %zmm4, %zmm4{%k2}
-vmovaps %zmm24, %zmm8
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm8
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm8
-vfmadd213ps %zmm20, %zmm0, %zmm8
-vfmadd213ps %zmm4, %zmm8, %zmm0
+vmovaps %zmm24, %zmm5
+vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm5
+vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm5
+vfmadd213ps %zmm20, %zmm0, %zmm5
+vfmadd213ps %zmm4, %zmm5, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L12:
 vmovups (%rsp), %zmm7

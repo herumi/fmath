@@ -57,11 +57,9 @@ def setFloat(r, v):
 # src : src pointer register
 # n : size of array
 # unrollN : number of unroll
-# v0 = args[0] : input/output parameters
-# args[1:] : temporary parameter
-def framework(func, dst, src, n, unrollN, args):
+# v0 : input/output parameters
+def framework(func, dst, src, n, unrollN, v0):
   un = genUnrollFunc(unrollN)
-  v0 = args[0]
   mod16L = Label()
   exitL = Label()
   lpL = Label()
@@ -76,7 +74,7 @@ def framework(func, dst, src, n, unrollN, args):
   L(lpUnrollL)
   un(vmovups)(v0, ptr(src))
   add(src, 64*unrollN)
-  func(unrollN, args)
+  func(unrollN, v0)
   un(vmovups)(ptr(dst), v0)
   add(dst, 64*unrollN)
   sub(n, 16*unrollN)
@@ -90,7 +88,7 @@ def framework(func, dst, src, n, unrollN, args):
   L(lpL)
   vmovups(zm0, ptr(src))
   add(src, 64)
-  func(1, args)
+  func(1, v0)
   vmovups(ptr(dst), zm0)
   add(dst, 64)
   sub(n, 16)
@@ -106,7 +104,7 @@ def framework(func, dst, src, n, unrollN, args):
   sub(eax, 1)
   kmovd(k1, eax)
   vmovups(zm0|k1|T_z, ptr(src))
-  func(1, args)
+  func(1, v0)
   vmovups(ptr(dst)|k1, zm0)
   L(exitL)
 
@@ -125,6 +123,16 @@ class Counter:
     return self
   def __exit__(self, ex_type, ex_value, trace):
     self.c = self.keep
+
+class RegManager:
+  def __init__(self, v):
+    self.v = v
+    self.pos = Counter()
+
+  def allocReg(self, n):
+    pos = self.pos.get()
+    self.pos.add(n)
+    return self.v[pos:pos+n]
 
 class Algo:
   def __init__(self, unrollN, mode):
@@ -201,30 +209,31 @@ class ExpGen(Algo):
     for v in self.expTbl:
       dd_(hex(float2uint(v)))
 
-  def expCore(self, n, args):
-    (v0, v1, v2) = args
-    un = genUnrollFunc(n)
-    un(vmulps)(v0, v0, self.log2_e)
-    un(vreduceps)(v1, v0, 0) # a = x - n
-    un(vsubps)(v0, v0, v1) # n = x - a = round(x)
+  def expCore(self, n, v0):
+    with self.regManager.pos:
+      v1 = self.regManager.allocReg(n)
+      v2 = self.regManager.allocReg(n)
 
-    un(vmovaps)(v2, self.expCoeff[5])
-    for i in range(4, -1, -1):
-      un(vfmadd213ps)(v2, v1, self.expCoeff[i])
-    un(vscalefps)(v0, v2, v0) # v2 * 2^n
+      un = genUnrollFunc(n)
+      un(vmulps)(v0, v0, self.log2_e)
+      un(vreduceps)(v1, v0, 0) # a = x - n
+      un(vsubps)(v0, v0, v1) # n = x - a = round(x)
+
+      un(vmovaps)(v2, self.expCoeff[5])
+      for i in range(4, -1, -1):
+        un(vfmadd213ps)(v2, v1, self.expCoeff[i])
+      un(vscalefps)(v0, v2, v0) # v2 * 2^n
 
   def code(self):
     unrollN = self.unrollN
     align(16)
     with FuncProc('fmath_expf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
-        self.sf = sf
+        self.regManager = RegManager(sf.v)
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        v0 = self.getTmpRegs(sf, 0)
-        v1 = self.getTmpRegs(sf, 1)
-        v2 = self.getTmpRegs(sf, 2)
+        v0 = self.regManager.allocReg(unrollN)
         constPos = self.tmpRegN*unrollN
         self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
         self.log2_e = sf.v[constPos+self.EXP_COEF_N]
@@ -233,7 +242,7 @@ class ExpGen(Algo):
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip + self.EXP_COEF + 4 * i))
 
-        framework(self.expCore, dst, src, n, unrollN, (v0, v1, v2))
+        framework(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
 class LogGen(Algo):
@@ -316,17 +325,16 @@ class LogGen(Algo):
   a = (1 + c) / b
   log a = log(1 + c) - log b
   """
-  def logCore(self, n, args):
-    with self.tmpCurPos:
+  def logCore(self, n, v0):
+    with self.regManager.pos:
+      v1 = self.regManager.allocReg(n)
+      v2 = self.regManager.allocReg(n)
+      v3 = self.regManager.allocReg(n)
 
-      v0 = self.allocTmpRegs()
-      v1 = self.allocTmpRegs()
-      v2 = self.allocTmpRegs()
-      v3 = self.allocTmpRegs()
       t = self.t
       un = genUnrollFunc(n)
       if self.precise:
-        keepX = self.allocTmpRegs()
+        keepX = self.regManager.allocReg(n)
         un(vmovaps)(keepX, v0)
 
       un(vgetexpps)(v1, v0) # n
@@ -376,19 +384,12 @@ class LogGen(Algo):
     align(16)
     with FuncProc('fmath_logf_avx512'):
       with StackFrame(3, 1, useRCX=True, vNum=tmpN*unrollN+self.constRegN, vType=T_ZMM) as sf:
-        self.sf = sf
+        self.regManager = RegManager(sf.v)
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        v0 = self.getTmpRegs(sf, 0)
-        v1 = self.getTmpRegs(sf, 1)
-        v2 = self.getTmpRegs(sf, 2)
-        v3 = self.getTmpRegs(sf, 3)
+        v0 = self.regManager.allocReg(unrollN)
         vk = []
-        if self.precise:
-          keepX = self.getTmpRegs(sf, 4)
-        else:
-          keepX = []
         constPos = tmpN*unrollN
         self.one = sf.v[constPos]
         self.tbl1 = sf.v[constPos+1]
@@ -405,7 +406,7 @@ class LogGen(Algo):
           vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
           vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
 
-        framework(self.logCore, dst, src, n, unrollN, (v0, v1, v2, v3, keepX))
+        framework(self.logCore, dst, src, n, unrollN, v0)
 
 def main():
   parser = getDefaultParser()
