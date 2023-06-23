@@ -17,7 +17,6 @@
 data_base:
 .align 32
 .long 0x3fb8aa3b
-PRE(exp_coef):
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
 .align 32
 PRE(log_coef):

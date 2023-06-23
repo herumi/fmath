@@ -189,8 +189,19 @@ class MemManager:
   def append(self, name, m):
     self.v[name] = (m, self.pos)
     self.pos += m.getByteSize()
+
   def getPos(self, name):
     return self.v[name][1]
+
+  def setReg(self, reg, base, name, offset=0, broadcast=False):
+    """
+    reg <- ptr(base + pos specified by name + offset)
+    """
+    if broadcast:
+      vbroadcastss(reg, ptr(base + self.getPos(name) + offset))
+    else:
+      vmovups(reg, ptr(base + self.getPos(name) + offset))
+
 
 class Algo:
   def __init__(self, unrollN, mode):
@@ -251,11 +262,9 @@ class ExpGen(Algo):
       0.13395279182003177132e-2,
     ]
     tbl = expTblMaple
-    self.EXP_COEF = 'exp_coef'
-    makeLabel(self.EXP_COEF)
     m = MemData('f32', tbl)
-    self.memManager.append('exp_coef', m)
     m.write()
+    self.memManager.append('exp_coef', m)
 
   def expCore(self, n, v0):
     with self.regManager.pos:
@@ -286,9 +295,9 @@ class ExpGen(Algo):
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
         self.log2_e = self.regManager.allocReg1()
 
-        vbroadcastss(self.log2_e, ptr(rax + self.memManager.getPos('log2_e')))
+        self.memManager.setReg(self.log2_e, rax, 'log2_e', broadcast=True)
         for i in range(self.EXP_COEF_N):
-          vbroadcastss(self.expCoeff[i], ptr(rax + self.memManager.getPos('exp_coef') + 4 * i))
+          self.memManager.setReg(self.expCoeff[i], rax, 'exp_coef', offset=4*i, broadcast=True)
 
         framework(self.expCore, dst, src, n, unrollN, v0)
 
