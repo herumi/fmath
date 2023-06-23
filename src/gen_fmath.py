@@ -4,6 +4,8 @@ import argparse
 
 SIMD_BYTE = 64
 
+DATA_BASE = 'data_base'
+
 # expand args
 # Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
@@ -134,6 +136,44 @@ class RegManager:
     self.pos.add(n)
     return self.v[pos:pos+n]
 
+  def allocReg1(self):
+    return self.allocReg(1)[0]
+
+class MemData:
+  def __init__(self, t, v):
+    self.offset = 0
+    self.t = t
+    self.v = v
+
+  def write(self):
+    floatType = False
+    t = self.t
+    if t == 'u8':
+      writer = db_
+    elif t == 'u16':
+      writer = dw_
+    elif t == 'u32':
+      writer = dd_
+    elif t == 'u64':
+      writer = dq_
+    elif t == 'f32':
+      writer = dd_
+      floatType = True
+    elif t == 'f64':
+      writer = dq_
+      floatType = True
+    else:
+      raise Exception('bad type', t)
+    if isinstance(self.v, list):
+      v = self.v
+    else:
+      v = [self.v]
+    if t == 'f32':
+      v = map(lambda x:hex(float2uint(x)), v)
+    elif t == 'f64':
+      v = map(lambda x:hex(double2uint(x)), v)
+    writer(v)
+
 class Algo:
   def __init__(self, unrollN, mode):
     self.unrollN = unrollN
@@ -170,6 +210,8 @@ class ExpGen(Algo):
 
   def data(self):
     align(32)
+    self.log2_e_m = MemData('f32', 1/math.log(2))
+    self.log2_e_m.write()
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTblSollya = [
@@ -188,11 +230,11 @@ class ExpGen(Algo):
       0.96672496496672653297e-2,
       0.13395279182003177132e-2,
     ]
-    self.expTbl = expTblMaple
+    tbl = expTblMaple
     self.EXP_COEF = 'exp_coef'
     makeLabel(self.EXP_COEF)
-    for v in self.expTbl:
-      dd_(hex(float2uint(v)))
+    self.expTbl_m = MemData('f32', tbl)
+    self.expTbl_m.write()
 
   def expCore(self, n, v0):
     with self.regManager.pos:
@@ -213,15 +255,20 @@ class ExpGen(Algo):
     unrollN = self.unrollN
     align(16)
     with FuncProc('fmath_expf_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
+      with StackFrame(3, 0, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
+        lea(rax, ptr(rip + DATA_BASE))
         v0 = self.regManager.allocReg(unrollN)
+        """
         constPos = self.tmpRegN*unrollN
         self.expCoeff = sf.v[constPos:constPos+self.EXP_COEF_N]
         self.log2_e = sf.v[constPos+self.EXP_COEF_N]
+        """
+        self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
+        self.log2_e = self.regManager.allocReg1()
 
         setFloat(self.log2_e, 1/math.log(2))
         for i in range(self.EXP_COEF_N):
@@ -406,6 +453,7 @@ def main():
   exp = ExpGen(param.exp_unrollN, param.exp_mode)
   log = LogGen(param.log_unrollN, param.log_mode)
   segment('data')
+  output(DATA_BASE + ':')
   exp.data()
   log.data()
 

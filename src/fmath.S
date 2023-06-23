@@ -14,14 +14,11 @@
   #define SIZE(x)
 #endif
 .data
+data_base:
 .align 32
+.long 0x3fb8aa3b
 PRE(exp_coef):
-.long 0x3f800000
-.long 0x3f317218
-.long 0x3e75fd0b
-.long 0x3d63578a
-.long 0x3c1e6362
-.long 0x3aaf9319
+.long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
 .align 32
 PRE(log_coef):
 .long 0x3f800000
@@ -99,14 +96,15 @@ vmovups %zmm24, 1088(%rsp)
 vmovups %zmm25, 1152(%rsp)
 vmovups %zmm26, 1216(%rsp)
 vmovups %zmm27, 1280(%rsp)
+lea PRE(data_base)(%rip), %rax
 mov $1069066811, %eax
-vpbroadcastd %eax, %zmm27
-vbroadcastss PRE(exp_coef)(%rip), %zmm21
-vbroadcastss PRE(exp_coef)+4(%rip), %zmm22
-vbroadcastss PRE(exp_coef)+8(%rip), %zmm23
-vbroadcastss PRE(exp_coef)+12(%rip), %zmm24
-vbroadcastss PRE(exp_coef)+16(%rip), %zmm25
-vbroadcastss PRE(exp_coef)+20(%rip), %zmm26
+vpbroadcastd %eax, %zmm13
+vbroadcastss PRE(exp_coef)(%rip), %zmm7
+vbroadcastss PRE(exp_coef)+4(%rip), %zmm8
+vbroadcastss PRE(exp_coef)+8(%rip), %zmm9
+vbroadcastss PRE(exp_coef)+12(%rip), %zmm10
+vbroadcastss PRE(exp_coef)+16(%rip), %zmm11
+vbroadcastss PRE(exp_coef)+20(%rip), %zmm12
 mov %rdx, %rcx
 jmp .L2
 .align 32
@@ -119,76 +117,76 @@ vmovups 256(%rsi), %zmm4
 vmovups 320(%rsi), %zmm5
 vmovups 384(%rsi), %zmm6
 add $448, %rsi
-vmulps %zmm27, %zmm0, %zmm0
-vmulps %zmm27, %zmm1, %zmm1
-vmulps %zmm27, %zmm2, %zmm2
-vmulps %zmm27, %zmm3, %zmm3
-vmulps %zmm27, %zmm4, %zmm4
-vmulps %zmm27, %zmm5, %zmm5
-vmulps %zmm27, %zmm6, %zmm6
-vreduceps $0, %zmm0, %zmm7
-vreduceps $0, %zmm1, %zmm8
-vreduceps $0, %zmm2, %zmm9
-vreduceps $0, %zmm3, %zmm10
-vreduceps $0, %zmm4, %zmm11
-vreduceps $0, %zmm5, %zmm12
-vreduceps $0, %zmm6, %zmm13
-vsubps %zmm7, %zmm0, %zmm0
-vsubps %zmm8, %zmm1, %zmm1
-vsubps %zmm9, %zmm2, %zmm2
-vsubps %zmm10, %zmm3, %zmm3
-vsubps %zmm11, %zmm4, %zmm4
-vsubps %zmm12, %zmm5, %zmm5
-vsubps %zmm13, %zmm6, %zmm6
-vmovaps %zmm26, %zmm14
-vmovaps %zmm26, %zmm15
-vmovaps %zmm26, %zmm16
-vmovaps %zmm26, %zmm17
-vmovaps %zmm26, %zmm18
-vmovaps %zmm26, %zmm19
-vmovaps %zmm26, %zmm20
-vfmadd213ps %zmm25, %zmm7, %zmm14
-vfmadd213ps %zmm25, %zmm8, %zmm15
-vfmadd213ps %zmm25, %zmm9, %zmm16
-vfmadd213ps %zmm25, %zmm10, %zmm17
-vfmadd213ps %zmm25, %zmm11, %zmm18
-vfmadd213ps %zmm25, %zmm12, %zmm19
-vfmadd213ps %zmm25, %zmm13, %zmm20
-vfmadd213ps %zmm24, %zmm7, %zmm14
-vfmadd213ps %zmm24, %zmm8, %zmm15
-vfmadd213ps %zmm24, %zmm9, %zmm16
-vfmadd213ps %zmm24, %zmm10, %zmm17
-vfmadd213ps %zmm24, %zmm11, %zmm18
-vfmadd213ps %zmm24, %zmm12, %zmm19
-vfmadd213ps %zmm24, %zmm13, %zmm20
-vfmadd213ps %zmm23, %zmm7, %zmm14
-vfmadd213ps %zmm23, %zmm8, %zmm15
-vfmadd213ps %zmm23, %zmm9, %zmm16
-vfmadd213ps %zmm23, %zmm10, %zmm17
-vfmadd213ps %zmm23, %zmm11, %zmm18
-vfmadd213ps %zmm23, %zmm12, %zmm19
-vfmadd213ps %zmm23, %zmm13, %zmm20
-vfmadd213ps %zmm22, %zmm7, %zmm14
-vfmadd213ps %zmm22, %zmm8, %zmm15
-vfmadd213ps %zmm22, %zmm9, %zmm16
-vfmadd213ps %zmm22, %zmm10, %zmm17
-vfmadd213ps %zmm22, %zmm11, %zmm18
-vfmadd213ps %zmm22, %zmm12, %zmm19
-vfmadd213ps %zmm22, %zmm13, %zmm20
-vfmadd213ps %zmm21, %zmm7, %zmm14
-vfmadd213ps %zmm21, %zmm8, %zmm15
-vfmadd213ps %zmm21, %zmm9, %zmm16
-vfmadd213ps %zmm21, %zmm10, %zmm17
-vfmadd213ps %zmm21, %zmm11, %zmm18
-vfmadd213ps %zmm21, %zmm12, %zmm19
-vfmadd213ps %zmm21, %zmm13, %zmm20
-vscalefps %zmm0, %zmm14, %zmm0
-vscalefps %zmm1, %zmm15, %zmm1
-vscalefps %zmm2, %zmm16, %zmm2
-vscalefps %zmm3, %zmm17, %zmm3
-vscalefps %zmm4, %zmm18, %zmm4
-vscalefps %zmm5, %zmm19, %zmm5
-vscalefps %zmm6, %zmm20, %zmm6
+vmulps %zmm13, %zmm0, %zmm0
+vmulps %zmm13, %zmm1, %zmm1
+vmulps %zmm13, %zmm2, %zmm2
+vmulps %zmm13, %zmm3, %zmm3
+vmulps %zmm13, %zmm4, %zmm4
+vmulps %zmm13, %zmm5, %zmm5
+vmulps %zmm13, %zmm6, %zmm6
+vreduceps $0, %zmm0, %zmm14
+vreduceps $0, %zmm1, %zmm15
+vreduceps $0, %zmm2, %zmm16
+vreduceps $0, %zmm3, %zmm17
+vreduceps $0, %zmm4, %zmm18
+vreduceps $0, %zmm5, %zmm19
+vreduceps $0, %zmm6, %zmm20
+vsubps %zmm14, %zmm0, %zmm0
+vsubps %zmm15, %zmm1, %zmm1
+vsubps %zmm16, %zmm2, %zmm2
+vsubps %zmm17, %zmm3, %zmm3
+vsubps %zmm18, %zmm4, %zmm4
+vsubps %zmm19, %zmm5, %zmm5
+vsubps %zmm20, %zmm6, %zmm6
+vmovaps %zmm12, %zmm21
+vmovaps %zmm12, %zmm22
+vmovaps %zmm12, %zmm23
+vmovaps %zmm12, %zmm24
+vmovaps %zmm12, %zmm25
+vmovaps %zmm12, %zmm26
+vmovaps %zmm12, %zmm27
+vfmadd213ps %zmm11, %zmm14, %zmm21
+vfmadd213ps %zmm11, %zmm15, %zmm22
+vfmadd213ps %zmm11, %zmm16, %zmm23
+vfmadd213ps %zmm11, %zmm17, %zmm24
+vfmadd213ps %zmm11, %zmm18, %zmm25
+vfmadd213ps %zmm11, %zmm19, %zmm26
+vfmadd213ps %zmm11, %zmm20, %zmm27
+vfmadd213ps %zmm10, %zmm14, %zmm21
+vfmadd213ps %zmm10, %zmm15, %zmm22
+vfmadd213ps %zmm10, %zmm16, %zmm23
+vfmadd213ps %zmm10, %zmm17, %zmm24
+vfmadd213ps %zmm10, %zmm18, %zmm25
+vfmadd213ps %zmm10, %zmm19, %zmm26
+vfmadd213ps %zmm10, %zmm20, %zmm27
+vfmadd213ps %zmm9, %zmm14, %zmm21
+vfmadd213ps %zmm9, %zmm15, %zmm22
+vfmadd213ps %zmm9, %zmm16, %zmm23
+vfmadd213ps %zmm9, %zmm17, %zmm24
+vfmadd213ps %zmm9, %zmm18, %zmm25
+vfmadd213ps %zmm9, %zmm19, %zmm26
+vfmadd213ps %zmm9, %zmm20, %zmm27
+vfmadd213ps %zmm8, %zmm14, %zmm21
+vfmadd213ps %zmm8, %zmm15, %zmm22
+vfmadd213ps %zmm8, %zmm16, %zmm23
+vfmadd213ps %zmm8, %zmm17, %zmm24
+vfmadd213ps %zmm8, %zmm18, %zmm25
+vfmadd213ps %zmm8, %zmm19, %zmm26
+vfmadd213ps %zmm8, %zmm20, %zmm27
+vfmadd213ps %zmm7, %zmm14, %zmm21
+vfmadd213ps %zmm7, %zmm15, %zmm22
+vfmadd213ps %zmm7, %zmm16, %zmm23
+vfmadd213ps %zmm7, %zmm17, %zmm24
+vfmadd213ps %zmm7, %zmm18, %zmm25
+vfmadd213ps %zmm7, %zmm19, %zmm26
+vfmadd213ps %zmm7, %zmm20, %zmm27
+vscalefps %zmm0, %zmm21, %zmm0
+vscalefps %zmm1, %zmm22, %zmm1
+vscalefps %zmm2, %zmm23, %zmm2
+vscalefps %zmm3, %zmm24, %zmm3
+vscalefps %zmm4, %zmm25, %zmm4
+vscalefps %zmm5, %zmm26, %zmm5
+vscalefps %zmm6, %zmm27, %zmm6
 vmovups %zmm0, (%rdi)
 vmovups %zmm1, 64(%rdi)
 vmovups %zmm2, 128(%rdi)
@@ -206,16 +204,16 @@ jmp .L4
 .L3:
 vmovups (%rsi), %zmm0
 add $64, %rsi
-vmulps %zmm27, %zmm0, %zmm0
-vreduceps $0, %zmm0, %zmm7
-vsubps %zmm7, %zmm0, %zmm0
-vmovaps %zmm26, %zmm8
-vfmadd213ps %zmm25, %zmm7, %zmm8
-vfmadd213ps %zmm24, %zmm7, %zmm8
-vfmadd213ps %zmm23, %zmm7, %zmm8
-vfmadd213ps %zmm22, %zmm7, %zmm8
-vfmadd213ps %zmm21, %zmm7, %zmm8
-vscalefps %zmm0, %zmm8, %zmm0
+vmulps %zmm13, %zmm0, %zmm0
+vreduceps $0, %zmm0, %zmm14
+vsubps %zmm14, %zmm0, %zmm0
+vmovaps %zmm12, %zmm15
+vfmadd213ps %zmm11, %zmm14, %zmm15
+vfmadd213ps %zmm10, %zmm14, %zmm15
+vfmadd213ps %zmm9, %zmm14, %zmm15
+vfmadd213ps %zmm8, %zmm14, %zmm15
+vfmadd213ps %zmm7, %zmm14, %zmm15
+vscalefps %zmm0, %zmm15, %zmm0
 vmovups %zmm0, (%rdi)
 add $64, %rdi
 sub $16, %rdx
@@ -230,16 +228,16 @@ shl %cl, %eax
 sub $1, %eax
 kmovd %eax, %k1
 vmovups (%rsi), %zmm0{%k1}{z}
-vmulps %zmm27, %zmm0, %zmm0
-vreduceps $0, %zmm0, %zmm7
-vsubps %zmm7, %zmm0, %zmm0
-vmovaps %zmm26, %zmm8
-vfmadd213ps %zmm25, %zmm7, %zmm8
-vfmadd213ps %zmm24, %zmm7, %zmm8
-vfmadd213ps %zmm23, %zmm7, %zmm8
-vfmadd213ps %zmm22, %zmm7, %zmm8
-vfmadd213ps %zmm21, %zmm7, %zmm8
-vscalefps %zmm0, %zmm8, %zmm0
+vmulps %zmm13, %zmm0, %zmm0
+vreduceps $0, %zmm0, %zmm14
+vsubps %zmm14, %zmm0, %zmm0
+vmovaps %zmm12, %zmm15
+vfmadd213ps %zmm11, %zmm14, %zmm15
+vfmadd213ps %zmm10, %zmm14, %zmm15
+vfmadd213ps %zmm9, %zmm14, %zmm15
+vfmadd213ps %zmm8, %zmm14, %zmm15
+vfmadd213ps %zmm7, %zmm14, %zmm15
+vscalefps %zmm0, %zmm15, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L6:
 vmovups (%rsp), %zmm7
