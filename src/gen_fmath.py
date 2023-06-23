@@ -140,7 +140,6 @@ class Algo:
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
-    self.tmpCurPos = Counter() # position of current tmp regs
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -150,20 +149,6 @@ class Algo:
 
   def getTotalRegN(self):
     return self.tmpRegN * self.unrollN + self.constRegN
-
-  def getTmpRegs(self, sf, idx):
-    """
-    get idx-th (unrollN elements) tmp regs
-    """
-    if 0 <= idx < self.tmpRegN:
-      return sf.v[idx*self.unrollN:(idx+1)*self.unrollN]
-    else:
-      raise Exception('bad idx', idx, self.tmpRegN)
-
-  def allocTmpRegs(self):
-    r = self.getTmpRegs(self.sf, self.tmpCurPos.get())
-    self.tmpCurPos.add(1)
-    return r
 
   def getMaskRegs(self, n):
     """
