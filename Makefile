@@ -72,21 +72,21 @@ exp_unroll: exp_v.o
 
 LOG_MODE?=allreg
 LOG_UN?=4
-log_unroll_n: log_v.o
-	@$(PYTHON) gen_fmath.py -m gas -log_un $(LOG_UN) -log_mode $(LOG_MODE) > fmath$(LOG_UN).S
-	@$(CXX) -o log_v$(LOG_UN).exe log_v.o fmath$(LOG_UN).S $(CFLAGS)
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
-	@./log_v$(LOG_UN).exe b
+log_unroll_n: obj/log_v.o
+	@$(PYTHON) src/gen_fmath.py -m gas -log_un $(LOG_UN) -log_mode $(LOG_MODE) > src/fmath$(LOG_UN).S
+	@$(CXX) -o bin/log_v$(LOG_UN).exe obj/log_v.o src/fmath$(LOG_UN).S $(CFLAGS) -I ../include
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
+	@bin/log_v$(LOG_UN).exe b
 
-log_unroll: log_v.o
+log_unroll: obj/log_v.o
 	@sh -ec 'for i in 1 2 3 4 5; do echo LOG_UN=$$i; make -s log_unroll_n LOG_UN=$$i; done'
 
 clean:
