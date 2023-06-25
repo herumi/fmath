@@ -15,10 +15,8 @@
 #endif
 .data
 data_base:
-.align 32
 .long 0x3fb8aa3b
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
-.align 32
 PRE(log_coef):
 .long 0x3f800000,0xbf000000,0x3eaab2d3,0xbe800b20
 .long 0x3f317218
@@ -296,10 +294,9 @@ vmovups %zmm24, 1088(%rsp)
 lea PRE(data_base)(%rip), %r10
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm4
-mov $3196062496, %eax
-vpbroadcastd %eax, %zmm8
-vmovups PRE(log_tbl1)(%rip), %zmm5
-vmovups PRE(log_tbl2)(%rip), %zmm6
+vbroadcastss 40(%r10), %zmm8
+vmovups 64(%r10), %zmm5
+vmovups 128(%r10), %zmm6
 mov %rdx, %rcx
 jmp .L8
 .align 32

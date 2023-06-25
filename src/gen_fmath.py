@@ -238,7 +238,6 @@ class ExpGen(Algo):
     self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], log2_e
 
   def data(self):
-    align(32)
     m = MemData('f32', 1/math.log(2))
     m.write()
     self.memManager.append('log2_e', m)
@@ -317,7 +316,6 @@ class LogGen(Algo):
     self.setTmpRegN(tmpRegN)
     self.setConstRegN(constRegN)
   def data(self):
-    align(32)
     self.LOG_COEF = 'log_coef'
     makeLabel(self.LOG_COEF)
     if self.deg == 3:
@@ -509,27 +507,22 @@ class LogGen(Algo):
         self.tbl1 = self.regManager.allocReg1()
         self.tbl2 = self.regManager.allocReg1()
         self.t = self.regManager.allocReg1()
-        setFloat(self.one, 1.0)
         self.c3 = self.regManager.allocReg1()
-        setFloat(self.c3, self.ctbl[self.deg - 1])
-        vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
-        vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
 
-        """
-        if self.L == 5:
-          self.tbl1H = self.regManager.allocReg1()
-          self.tbl2H = self.regManager.allocReg1()
-          vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
-          vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
-        self.memManager.setReg(self.c3, baseAddr, 'log_coef', offset=(self.deg - 1)*4, broadcast=True)
+        setFloat(self.one, 1.0)
+        self.memManager.setReg(self.c3, baseAddr, 'log_coef', offset=(self.deg-1)*4, broadcast=True)
         self.memManager.setReg(self.tbl1, baseAddr, 'log_tbl1')
         self.memManager.setReg(self.tbl2, baseAddr, 'log_tbl2')
         if self.L == 5:
           self.tbl1H = self.regManager.allocReg1()
           self.tbl2H = self.regManager.allocReg1()
-          self.memManager.setReg(self.tbl1H, baseAddr, 'log_tbl1', offset=64)
-          self.memManager.setReg(self.tbl2H, baseAddr, 'log_tbl2', offset=64)
-        """
+          vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
+          vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
+        if self.L == 5:
+          self.tbl1H = self.regManager.allocReg1()
+          self.tbl2H = self.regManager.allocReg1()
+#          self.memManager.setReg(self.tbl1H, baseAddr, 'log_tbl1', offset=64)
+#          self.memManager.setReg(self.tbl2H, baseAddr, 'log_tbl2', offset=64)
 
         framework(self.logCore, dst, src, n, unrollN, v0)
 
@@ -543,11 +536,11 @@ def main():
   param = parser.parse_args()
 
   init(param)
+  segment('data')
+  output(DATA_BASE + ':')
   memManager = MemManager()
   exp = ExpGen(param.exp_unrollN, param.exp_mode, memManager)
   log = LogGen(param.log_unrollN, param.log_mode, memManager)
-  segment('data')
-  output(DATA_BASE + ':')
   exp.data()
   log.data()
 
