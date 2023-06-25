@@ -193,22 +193,22 @@ class MemManager:
   def getPos(self, name):
     return self.v[name][1]
 
-  def setReg(self, reg, base, name, offset=0, broadcast=False):
+  def setReg(self, reg, baseAddr, name, offset=0, broadcast=False):
     """
-    reg <- ptr(base + pos specified by name + offset)
+    reg <- ptr(baseAddr + pos specified by name + offset)
     """
     if broadcast:
-      vbroadcastss(reg, ptr(base + self.getPos(name) + offset))
+      vbroadcastss(reg, ptr(baseAddr + self.getPos(name) + offset))
     else:
-      vmovups(reg, ptr(base + self.getPos(name) + offset))
+      vmovups(reg, ptr(baseAddr + self.getPos(name) + offset))
 
 class Algo:
-  def __init__(self, unrollN, mode):
+  def __init__(self, unrollN, mode, memManager):
     self.unrollN = unrollN
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
-    self.memManager = MemManager()
+    self.memManager = memManager
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -231,8 +231,8 @@ class Algo:
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen(Algo):
-  def __init__(self, unrollN, mode):
-    super().__init__(unrollN, mode)
+  def __init__(self, unrollN, mode, memManager):
+    super().__init__(unrollN, mode, memManager)
     self.setTmpRegN(3)
     self.EXP_COEF_N = 6
     self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], log2_e
@@ -302,8 +302,8 @@ class ExpGen(Algo):
 
 # log_v(float *dst, const float *src, size_t n);
 class LogGen(Algo):
-  def __init__(self, unrollN, mode):
-    super().__init__(unrollN, mode)
+  def __init__(self, unrollN, mode, memManager):
+    super().__init__(unrollN, mode, memManager)
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size (4 or 5)
@@ -324,7 +324,59 @@ class LogGen(Algo):
       self.ctbl = [1.0, -0.50004360205995410, 0.3333713161833]
     else:
       self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
-# self.ctbl = [1.0, -0.4999999964869, 0.3333713161833, -0.250051797]
+
+    m = MemData('f32', self.ctbl)
+    m.write()
+    self.memManager.append('log_coef', m)
+
+    m = MemData('f32', math.log(2))
+    m.write()
+    self.memManager.append('log2', m)
+
+    m = MemData('u32', hex(0x7fffffff))
+    m.write()
+    self.C_0x7fffffff = 'abs_mask'
+    self.memManager.append(self.C_0x7fffffff, m)
+
+    self.BOUNDARY = 'log_boundary'
+#    makeLabel(self.BOUNDARY)
+    if self.L == 4:
+      bound = 0.02
+    else:
+      bound = 0.01
+    m = MemData('f32', bound)
+    m.write()
+    self.memManager.append(self.BOUNDARY, m)
+
+    self.NaN = 'log_nan'
+    m = MemData('u32', hex(0x7fc00000))
+    m.write()
+    self.memManager.append(self.NaN, m)
+
+    self.mInf = 'log_mInf'
+    m = MemData('u32', hex(0xff800000))
+    m.write()
+    self.memManager.append(self.mInf, m)
+
+    self.logTbl1 = []
+    self.logTbl2 = []
+    LN = 1 << self.L
+    for i in range(LN):
+      u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
+      v = 1 / uint2float(u)
+      v = uint2float(float2uint(v)) # enforce C float type instead of double
+      # v = numpy.float32(v)
+      self.logTbl1.append(v)
+      self.logTbl2.append(math.log(v))
+    self.LOG_TBL1 = 'log_tbl1'
+    self.LOG_TBL2 = 'log_tbl2'
+    m = MemData('f32', self.logTbl1)
+    m.write()
+    self.memManager.append(self.LOG_TBL1, m)
+    m = MemData('f32', self.logTbl2)
+    m.write()
+    self.memManager.append(self.LOG_TBL2, m)
+
     for v in self.ctbl:
       dd_(hex(float2uint(v)))
 
@@ -408,20 +460,25 @@ class LogGen(Algo):
         un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
 
       un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
+#      un(vfmsub132ps)(v1, v3, ptr_b(self.baseAddr + self.memManager.getPos('log2'))) # z = n * log2 - log_b
 
       # precise log for small |x-1|
       if self.precise:
         vk = self.getMaskRegs(self.unrollN)
         un(vsubps)(v2, keepX, self.one) # x-1
         un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
+#        un(vandps)(v3, v2, ptr_b(self.baseAddr + self.memManager.getPos(self.C_0x7fffffff))) # |x-1|
         un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
+#        un(vcmpltps)(vk, v3, ptr_b(self.baseAddr + self.memManager.getPos(self.BOUNDARY)))
         un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
         un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
       un(vmovaps)(v2, self.c3)
       if self.deg == 4:
         un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
+#        un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+2*4)) # t = c4 * v0 + c3
       un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
+#      un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+1*4)) # t = t * v0 + c2
       un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
       un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
 
@@ -444,9 +501,10 @@ class LogGen(Algo):
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
+        baseAddr = sf.t[0]
+        self.baseAddr = baseAddr
+        lea(baseAddr, ptr(rip + DATA_BASE))
         v0 = self.regManager.allocReg(unrollN)
-        vk = []
-        constPos = tmpN*unrollN
         self.one = self.regManager.allocReg1()
         self.tbl1 = self.regManager.allocReg1()
         self.tbl2 = self.regManager.allocReg1()
@@ -456,11 +514,22 @@ class LogGen(Algo):
         setFloat(self.c3, self.ctbl[self.deg - 1])
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
+
+        """
         if self.L == 5:
           self.tbl1H = self.regManager.allocReg1()
           self.tbl2H = self.regManager.allocReg1()
           vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
           vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
+        self.memManager.setReg(self.c3, baseAddr, 'log_coef', offset=(self.deg - 1)*4, broadcast=True)
+        self.memManager.setReg(self.tbl1, baseAddr, 'log_tbl1')
+        self.memManager.setReg(self.tbl2, baseAddr, 'log_tbl2')
+        if self.L == 5:
+          self.tbl1H = self.regManager.allocReg1()
+          self.tbl2H = self.regManager.allocReg1()
+          self.memManager.setReg(self.tbl1H, baseAddr, 'log_tbl1', offset=64)
+          self.memManager.setReg(self.tbl2H, baseAddr, 'log_tbl2', offset=64)
+        """
 
         framework(self.logCore, dst, src, n, unrollN, v0)
 
@@ -474,8 +543,9 @@ def main():
   param = parser.parse_args()
 
   init(param)
-  exp = ExpGen(param.exp_unrollN, param.exp_mode)
-  log = LogGen(param.log_unrollN, param.log_mode)
+  memManager = MemManager()
+  exp = ExpGen(param.exp_unrollN, param.exp_mode, memManager)
+  log = LogGen(param.log_unrollN, param.log_mode, memManager)
   segment('data')
   output(DATA_BASE + ':')
   exp.data()
