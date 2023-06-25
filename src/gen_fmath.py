@@ -202,7 +202,6 @@ class MemManager:
     else:
       vmovups(reg, ptr(base + self.getPos(name) + offset))
 
-
 class Algo:
   def __init__(self, unrollN, mode):
     self.unrollN = unrollN
@@ -448,18 +447,18 @@ class LogGen(Algo):
         v0 = self.regManager.allocReg(unrollN)
         vk = []
         constPos = tmpN*unrollN
-        self.one = sf.v[constPos]
-        self.tbl1 = sf.v[constPos+1]
-        self.tbl2 = sf.v[constPos+2]
-        self.t = sf.v[constPos+3]
+        self.one = self.regManager.allocReg1()
+        self.tbl1 = self.regManager.allocReg1()
+        self.tbl2 = self.regManager.allocReg1()
+        self.t = self.regManager.allocReg1()
         setFloat(self.one, 1.0)
-        self.c3 = sf.v[constPos+4]
+        self.c3 = self.regManager.allocReg1()
         setFloat(self.c3, self.ctbl[self.deg - 1])
         vmovups(self.tbl1, ptr(rip + self.LOG_TBL1))
         vmovups(self.tbl2, ptr(rip + self.LOG_TBL2))
         if self.L == 5:
-          self.tbl1H = sf.v[constPos+5]
-          self.tbl2H = sf.v[constPos+6]
+          self.tbl1H = self.regManager.allocReg1()
+          self.tbl2H = self.regManager.allocReg1()
           vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
           vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
 
