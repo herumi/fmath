@@ -494,7 +494,7 @@ class LogGen(Algo):
     tmpN = self.tmpRegN
     align(16)
     with FuncProc('fmath_logf_avx512'):
-      with StackFrame(3, 1, useRCX=True, vNum=tmpN*unrollN+self.constRegN, vType=T_ZMM) as sf:
+      with StackFrame(3, 1, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
         src = sf.p[1]
@@ -516,13 +516,8 @@ class LogGen(Algo):
         if self.L == 5:
           self.tbl1H = self.regManager.allocReg1()
           self.tbl2H = self.regManager.allocReg1()
-          vmovups(self.tbl1H, ptr(rip + self.LOG_TBL1 + 64))
-          vmovups(self.tbl2H, ptr(rip + self.LOG_TBL2 + 64))
-        if self.L == 5:
-          self.tbl1H = self.regManager.allocReg1()
-          self.tbl2H = self.regManager.allocReg1()
-#          self.memManager.setReg(self.tbl1H, baseAddr, 'log_tbl1', offset=64)
-#          self.memManager.setReg(self.tbl2H, baseAddr, 'log_tbl2', offset=64)
+          self.memManager.setReg(self.tbl1H, baseAddr, 'log_tbl1', offset=64)
+          self.memManager.setReg(self.tbl2H, baseAddr, 'log_tbl2', offset=64)
 
         framework(self.logCore, dst, src, n, unrollN, v0)
 
