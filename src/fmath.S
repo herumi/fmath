@@ -15,16 +15,22 @@
 #endif
 .data
 data_base:
+PRE(log2_e):
 .long 0x3fb8aa3b
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
 PRE(log_coef):
 .long 0x3f800000,0xbf000000,0x3eaab2d3,0xbe800b20
 .long 0x3f317218
 .long 0x7fffffff
+PRE(log_boundary):
 .long 0x3ca3d70a
+PRE(log_nan):
 .long 0x7fc00000
+PRE(log_mInf):
 .long 0xff800000
+PRE(log_tbl1):
 .long 0x3f783e10,0x3f6a0ea1,0x3f5d67c9,0x3f520d21,0x3f47ce0c,0x3f3e82fa,0x3f360b61,0x3f2e4c41,0x3f272f05,0x3f20a0a1,0x3f1a90e8,0x3f14f209,0x3f0fb824,0x3f0ad8f3,0x3f064b8a,0x3f020821
+PRE(log_tbl2):
 .long 0xbcfc14c8,0xbdb78694,0xbe14aa96,0xbe4a92d4,0xbe7dc8c6,0xbe974716,0xbeae8ded,0xbec4d19d,0xbeda27bd,0xbeeea34f,0xbf012a95,0xbf0aa61f,0xbf13caf0,0xbf1c9f07,0xbf2527c4,0xbf2d6a01
 .long 0x3f800000
 .long 0xbf000000
@@ -34,46 +40,6 @@ PRE(log2):
 .long 0x3f317218
 PRE(abs_mask):
 .long 0x7fffffff
-PRE(log_boundary):
-.long 0x3ca3d70a
-PRE(log_nan):
-.long 0x7fc00000
-PRE(log_mInf):
-.long 0xff800000
-PRE(log_tbl1):
-.long 0x3f783e10
-.long 0x3f6a0ea1
-.long 0x3f5d67c9
-.long 0x3f520d21
-.long 0x3f47ce0c
-.long 0x3f3e82fa
-.long 0x3f360b61
-.long 0x3f2e4c41
-.long 0x3f272f05
-.long 0x3f20a0a1
-.long 0x3f1a90e8
-.long 0x3f14f209
-.long 0x3f0fb824
-.long 0x3f0ad8f3
-.long 0x3f064b8a
-.long 0x3f020821
-PRE(log_tbl2):
-.long 0xbcfc14c8
-.long 0xbdb78694
-.long 0xbe14aa96
-.long 0xbe4a92d4
-.long 0xbe7dc8c6
-.long 0xbe974716
-.long 0xbeae8ded
-.long 0xbec4d19d
-.long 0xbeda27bd
-.long 0xbeeea34f
-.long 0xbf012a95
-.long 0xbf0aa61f
-.long 0xbf13caf0
-.long 0xbf1c9f07
-.long 0xbf2527c4
-.long 0xbf2d6a01
 .text
 .align 16
 .global PRE(fmath_expf_avx512)
@@ -102,7 +68,7 @@ vmovups %zmm25, 1152(%rsp)
 vmovups %zmm26, 1216(%rsp)
 vmovups %zmm27, 1280(%rsp)
 lea PRE(data_base)(%rip), %rax
-vbroadcastss (%rax), %zmm13
+vbroadcastss PRE(log2_e)(%rip), %zmm13
 vbroadcastss 4(%rax), %zmm7
 vbroadcastss 8(%rax), %zmm8
 vbroadcastss 12(%rax), %zmm9
@@ -291,12 +257,11 @@ vmovups %zmm21, 896(%rsp)
 vmovups %zmm22, 960(%rsp)
 vmovups %zmm23, 1024(%rsp)
 vmovups %zmm24, 1088(%rsp)
-lea PRE(data_base)(%rip), %r10
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm4
-vbroadcastss 40(%r10), %zmm8
-vmovups 64(%r10), %zmm5
-vmovups 128(%r10), %zmm6
+vbroadcastss PRE(log_coef)+12(%rip), %zmm8
+vmovups PRE(log_tbl1)(%rip), %zmm5
+vmovups PRE(log_tbl2)(%rip), %zmm6
 mov %rdx, %rcx
 jmp .L8
 .align 32
