@@ -334,22 +334,22 @@ vpermps %zmm6, %zmm13, %zmm17
 vpermps %zmm6, %zmm14, %zmm18
 vpermps %zmm6, %zmm15, %zmm19
 vpermps %zmm6, %zmm16, %zmm20
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm17, %zmm9
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm18, %zmm10
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm19, %zmm11
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm20, %zmm12
+vfmsub132ps 44(%r10){1to16}, %zmm17, %zmm9
+vfmsub132ps 44(%r10){1to16}, %zmm18, %zmm10
+vfmsub132ps 44(%r10){1to16}, %zmm19, %zmm11
+vfmsub132ps 44(%r10){1to16}, %zmm20, %zmm12
 vsubps %zmm4, %zmm21, %zmm13
 vsubps %zmm4, %zmm22, %zmm14
 vsubps %zmm4, %zmm23, %zmm15
 vsubps %zmm4, %zmm24, %zmm16
-vandps PRE(abs_mask)(%rip){1to16}, %zmm13, %zmm17
-vandps PRE(abs_mask)(%rip){1to16}, %zmm14, %zmm18
-vandps PRE(abs_mask)(%rip){1to16}, %zmm15, %zmm19
-vandps PRE(abs_mask)(%rip){1to16}, %zmm16, %zmm20
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm17, %k2
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm18, %k3
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm19, %k4
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm20, %k5
+vandps 48(%r10){1to16}, %zmm13, %zmm17
+vandps 48(%r10){1to16}, %zmm14, %zmm18
+vandps 48(%r10){1to16}, %zmm15, %zmm19
+vandps 48(%r10){1to16}, %zmm16, %zmm20
+vcmpltps 52(%r10){1to16}, %zmm17, %k2
+vcmpltps 52(%r10){1to16}, %zmm18, %k3
+vcmpltps 52(%r10){1to16}, %zmm19, %k4
+vcmpltps 52(%r10){1to16}, %zmm20, %k5
 vmovaps %zmm13, %zmm0{%k2}
 vmovaps %zmm14, %zmm1{%k3}
 vmovaps %zmm15, %zmm2{%k4}
@@ -362,14 +362,14 @@ vmovaps %zmm8, %zmm13
 vmovaps %zmm8, %zmm14
 vmovaps %zmm8, %zmm15
 vmovaps %zmm8, %zmm16
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm13
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm1, %zmm14
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm2, %zmm15
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm3, %zmm16
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm13
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm1, %zmm14
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm2, %zmm15
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm3, %zmm16
+vfmadd213ps 36(%r10){1to16}, %zmm0, %zmm13
+vfmadd213ps 36(%r10){1to16}, %zmm1, %zmm14
+vfmadd213ps 36(%r10){1to16}, %zmm2, %zmm15
+vfmadd213ps 36(%r10){1to16}, %zmm3, %zmm16
+vfmadd213ps 32(%r10){1to16}, %zmm0, %zmm13
+vfmadd213ps 32(%r10){1to16}, %zmm1, %zmm14
+vfmadd213ps 32(%r10){1to16}, %zmm2, %zmm15
+vfmadd213ps 32(%r10){1to16}, %zmm3, %zmm16
 vfmadd213ps %zmm4, %zmm0, %zmm13
 vfmadd213ps %zmm4, %zmm1, %zmm14
 vfmadd213ps %zmm4, %zmm2, %zmm15
@@ -399,15 +399,15 @@ vpsrad $19, %zmm0, %zmm10
 vpermps %zmm5, %zmm10, %zmm11
 vfmsub213ps %zmm4, %zmm11, %zmm0
 vpermps %zmm6, %zmm10, %zmm11
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm11, %zmm9
+vfmsub132ps 44(%r10){1to16}, %zmm11, %zmm9
 vsubps %zmm4, %zmm12, %zmm10
-vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm11
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k2
+vandps 48(%r10){1to16}, %zmm10, %zmm11
+vcmpltps 52(%r10){1to16}, %zmm11, %k2
 vmovaps %zmm10, %zmm0{%k2}
 vxorps %zmm9, %zmm9, %zmm9{%k2}
 vmovaps %zmm8, %zmm10
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm10
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm10
+vfmadd213ps 36(%r10){1to16}, %zmm0, %zmm10
+vfmadd213ps 32(%r10){1to16}, %zmm0, %zmm10
 vfmadd213ps %zmm4, %zmm0, %zmm10
 vfmadd213ps %zmm9, %zmm10, %zmm0
 vmovups %zmm0, (%rdi)
@@ -431,15 +431,15 @@ vpsrad $19, %zmm0, %zmm10
 vpermps %zmm5, %zmm10, %zmm11
 vfmsub213ps %zmm4, %zmm11, %zmm0
 vpermps %zmm6, %zmm10, %zmm11
-vfmsub132ps PRE(log2)(%rip){1to16}, %zmm11, %zmm9
+vfmsub132ps 44(%r10){1to16}, %zmm11, %zmm9
 vsubps %zmm4, %zmm12, %zmm10
-vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm11
-vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k2
+vandps 48(%r10){1to16}, %zmm10, %zmm11
+vcmpltps 52(%r10){1to16}, %zmm11, %k2
 vmovaps %zmm10, %zmm0{%k2}
 vxorps %zmm9, %zmm9, %zmm9{%k2}
 vmovaps %zmm8, %zmm10
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm10
-vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm10
+vfmadd213ps 36(%r10){1to16}, %zmm0, %zmm10
+vfmadd213ps 32(%r10){1to16}, %zmm0, %zmm10
 vfmadd213ps %zmm4, %zmm0, %zmm10
 vfmadd213ps %zmm9, %zmm10, %zmm0
 vmovups %zmm0, (%rdi){%k1}

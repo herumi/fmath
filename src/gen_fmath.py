@@ -457,26 +457,26 @@ class LogGen(Algo):
         un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
         un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
 
-      un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
-#      un(vfmsub132ps)(v1, v3, ptr_b(self.baseAddr + self.memManager.getPos('log2'))) # z = n * log2 - log_b
+#      un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
+      un(vfmsub132ps)(v1, v3, ptr_b(self.baseAddr + self.memManager.getPos('log2'))) # z = n * log2 - log_b
 
       # precise log for small |x-1|
       if self.precise:
         vk = self.getMaskRegs(self.unrollN)
         un(vsubps)(v2, keepX, self.one) # x-1
-        un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
-#        un(vandps)(v3, v2, ptr_b(self.baseAddr + self.memManager.getPos(self.C_0x7fffffff))) # |x-1|
-        un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
-#        un(vcmpltps)(vk, v3, ptr_b(self.baseAddr + self.memManager.getPos(self.BOUNDARY)))
+#        un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
+        un(vandps)(v3, v2, ptr_b(self.baseAddr + self.memManager.getPos(self.C_0x7fffffff))) # |x-1|
+#        un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
+        un(vcmpltps)(vk, v3, ptr_b(self.baseAddr + self.memManager.getPos(self.BOUNDARY)))
         un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
         un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
       un(vmovaps)(v2, self.c3)
       if self.deg == 4:
-        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
-#        un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+2*4)) # t = c4 * v0 + c3
-      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
-#      un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+1*4)) # t = t * v0 + c2
+#        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
+        un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+2*4)) # t = c4 * v0 + c3
+#      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
+      un(vfmadd213ps)(v2, v0, ptr_b(self.baseAddr + self.memManager.getPos('log_coef')+1*4)) # t = t * v0 + c2
       un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
       un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
 
