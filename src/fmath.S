@@ -17,29 +17,25 @@
 data_base:
 PRE(log2_e):
 .long 0x3fb8aa3b
+PRE(exp_coef):
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
+.align 32
 PRE(log_coef):
 .long 0x3f800000,0xbf000000,0x3eaab2d3,0xbe800b20
+PRE(log2):
 .long 0x3f317218
+PRE(_0x7fffffff):
 .long 0x7fffffff
 PRE(log_boundary):
 .long 0x3ca3d70a
-PRE(log_nan):
+PRE(NaN):
 .long 0x7fc00000
-PRE(log_mInf):
+PRE(minusInf):
 .long 0xff800000
 PRE(log_tbl1):
 .long 0x3f783e10,0x3f6a0ea1,0x3f5d67c9,0x3f520d21,0x3f47ce0c,0x3f3e82fa,0x3f360b61,0x3f2e4c41,0x3f272f05,0x3f20a0a1,0x3f1a90e8,0x3f14f209,0x3f0fb824,0x3f0ad8f3,0x3f064b8a,0x3f020821
 PRE(log_tbl2):
 .long 0xbcfc14c8,0xbdb78694,0xbe14aa96,0xbe4a92d4,0xbe7dc8c6,0xbe974716,0xbeae8ded,0xbec4d19d,0xbeda27bd,0xbeeea34f,0xbf012a95,0xbf0aa61f,0xbf13caf0,0xbf1c9f07,0xbf2527c4,0xbf2d6a01
-.long 0x3f800000
-.long 0xbf000000
-.long 0x3eaab2d3
-.long 0xbe800b20
-PRE(log2):
-.long 0x3f317218
-PRE(abs_mask):
-.long 0x7fffffff
 .text
 .align 16
 .global PRE(fmath_expf_avx512)
@@ -69,12 +65,12 @@ vmovups %zmm26, 1216(%rsp)
 vmovups %zmm27, 1280(%rsp)
 lea PRE(data_base)(%rip), %rax
 vbroadcastss PRE(log2_e)(%rip), %zmm13
-vbroadcastss 4(%rax), %zmm7
-vbroadcastss 8(%rax), %zmm8
-vbroadcastss 12(%rax), %zmm9
-vbroadcastss 16(%rax), %zmm10
-vbroadcastss 20(%rax), %zmm11
-vbroadcastss 24(%rax), %zmm12
+vbroadcastss PRE(exp_coef)(%rip), %zmm7
+vbroadcastss PRE(exp_coef)+4(%rip), %zmm8
+vbroadcastss PRE(exp_coef)+8(%rip), %zmm9
+vbroadcastss PRE(exp_coef)+12(%rip), %zmm10
+vbroadcastss PRE(exp_coef)+16(%rip), %zmm11
+vbroadcastss PRE(exp_coef)+20(%rip), %zmm12
 mov %rdx, %rcx
 jmp .L2
 .align 32
@@ -307,10 +303,10 @@ vsubps %zmm4, %zmm21, %zmm13
 vsubps %zmm4, %zmm22, %zmm14
 vsubps %zmm4, %zmm23, %zmm15
 vsubps %zmm4, %zmm24, %zmm16
-vandps PRE(abs_mask)(%rip){1to16}, %zmm13, %zmm17
-vandps PRE(abs_mask)(%rip){1to16}, %zmm14, %zmm18
-vandps PRE(abs_mask)(%rip){1to16}, %zmm15, %zmm19
-vandps PRE(abs_mask)(%rip){1to16}, %zmm16, %zmm20
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm13, %zmm17
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm14, %zmm18
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm15, %zmm19
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm16, %zmm20
 vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm17, %k2
 vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm18, %k3
 vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm19, %k4
@@ -366,7 +362,7 @@ vfmsub213ps %zmm4, %zmm11, %zmm0
 vpermps %zmm6, %zmm10, %zmm11
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm11, %zmm9
 vsubps %zmm4, %zmm12, %zmm10
-vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm11
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm10, %zmm11
 vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k2
 vmovaps %zmm10, %zmm0{%k2}
 vxorps %zmm9, %zmm9, %zmm9{%k2}
@@ -398,7 +394,7 @@ vfmsub213ps %zmm4, %zmm11, %zmm0
 vpermps %zmm6, %zmm10, %zmm11
 vfmsub132ps PRE(log2)(%rip){1to16}, %zmm11, %zmm9
 vsubps %zmm4, %zmm12, %zmm10
-vandps PRE(abs_mask)(%rip){1to16}, %zmm10, %zmm11
+vandps PRE(_0x7fffffff)(%rip){1to16}, %zmm10, %zmm11
 vcmpltps PRE(log_boundary)(%rip){1to16}, %zmm11, %k2
 vmovaps %zmm10, %zmm0{%k2}
 vxorps %zmm9, %zmm9, %zmm9{%k2}

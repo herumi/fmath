@@ -149,77 +149,37 @@ def getTypeSize(t):
   }
   return tbl[t]
 
-class MemData:
-  def __init__(self, t, v):
-    (self.t, self.size) = getTypeSize(t)
-    tbl = {
-      (int, 8) : db_,
-      (int, 32) : dd_,
-      (int, 64) : dq_,
-      (float, 32) : dd_,
-      (float, 64) : dq_,
-    }
-    self.writer = tbl[(self.t, self.size)]
-    self.v = v
-
-  def getByteSize(self):
-    if isinstance(self.v, list):
-      n = len(self.v)
+def putMem(name, s, v):
+  """
+  name : label
+  s : string of u8/u32/u64/f32/f64
+  v : int/float/str/list
+  """
+  makeLabel(name)
+  (t, size) = getTypeSize(s)
+  if not isinstance(v, list):
+    v = [v]
+  if t == float:
+    if size == 32:
+      v = map(lambda x:hex(float2uint(x)), v)
     else:
-      n = 1
-    return (self.size // 8) * n
-
-  def write(self, name=None):
-    if name:
-      makeLabel(name)
-    if isinstance(self.v, list):
-      v = self.v
-    else:
-      v = [self.v]
-    if self.t == float:
-      if self.size == 32:
-        v = map(lambda x:hex(float2uint(x)), v)
-      else:
-        v = map(lambda x:hex(double2uint(x)), v)
-    self.writer(v)
-
-class MemManager:
-  def __init__(self):
-    self.v = {}
-    self.pos = 0
-
-  def append(self, name, m):
-    self.v[name] = (m, self.pos)
-    self.pos += m.getByteSize()
-
-  def getPos(self, name):
-    return self.v[name][1]
-
-  def setReg(self, reg, baseAddr, name, offset=0, broadcast=False):
-    """
-    reg <- ptr(baseAddr + pos specified by name + offset)
-    """
-    if broadcast:
-      vbroadcastss(reg, ptr(baseAddr + self.getPos(name) + offset))
-    else:
-      vmovups(reg, ptr(baseAddr + self.getPos(name) + offset))
-
-  def setReg2(self, reg, name, offset=0, broadcast=False):
-    """
-    reg <- ptr(rip + name + offset)
-    """
-    if broadcast:
-      vbroadcastss(reg, ptr(rip + name) + offset)
-    else:
-      vmovups(reg, ptr(rip + name) + offset)
+      v = map(lambda x:hex(double2uint(x)), v)
+  tbl = {
+    (int, 8) : db_,
+    (int, 32) : dd_,
+    (int, 64) : dq_,
+    (float, 32) : dd_,
+    (float, 64) : dq_,
+  }
+  writer = tbl[(t, size)]
+  writer(v)
 
 class Algo:
-  def __init__(self, unrollN, mode, memManager):
+  def __init__(self, unrollN, mode):
     self.unrollN = unrollN
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
-    self.memManager = memManager
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -242,16 +202,14 @@ class Algo:
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGen(Algo):
-  def __init__(self, unrollN, mode, memManager):
-    super().__init__(unrollN, mode, memManager)
+  def __init__(self, unrollN, mode):
+    super().__init__(unrollN, mode)
     self.setTmpRegN(3)
     self.EXP_COEF_N = 6
     self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], log2_e
 
   def data(self):
-    m = MemData('f32', 1/math.log(2))
-    m.write('log2_e')
-    self.memManager.append('log2_e', m)
+    putMem('log2_e', 'f32', 1/math.log(2))
 
     # Approximate polynomial of degree 5 of 2^x in [-0.5, 0.5]
     expTblSollya = [
@@ -271,9 +229,7 @@ class ExpGen(Algo):
       0.13395279182003177132e-2,
     ]
     tbl = expTblMaple
-    m = MemData('f32', tbl)
-    m.write()
-    self.memManager.append('exp_coef', m)
+    putMem('exp_coef', 'f32', tbl)
 
   def expCore(self, n, v0):
     with self.regManager.pos:
@@ -304,17 +260,16 @@ class ExpGen(Algo):
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
         self.log2_e = self.regManager.allocReg1()
 
-#        self.memManager.setReg(self.log2_e, rax, 'log2_e', broadcast=True)
         vbroadcastss(self.log2_e, ptr(rip+'log2_e'))
         for i in range(self.EXP_COEF_N):
-          self.memManager.setReg(self.expCoeff[i], rax, 'exp_coef', offset=4*i, broadcast=True)
+          vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
         framework(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
 class LogGen(Algo):
-  def __init__(self, unrollN, mode, memManager):
-    super().__init__(unrollN, mode, memManager)
+  def __init__(self, unrollN, mode):
+    super().__init__(unrollN, mode)
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size (4 or 5)
@@ -328,84 +283,43 @@ class LogGen(Algo):
     self.setTmpRegN(tmpRegN)
     self.setConstRegN(constRegN)
   def data(self):
+    align(32)
     self.LOG_COEF = 'log_coef'
-    makeLabel(self.LOG_COEF)
     if self.deg == 3:
       self.ctbl = [1.0, -0.50004360205995410, 0.3333713161833]
     else:
       self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
 
-    m = MemData('f32', self.ctbl)
-    m.write()
-    self.memManager.append('log_coef', m)
-
-    m = MemData('f32', math.log(2))
-    m.write()
-    self.memManager.append('log2', m)
-
-    m = MemData('u32', hex(0x7fffffff))
-    m.write()
-    self.C_0x7fffffff = 'abs_mask'
-    self.memManager.append(self.C_0x7fffffff, m)
+    putMem(self.LOG_COEF, 'f32', self.ctbl)
+    putMem('log2', 'f32', math.log(2))
+    putMem('_0x7fffffff', 'u32', hex(0x7fffffff))
 
     self.BOUNDARY = 'log_boundary'
     if self.L == 4:
       bound = 0.02
     else:
       bound = 0.01
-    m = MemData('f32', bound)
-    m.write(self.BOUNDARY)
-    self.memManager.append(self.BOUNDARY, m)
+    putMem(self.BOUNDARY, 'f32', bound)
 
-    self.NaN = 'log_nan'
-    m = MemData('u32', hex(0x7fc00000))
-    m.write(self.NaN)
-    self.memManager.append(self.NaN, m)
+    self.NaN = 'NaN'
+    putMem(self.NaN, 'u32', hex(0x7fc00000))
+    self.minusInf = 'minusInf'
+    putMem(self.minusInf, 'u32', hex(0xff800000))
 
-    self.mInf = 'log_mInf'
-    m = MemData('u32', hex(0xff800000))
-    m.write(self.mInf)
-    self.memManager.append(self.mInf, m)
-
-    self.logTbl1 = []
-    self.logTbl2 = []
+    logTbl1 = []
+    logTbl2 = []
     LN = 1 << self.L
     for i in range(LN):
       u = (127 << 23) | ((i*2+1) << (23 - self.L - 1))
       v = 1 / uint2float(u)
       v = uint2float(float2uint(v)) # enforce C float type instead of double
       # v = numpy.float32(v)
-      self.logTbl1.append(v)
-      self.logTbl2.append(math.log(v))
-    self.LOG_TBL1 = 'log_tbl1'
-    self.LOG_TBL2 = 'log_tbl2'
-    m = MemData('f32', self.logTbl1)
-    m.write('log_tbl1')
-    self.memManager.append(self.LOG_TBL1, m)
-    m = MemData('f32', self.logTbl2)
-    m.write('log_tbl2')
-    self.memManager.append(self.LOG_TBL2, m)
+      logTbl1.append(v)
+      logTbl2.append(math.log(v))
 
-    for v in self.ctbl:
-      dd_(hex(float2uint(v)))
+    putMem('log_tbl1', 'f32', logTbl1)
+    putMem('log_tbl2', 'f32', logTbl2)
 
-    self.LOG2 = 'log2'
-    makeLabel(self.LOG2)
-    dd_(hex(float2uint(math.log(2))))
-
-    self.C_0x7fffffff = 'abs_mask'
-    makeLabel(self.C_0x7fffffff)
-    dd_(hex(0x7fffffff))
-
-    """
-    self.BOUNDARY = 'log_boundary'
-    makeLabel(self.BOUNDARY)
-    if self.L == 4:
-      bound = 0.02
-    else:
-      bound = 0.01
-    dd_(hex(float2uint(bound)))
-    """
 
   """
   x = 2^n a (1 <= a < 2)
@@ -444,13 +358,13 @@ class LogGen(Algo):
         un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
         un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
 
-      un(vfmsub132ps)(v1, v3, ptr_b(rip+self.LOG2)) # z = n * log2 - log_b
+      un(vfmsub132ps)(v1, v3, ptr_b(rip+'log2')) # z = n * log2 - log_b
 
       # precise log for small |x-1|
       if self.precise:
         vk = self.getMaskRegs(self.unrollN)
         un(vsubps)(v2, keepX, self.one) # x-1
-        un(vandps)(v3, v2, ptr_b(rip+self.C_0x7fffffff)) # |x-1|
+        un(vandps)(v3, v2, ptr_b(rip+'_0x7fffffff')) # |x-1|
         un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
         un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
         un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
@@ -469,7 +383,7 @@ class LogGen(Algo):
         un(vfpclassps)(vk, keepX, NEG)
         un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.NaN))
         un(vfpclassps)(vk, keepX, ZERO)
-        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.mInf))
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.minusInf))
 
   def code(self):
     unrollN = self.unrollN
@@ -512,9 +426,8 @@ def main():
   init(param)
   segment('data')
   output(DATA_BASE + ':')
-  memManager = MemManager()
-  exp = ExpGen(param.exp_unrollN, param.exp_mode, memManager)
-  log = LogGen(param.log_unrollN, param.log_mode, memManager)
+  exp = ExpGen(param.exp_unrollN, param.exp_mode)
+  log = LogGen(param.log_unrollN, param.log_mode)
   exp.data()
   log.data()
 
