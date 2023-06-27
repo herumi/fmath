@@ -396,7 +396,7 @@ class LogGen(Algo):
         self.c3 = self.regManager.allocReg1()
 
         setFloat(self.one, 1.0)
-        vbroadcastss(self.c3, ptr_b(rip+'log_coef'+(self.deg-1)*4))
+        vbroadcastss(self.c3, ptr(rip+'log_coef'+(self.deg-1)*4))
         vmovups(self.tbl1, ptr(rip+'log_tbl1'))
         vmovups(self.tbl2, ptr(rip+'log_tbl2'))
         if self.L == 5:
