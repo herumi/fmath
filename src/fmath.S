@@ -14,7 +14,6 @@
   #define SIZE(x)
 #endif
 .data
-data_base:
 PRE(log2_e):
 .long 0x3fb8aa3b
 PRE(exp_coef):
@@ -63,7 +62,6 @@ vmovups %zmm24, 1088(%rsp)
 vmovups %zmm25, 1152(%rsp)
 vmovups %zmm26, 1216(%rsp)
 vmovups %zmm27, 1280(%rsp)
-lea PRE(data_base)(%rip), %rax
 vbroadcastss PRE(log2_e)(%rip), %zmm13
 vbroadcastss PRE(exp_coef)(%rip), %zmm7
 vbroadcastss PRE(exp_coef)+4(%rip), %zmm8

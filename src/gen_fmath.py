@@ -4,8 +4,6 @@ import argparse
 
 SIMD_BYTE = 64
 
-DATA_BASE = 'data_base'
-
 # expand args
 # Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
@@ -255,7 +253,6 @@ class ExpGen(Algo):
         dst = sf.p[0]
         src = sf.p[1]
         n = sf.p[2]
-        lea(rax, ptr(rip + DATA_BASE))
         v0 = self.regManager.allocReg(unrollN)
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
         self.log2_e = self.regManager.allocReg1()
@@ -284,27 +281,23 @@ class LogGen(Algo):
     self.setConstRegN(constRegN)
   def data(self):
     align(32)
-    self.LOG_COEF = 'log_coef'
     if self.deg == 3:
       self.ctbl = [1.0, -0.50004360205995410, 0.3333713161833]
     else:
       self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
 
-    putMem(self.LOG_COEF, 'f32', self.ctbl)
+    putMem('log_coef', 'f32', self.ctbl)
     putMem('log2', 'f32', math.log(2))
     putMem('_0x7fffffff', 'u32', hex(0x7fffffff))
 
-    self.BOUNDARY = 'log_boundary'
     if self.L == 4:
       bound = 0.02
     else:
       bound = 0.01
-    putMem(self.BOUNDARY, 'f32', bound)
+    putMem('log_boundary', 'f32', bound)
 
-    self.NaN = 'NaN'
-    putMem(self.NaN, 'u32', hex(0x7fc00000))
-    self.minusInf = 'minusInf'
-    putMem(self.minusInf, 'u32', hex(0xff800000))
+    putMem('NaN', 'u32', hex(0x7fc00000))
+    putMem('minusInf', 'u32', hex(0xff800000))
 
     logTbl1 = []
     logTbl2 = []
@@ -365,14 +358,14 @@ class LogGen(Algo):
         vk = self.getMaskRegs(self.unrollN)
         un(vsubps)(v2, keepX, self.one) # x-1
         un(vandps)(v3, v2, ptr_b(rip+'_0x7fffffff')) # |x-1|
-        un(vcmpltps)(vk, v3, ptr_b(rip+self.BOUNDARY))
+        un(vcmpltps)(vk, v3, ptr_b(rip+'log_boundary'))
         un(vmovaps)(zipOr(v0, vk), v2) # c = v0 = x-1
         un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
       un(vmovaps)(v2, self.c3)
       if self.deg == 4:
-        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+2*4)) # t = c4 * v0 + c3
-      un(vfmadd213ps)(v2, v0, ptr_b(rip+self.LOG_COEF+1*4)) # t = t * v0 + c2
+        un(vfmadd213ps)(v2, v0, ptr_b(rip+'log_coef'+2*4)) # t = c4 * v0 + c3
+      un(vfmadd213ps)(v2, v0, ptr_b(rip+'log_coef'+1*4)) # t = t * v0 + c2
       un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
       un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
 
@@ -381,9 +374,9 @@ class LogGen(Algo):
         NEG = 1 << 6
         ZERO = (1 << 1) | (1 << 2)
         un(vfpclassps)(vk, keepX, NEG)
-        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.NaN))
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'NaN'))
         un(vfpclassps)(vk, keepX, ZERO)
-        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+self.minusInf))
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'minusInf'))
 
   def code(self):
     unrollN = self.unrollN
@@ -425,7 +418,6 @@ def main():
 
   init(param)
   segment('data')
-  output(DATA_BASE + ':')
   exp = ExpGen(param.exp_unrollN, param.exp_mode)
   log = LogGen(param.log_unrollN, param.log_mode)
   exp.data()
