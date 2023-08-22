@@ -58,7 +58,7 @@ def setFloat(r, v):
 # n : size of array
 # unrollN : number of unroll
 # v0 : input/output parameters
-def framework(func, dst, src, n, unrollN, v0):
+def genericLoopAVX512(func, dst, src, n, unrollN, v0):
   un = genUnrollFunc(unrollN)
   mod16L = Label()
   exitL = Label()
@@ -70,16 +70,18 @@ def framework(func, dst, src, n, unrollN, v0):
   mov(rcx, n)
   jmp(check1L)
 
+  ELEM_N = SIMD_BYTE // 4
+
   align(32)
   L(lpUnrollL)
   un(vmovups)(v0, ptr(src))
-  add(src, 64*unrollN)
+  add(src, SIMD_BYTE*unrollN)
   func(unrollN, v0)
   un(vmovups)(ptr(dst), v0)
-  add(dst, 64*unrollN)
-  sub(n, 16*unrollN)
+  add(dst, SIMD_BYTE*unrollN)
+  sub(n, ELEM_N*unrollN)
   L(check1L)
-  cmp(n, 16*unrollN)
+  cmp(n, ELEM_N*unrollN)
   jae(lpUnrollL)
 
   jmp(check2L)
@@ -87,13 +89,13 @@ def framework(func, dst, src, n, unrollN, v0):
   align(32)
   L(lpL)
   vmovups(zm0, ptr(src))
-  add(src, 64)
+  add(src, SIMD_BYTE)
   func(1, v0)
   vmovups(ptr(dst), zm0)
-  add(dst, 64)
-  sub(n, 16)
+  add(dst, SIMD_BYTE)
+  sub(n, ELEM_N)
   L(check2L)
-  cmp(n, 16)
+  cmp(n, ELEM_N)
   jae(lpL)
 
   L(mod16L)
@@ -261,7 +263,7 @@ class ExpGen(Algo):
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
-        framework(self.expCore, dst, src, n, unrollN, v0)
+        genericLoopAVX512(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
 class LogGen(Algo):
@@ -405,7 +407,7 @@ class LogGen(Algo):
           vmovups(self.tbl1H, ptr(rip+'log_tbl1'+64))
           vmovups(self.tbl2H, ptr(rip+'log_tbl2'+64))
 
-        framework(self.logCore, dst, src, n, unrollN, v0)
+        genericLoopAVX512(self.logCore, dst, src, n, unrollN, v0)
 
 def main():
   parser = getDefaultParser()
