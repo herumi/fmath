@@ -92,11 +92,14 @@ log_unroll: obj/log_v.o
 clean:
 	$(RM) obj/*.o $(TARGET) bin/*.exe src/*.S
 
-test: exp_v
-	./exp_v
+test: bin/exp_v.exe bin/log_v.exe
+	bin/exp_v.exe
+	bin/log_v.exe
 
 bench.o: bench.cpp $(HEADER)
 fastexp.o: fastexp.cpp $(HEADER)
+
+.PHONY: test clean
 
 # don't remove these files automatically
 .SECONDARY: $(addprefix obj/, $(ALL_SRC:.cpp=.o))
