@@ -40,28 +40,6 @@ PRE(log_tbl2):
 .global PRE(fmath_expf_avx512)
 PRE(fmath_expf_avx512):
 TYPE(fmath_expf_avx512)
-sub $1352, %rsp
-vmovups %zmm7, (%rsp)
-vmovups %zmm8, 64(%rsp)
-vmovups %zmm9, 128(%rsp)
-vmovups %zmm10, 192(%rsp)
-vmovups %zmm11, 256(%rsp)
-vmovups %zmm12, 320(%rsp)
-vmovups %zmm13, 384(%rsp)
-vmovups %zmm14, 448(%rsp)
-vmovups %zmm15, 512(%rsp)
-vmovups %zmm16, 576(%rsp)
-vmovups %zmm17, 640(%rsp)
-vmovups %zmm18, 704(%rsp)
-vmovups %zmm19, 768(%rsp)
-vmovups %zmm20, 832(%rsp)
-vmovups %zmm21, 896(%rsp)
-vmovups %zmm22, 960(%rsp)
-vmovups %zmm23, 1024(%rsp)
-vmovups %zmm24, 1088(%rsp)
-vmovups %zmm25, 1152(%rsp)
-vmovups %zmm26, 1216(%rsp)
-vmovups %zmm27, 1280(%rsp)
 vbroadcastss PRE(log2_e)(%rip), %zmm13
 vbroadcastss PRE(exp_coef)(%rip), %zmm7
 vbroadcastss PRE(exp_coef)+4(%rip), %zmm8
@@ -204,53 +182,13 @@ vfmadd213ps %zmm7, %zmm14, %zmm15
 vscalefps %zmm0, %zmm15, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L6:
-vmovups (%rsp), %zmm7
-vmovups 64(%rsp), %zmm8
-vmovups 128(%rsp), %zmm9
-vmovups 192(%rsp), %zmm10
-vmovups 256(%rsp), %zmm11
-vmovups 320(%rsp), %zmm12
-vmovups 384(%rsp), %zmm13
-vmovups 448(%rsp), %zmm14
-vmovups 512(%rsp), %zmm15
-vmovups 576(%rsp), %zmm16
-vmovups 640(%rsp), %zmm17
-vmovups 704(%rsp), %zmm18
-vmovups 768(%rsp), %zmm19
-vmovups 832(%rsp), %zmm20
-vmovups 896(%rsp), %zmm21
-vmovups 960(%rsp), %zmm22
-vmovups 1024(%rsp), %zmm23
-vmovups 1088(%rsp), %zmm24
-vmovups 1152(%rsp), %zmm25
-vmovups 1216(%rsp), %zmm26
-vmovups 1280(%rsp), %zmm27
-add $1352, %rsp
+vzeroupper
 ret
 SIZE(fmath_expf_avx512)
 .align 16
 .global PRE(fmath_logf_avx512)
 PRE(fmath_logf_avx512):
 TYPE(fmath_logf_avx512)
-sub $1160, %rsp
-vmovups %zmm7, (%rsp)
-vmovups %zmm8, 64(%rsp)
-vmovups %zmm9, 128(%rsp)
-vmovups %zmm10, 192(%rsp)
-vmovups %zmm11, 256(%rsp)
-vmovups %zmm12, 320(%rsp)
-vmovups %zmm13, 384(%rsp)
-vmovups %zmm14, 448(%rsp)
-vmovups %zmm15, 512(%rsp)
-vmovups %zmm16, 576(%rsp)
-vmovups %zmm17, 640(%rsp)
-vmovups %zmm18, 704(%rsp)
-vmovups %zmm19, 768(%rsp)
-vmovups %zmm20, 832(%rsp)
-vmovups %zmm21, 896(%rsp)
-vmovups %zmm22, 960(%rsp)
-vmovups %zmm23, 1024(%rsp)
-vmovups %zmm24, 1088(%rsp)
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm4
 vbroadcastss PRE(log_coef)+12(%rip), %zmm8
@@ -403,24 +341,6 @@ vfmadd213ps %zmm4, %zmm0, %zmm10
 vfmadd213ps %zmm9, %zmm10, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L12:
-vmovups (%rsp), %zmm7
-vmovups 64(%rsp), %zmm8
-vmovups 128(%rsp), %zmm9
-vmovups 192(%rsp), %zmm10
-vmovups 256(%rsp), %zmm11
-vmovups 320(%rsp), %zmm12
-vmovups 384(%rsp), %zmm13
-vmovups 448(%rsp), %zmm14
-vmovups 512(%rsp), %zmm15
-vmovups 576(%rsp), %zmm16
-vmovups 640(%rsp), %zmm17
-vmovups 704(%rsp), %zmm18
-vmovups 768(%rsp), %zmm19
-vmovups 832(%rsp), %zmm20
-vmovups 896(%rsp), %zmm21
-vmovups 960(%rsp), %zmm22
-vmovups 1024(%rsp), %zmm23
-vmovups 1088(%rsp), %zmm24
-add $1160, %rsp
+vzeroupper
 ret
 SIZE(fmath_logf_avx512)
