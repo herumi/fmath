@@ -33,7 +33,10 @@ $(LIB): obj/fmath.o obj/cpu.o
 obj/fmath.o: src/fmath.S
 	$(CC) -c $< -o $@
 
-src/fmath.S: src/gen_fmath.py
+#src/s_xbyak.py:
+#	curl https://raw.githubusercontent.com/herumi/s_xbyak/main/s_xbyak.py > $@
+
+src/fmath.S: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m gas -exp_mode $(EXP_MODE) > $@
 
 obj/%.o: %.cpp
