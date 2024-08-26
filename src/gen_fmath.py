@@ -2,40 +2,6 @@ from s_xbyak import *
 import math
 import argparse
 
-SIMD_BYTE = 64
-
-# expand args
-# Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
-# -> op(xm0, xm2, xm4)
-#    op(xm1, xm3, xm4)
-def Unroll(n, op, *args, addrOffset=None):
-  xs = list(args)
-  for i in range(n):
-    ys = []
-    for e in xs:
-      if isinstance(e, list):
-        ys.append(e[i])
-      elif isinstance(e, Address):
-        if addrOffset == None:
-          if e.broadcast:
-            addrOffset = 0
-          else:
-            addrOffset = SIMD_BYTE
-        ys.append(e + addrOffset*i)
-      else:
-        ys.append(e)
-    op(*ys)
-
-def genUnrollFunc(n):
-  """
-    return a function takes op and outputs a function that takes *args and outputs n unrolled op
-  """
-  def fn(op, addrOffset=None):
-    def gn(*args):
-      Unroll(n, op, *args, addrOffset=addrOffset)
-    return gn
-  return fn
-
 def zipOr(v, k):
   """
     return [v[i]|v[i]]
@@ -59,7 +25,7 @@ def setFloat(r, v):
 # unrollN : number of unroll
 # v0 : input/output parameters
 def genericLoopAVX512(func, dst, src, n, unrollN, v0):
-  un = genUnrollFunc(unrollN)
+  un = genUnrollFunc()
   mod16L = Label()
   exitL = Label()
   lpL = Label()
@@ -90,7 +56,7 @@ def genericLoopAVX512(func, dst, src, n, unrollN, v0):
   L(lpL)
   vmovups(zm0, ptr(src))
   add(src, SIMD_BYTE)
-  func(1, v0)
+  func(1, v0[0:1])
   vmovups(ptr(dst), zm0)
   add(dst, SIMD_BYTE)
   sub(n, ELEM_N)
@@ -106,7 +72,7 @@ def genericLoopAVX512(func, dst, src, n, unrollN, v0):
   sub(eax, 1)
   kmovd(k1, eax)
   vmovups(zm0|k1|T_z, ptr(src))
-  func(1, v0)
+  func(1, v0[0:1])
   vmovups(ptr(dst)|k1, zm0)
   L(exitL)
 
@@ -236,7 +202,7 @@ class ExpGen(Algo):
       v1 = self.regManager.allocReg(n)
       v2 = self.regManager.allocReg(n)
 
-      un = genUnrollFunc(n)
+      un = genUnrollFunc()
       un(vmulps)(v0, v0, self.log2_e)
       un(vreduceps)(v1, v0, 0) # a = x - n
       un(vsubps)(v0, v0, v1) # n = x - a = round(x)
@@ -334,7 +300,7 @@ class LogGen(Algo):
       v3 = self.regManager.allocReg(n)
 
       t = self.t
-      un = genUnrollFunc(n)
+      un = genUnrollFunc()
       if self.precise:
         keepX = self.regManager.allocReg(n)
         un(vmovaps)(keepX, v0)
