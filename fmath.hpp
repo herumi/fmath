@@ -102,7 +102,7 @@ template<class T, size_t N>
 size_t NumOfArray(const T (&)[N]) { return N; }
 
 /*
-	exp(88.722839f) = inf ; 0x42b17218
+	exp(88.722839f) = 1.65163596e+038f ; 0x42b17218
 	exp(-87.33655f) = 1.175491e-038f(007fffe6) denormal ; 0xc2aeac50
 	exp(-103.972081f) = 0 ; 0xc2cff1b5
 */
@@ -412,15 +412,10 @@ inline float exp(float x)
 	using namespace local;
 	const ExpVar<>& expVar = C<>::expVar;
 
+	x = std::min(x, expVar.maxX[0]);
+	x = std::max(x, expVar.minX[0]);
 #if 1
 	__m128 x1 = _mm_set_ss(x);
-
-	int limit = _mm_cvtss_si32(x1) & 0x7fffffff;
-	if (limit > ExpVar<>::f88) {
-		x1 = _mm_min_ss(x1, _mm_load_ss(expVar.maxX));
-		x1 = _mm_max_ss(x1, _mm_load_ss(expVar.minX));
-	}
-
 	int r = _mm_cvtss_si32(_mm_mul_ss(x1, _mm_load_ss(expVar.a)));
 	unsigned int v = r & mask(expVar.s);
 	float t = _mm_cvtss_f32(x1) - r * expVar.b[0];
@@ -429,8 +424,6 @@ inline float exp(float x)
 	fi.i = ((u + 127) << 23) | expVar.tbl[v];
 	return (1 + t) * fi.f;
 #else
-	x = std::min(x, expVar.maxX[0]);
-	x = std::max(x, expVar.minX[0]);
 	float t = x * expVar.a[0];
 	const float magic = (1 << 23) + (1 << 22); // to round
 	t += magic;
