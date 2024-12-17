@@ -18,7 +18,7 @@ PRE(log2_e):
 .long 0x3fb8aa3b
 PRE(exp_coef):
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
-.align 32
+.balign 32
 PRE(log_coef):
 .long 0x3f800000,0xbf000000,0x3eaab2d3,0xbe800b20
 PRE(log2):
@@ -36,7 +36,7 @@ PRE(log_tbl1):
 PRE(log_tbl2):
 .long 0xbcfc14c8,0xbdb78694,0xbe14aa96,0xbe4a92d4,0xbe7dc8c6,0xbe974716,0xbeae8ded,0xbec4d19d,0xbeda27bd,0xbeeea34f,0xbf012a95,0xbf0aa61f,0xbf13caf0,0xbf1c9f07,0xbf2527c4,0xbf2d6a01
 .text
-.align 16
+.balign 16
 .global PRE(fmath_expf_avx512)
 PRE(fmath_expf_avx512):
 TYPE(fmath_expf_avx512)
@@ -49,7 +49,7 @@ vbroadcastss PRE(exp_coef)+16(%rip), %zmm11
 vbroadcastss PRE(exp_coef)+20(%rip), %zmm12
 mov %rdx, %rcx
 jmp .L2
-.align 32
+.balign 32
 .L1:
 vmovups (%rsi), %zmm0
 vmovups 64(%rsi), %zmm1
@@ -142,7 +142,7 @@ sub $112, %rdx
 cmp $112, %rdx
 jae .L1
 jmp .L4
-.align 32
+.balign 32
 .L3:
 vmovups (%rsi), %zmm0
 add $64, %rsi
@@ -185,7 +185,7 @@ vmovups %zmm0, (%rdi){%k1}
 vzeroupper
 ret
 SIZE(fmath_expf_avx512)
-.align 16
+.balign 16
 .global PRE(fmath_logf_avx512)
 PRE(fmath_logf_avx512):
 TYPE(fmath_logf_avx512)
@@ -196,7 +196,7 @@ vmovups PRE(log_tbl1)(%rip), %zmm5
 vmovups PRE(log_tbl2)(%rip), %zmm6
 mov %rdx, %rcx
 jmp .L8
-.align 32
+.balign 32
 .L7:
 vmovups (%rsi), %zmm0
 vmovups 64(%rsi), %zmm1
@@ -285,7 +285,7 @@ sub $64, %rdx
 cmp $64, %rdx
 jae .L7
 jmp .L10
-.align 32
+.balign 32
 .L9:
 vmovups (%rsi), %zmm0
 add $64, %rsi

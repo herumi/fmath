@@ -7,7 +7,7 @@ import struct
 import re
 import argparse
 
-VERSION="0.9.4"
+VERSION="0.9.6"
 
 def getDefaultParser(description='s_xbyak'):
   parser = argparse.ArgumentParser(description=description)
@@ -841,7 +841,7 @@ def makeLabel(s):
   output(addPRE(s) + ':')
 def align(n):
   if g_gas:
-    output(f'.align {n}')
+    output(f'.balign {n}')
   else:
     output(f'align {n}')
 
@@ -1361,7 +1361,7 @@ def genAllFunc():
     'vsqrtps','vsqrtsd','vsqrtsh','vsqrtss','vstmxcsr','vsubpd','vsubph','vsubps',
     'vsubsd','vsubsh','vsubss','vtestpd','vtestps','vucomisd','vucomish','vucomiss',
     'vunpckhpd','vunpckhps','vunpcklpd','vunpcklps','vxorpd','vxorps','vzeroall','vzeroupper',
-    'wait','wbinvd','wrmsr','xadd','xgetbv','xlatb','xor_','xorpd',
+    'wait','wbinvd','wrmsr','xadd','xchg', 'xgetbv','xlatb','xor_','xorpd',
     'xorps',
     'vpclmullqlqdq', 'vpclmulhqlqdq', 'vpclmullqhqdq', 'vpclmulhqhqdq',
   ]
