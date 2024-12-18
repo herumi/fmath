@@ -180,7 +180,7 @@ class Algo:
     return vk
 
 # exp_v(float *dst, const float *src, size_t n);
-class ExpGen(Algo):
+class ExpGenAVX512(Algo):
   def __init__(self, unrollN, mode):
     super().__init__(unrollN, mode)
     self.setTmpRegN(3)
@@ -246,7 +246,7 @@ class ExpGen(Algo):
 
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
-class LogGen(Algo):
+class LogGenAVX512(Algo):
   def __init__(self, unrollN, mode):
     super().__init__(unrollN, mode)
     self.precise = True
@@ -407,8 +407,8 @@ def main():
 
   init(param)
   segment('data')
-  exp = ExpGen(param.exp_unrollN, param.exp_mode)
-  log = LogGen(param.log_unrollN, param.log_mode)
+  exp = ExpGenAVX512(param.exp_unrollN, param.exp_mode)
+  log = LogGenAVX512(param.log_unrollN, param.log_mode)
   exp.data()
   log.data()
 

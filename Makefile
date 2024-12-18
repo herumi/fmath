@@ -39,6 +39,12 @@ obj/fmath.o: src/fmath.S
 src/fmath.S: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m gas -exp_mode $(EXP_MODE) > $@
 
+src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
+	$(PYTHON) $< -m masm > $@
+
+update:
+	$(MAKE) src/fmath.S src/fmath.asm
+
 obj/%.o: %.cpp
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
