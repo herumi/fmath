@@ -37,7 +37,7 @@ def parseHexFloat(s):
 # n : size of array
 # unrollN : number of unroll
 # v0 : input/output parameters
-def genericLoopAVX512(func, dst, src, n, unrollN, v0):
+def LoopGenAVX512(func, dst, src, n, unrollN, v0):
   un = genUnrollFunc()
   mod16L = Label()
   exitL = Label()
@@ -87,6 +87,74 @@ def genericLoopAVX512(func, dst, src, n, unrollN, v0):
   vmovups(zm0|k1|T_z, ptr(src))
   func(1, v0[0:1])
   vmovups(ptr(dst)|k1, zm0)
+  L(exitL)
+
+def LoopGenAVX2(func, dst, src, n, unrollN, v0):
+  un = genUnrollFunc()
+  mod8L = Label()
+  exitL = Label()
+  lpL = Label()
+  check1L = Label()
+  check2L = Label()
+  lpUnrollL = Label()
+
+  mov(rcx, n)
+  jmp(check1L)
+
+  ELEM_N = SIMD_BYTE // 4
+
+  align(32)
+  L(lpUnrollL)
+  un(vmovups)(v0, ptr(src))
+  add(src, SIMD_BYTE*unrollN)
+  func(unrollN, v0)
+  un(vmovups)(ptr(dst), v0)
+  add(dst, SIMD_BYTE*unrollN)
+  sub(n, ELEM_N*unrollN)
+  L(check1L)
+  cmp(n, ELEM_N*unrollN)
+  jae(lpUnrollL)
+
+  jmp(check2L)
+
+  align(32)
+  L(lpL)
+  vmovups(zm0, ptr(src))
+  add(src, SIMD_BYTE)
+  func(1, v0[0:1])
+  vmovups(ptr(dst), ym0)
+  add(dst, SIMD_BYTE)
+  sub(n, ELEM_N)
+  L(check2L)
+  cmp(n, ELEM_N)
+  jae(lpL)
+
+  L(mod8L)
+  and_(ecx, 7)
+  jz(exitL)
+
+  small1L = Label()
+  xor_(rdx, rdx)
+  L(small1L)
+  mov(rax, ptr(src+rdx*8))
+  mov(ptr(rsp+rdx*8), rax)
+  add(rdx, 1)
+  cmp(rdx, rcx)
+  jne(small1L)
+
+  vmovups(ym0, ptr(rsp))
+  func(1, v0[0:1])
+  vmovups(ptr(rsp), ym0)
+
+  small2L = Label()
+  xor_(rdx, rdx)
+  L(small2L)
+  mov(rax, ptr(rsp+rdx*8))
+  mov(ptr(dst+rdx*8), rax)
+  add(rdx, 1)
+  cmp(rdx, rcx)
+  jne(small2L)
+
   L(exitL)
 
 class Counter:
@@ -242,7 +310,56 @@ class ExpGenAVX512(Algo):
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
-        genericLoopAVX512(self.expCore, dst, src, n, unrollN, v0)
+        LoopGenAVX512(self.expCore, dst, src, n, unrollN, v0)
+
+class ExpGenAVX2(Algo):
+  def __init__(self, unrollN, mode):
+    super().__init__(unrollN, mode)
+    self.setTmpRegN(3)
+    self.EXP_COEF_N = 6
+    self.setConstRegN(self.EXP_COEF_N + 2) # coeff[], log2_e, i127
+
+  def data(self):
+    putMem('i127', 'u32', 127)
+
+  def expCore(self, n, v0):
+    with self.regManager.pos:
+      v1 = self.regManager.allocReg(n)
+      v2 = self.regManager.allocReg(n)
+
+      un = genUnrollFunc()
+      un(vmulps)(v1, v0, self.log2_e)
+      un(vroundps)(v0, v1, 8) # nearest even
+      un(vsubps)(v1, v1, v0) # a = x - n
+      un(vcvttps2dq)(v0, v0) # n = int(n)
+      un(vpaddd)(v0, v0, self.i127)
+      un(vpslld)(v0, v0, 23)
+
+      un(vmovaps)(v2, self.expCoeff[5])
+      for i in range(4, -1, -1):
+        un(vfmadd213ps)(v2, v1, self.expCoeff[i])
+      un(vmulps)(v0, v0, v2)
+
+  def code(self):
+    unrollN = self.unrollN
+    align(16)
+    with FuncProc('fmath_expf_avx2'):
+      with StackFrame(3, 0, useRCX=True, useRDX=True, vNum=self.getTotalRegN(), vType=T_YMM) as sf:
+        self.regManager = RegManager(sf.v)
+        dst = sf.p[0]
+        src = sf.p[1]
+        n = sf.p[2]
+        v0 = self.regManager.allocReg(unrollN)
+        self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
+        self.log2_e = self.regManager.allocReg1()
+        self.i127 = self.regManager.allocReg1()
+
+        vbroadcastss(self.log2_e, ptr(rip+'log2_e'))
+        vbroadcastss(self.i127, ptr(rip+'i127'))
+        for i in range(self.EXP_COEF_N):
+          vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
+
+        LoopGenAVX2(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
@@ -394,7 +511,7 @@ class LogGenAVX512(Algo):
         vmovups(self.tbl1, ptr(rip+'log_tbl1'))
         vmovups(self.tbl2, ptr(rip+'log_tbl2'))
 
-        genericLoopAVX512(self.logCore, dst, src, n, unrollN, v0)
+        LoopGenAVX512(self.logCore, dst, src, n, unrollN, v0)
 
 def main():
   parser = getDefaultParser()
@@ -405,16 +522,24 @@ def main():
   global param
   param = parser.parse_args()
 
+  global SIMD_BYTE
   init(param)
   segment('data')
-  exp = ExpGenAVX512(param.exp_unrollN, param.exp_mode)
-  log = LogGenAVX512(param.log_unrollN, param.log_mode)
-  exp.data()
-  log.data()
+  SIMD_BYTE=64
+  exp512 = ExpGenAVX512(param.exp_unrollN, param.exp_mode)
+  log512 = LogGenAVX512(param.log_unrollN, param.log_mode)
+  exp512.data()
+  log512.data()
+  SIMD_BYTE=32
+  exp2 = ExpGenAVX2(1, param.exp_mode)
+  exp2.data()
 
   segment('text')
-  exp.code()
-  log.code()
+  SIMD_BYTE=64
+  exp512.code()
+  log512.code()
+  SIMD_BYTE=32
+  exp2.code()
 
   term()
 

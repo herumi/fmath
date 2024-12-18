@@ -39,6 +39,8 @@ PRE(log_tbl1):
 .long 0x3f800000,0x3f714349,0x3f63937f,0x3f579acc,0x3f4cd4af,0x3f430d4f,0x3f3a3632,0x3f321ac1,0x3faab27a,0x3fa3d44b,0x3f9d8e2f,0x3f97b205,0x3f924ac6,0x3f8d409f,0x3f888c06,0x3f826cda
 PRE(log_tbl2):
 .long 0x0,0x3d72da9c,0x3df108c5,0x3e2fda3b,0x3e645854,0x3e8b37f6,0x3ea2f755,0x3eb9c1d5,0xbe93627e,0xbe7cb7b8,0xbe54bb9b,0xbe2deba5,0xbe08c7de,0xbdc9c3f4,0xbd84611f,0xbc99c2c4
+PRE(i127):
+.long 127
 .text
 .balign 16
 .global PRE(fmath_expf_avx512)
@@ -343,3 +345,101 @@ vmovups %zmm0, (%rdi){%k1}
 vzeroupper
 ret
 SIZE(fmath_logf_avx512)
+.balign 16
+.global PRE(fmath_expf_avx2)
+PRE(fmath_expf_avx2):
+TYPE(fmath_expf_avx2)
+mov %rdx, %r11
+vbroadcastss PRE(log2_e)(%rip), %ymm7
+vbroadcastss PRE(i127)(%rip), %ymm8
+vbroadcastss PRE(exp_coef)(%rip), %ymm1
+vbroadcastss PRE(exp_coef)+4(%rip), %ymm2
+vbroadcastss PRE(exp_coef)+8(%rip), %ymm3
+vbroadcastss PRE(exp_coef)+12(%rip), %ymm4
+vbroadcastss PRE(exp_coef)+16(%rip), %ymm5
+vbroadcastss PRE(exp_coef)+20(%rip), %ymm6
+mov %r11, %rcx
+jmp .L14
+.balign 32
+.L13:
+vmovups (%rsi), %ymm0
+add $32, %rsi
+vmulps %ymm7, %ymm0, %ymm9
+vroundps $8, %ymm9, %ymm0
+vsubps %ymm0, %ymm9, %ymm9
+vcvttps2dq %ymm0, %ymm0
+vpaddd %ymm8, %ymm0, %ymm0
+vpslld $23, %ymm0, %ymm0
+vmovaps %ymm6, %ymm10
+vfmadd213ps %ymm5, %ymm9, %ymm10
+vfmadd213ps %ymm4, %ymm9, %ymm10
+vfmadd213ps %ymm3, %ymm9, %ymm10
+vfmadd213ps %ymm2, %ymm9, %ymm10
+vfmadd213ps %ymm1, %ymm9, %ymm10
+vmulps %ymm10, %ymm0, %ymm0
+vmovups %ymm0, (%rdi)
+add $32, %rdi
+sub $8, %r11
+.L14:
+cmp $8, %r11
+jae .L13
+jmp .L16
+.balign 32
+.L15:
+vmovups (%rsi), %zmm0
+add $32, %rsi
+vmulps %ymm7, %ymm0, %ymm9
+vroundps $8, %ymm9, %ymm0
+vsubps %ymm0, %ymm9, %ymm9
+vcvttps2dq %ymm0, %ymm0
+vpaddd %ymm8, %ymm0, %ymm0
+vpslld $23, %ymm0, %ymm0
+vmovaps %ymm6, %ymm10
+vfmadd213ps %ymm5, %ymm9, %ymm10
+vfmadd213ps %ymm4, %ymm9, %ymm10
+vfmadd213ps %ymm3, %ymm9, %ymm10
+vfmadd213ps %ymm2, %ymm9, %ymm10
+vfmadd213ps %ymm1, %ymm9, %ymm10
+vmulps %ymm10, %ymm0, %ymm0
+vmovups %ymm0, (%rdi)
+add $32, %rdi
+sub $8, %r11
+.L16:
+cmp $8, %r11
+jae .L15
+.L17:
+and $7, %ecx
+jz .L20
+xor %rdx, %rdx
+.L18:
+mov (%rsi,%rdx,8), %rax
+mov %rax, (%rsp,%rdx,8)
+add $1, %rdx
+cmp %rcx, %rdx
+jne .L18
+vmovups (%rsp), %ymm0
+vmulps %ymm7, %ymm0, %ymm9
+vroundps $8, %ymm9, %ymm0
+vsubps %ymm0, %ymm9, %ymm9
+vcvttps2dq %ymm0, %ymm0
+vpaddd %ymm8, %ymm0, %ymm0
+vpslld $23, %ymm0, %ymm0
+vmovaps %ymm6, %ymm10
+vfmadd213ps %ymm5, %ymm9, %ymm10
+vfmadd213ps %ymm4, %ymm9, %ymm10
+vfmadd213ps %ymm3, %ymm9, %ymm10
+vfmadd213ps %ymm2, %ymm9, %ymm10
+vfmadd213ps %ymm1, %ymm9, %ymm10
+vmulps %ymm10, %ymm0, %ymm0
+vmovups %ymm0, (%rsp)
+xor %rdx, %rdx
+.L19:
+mov (%rsp,%rdx,8), %rax
+mov %rax, (%rdi,%rdx,8)
+add $1, %rdx
+cmp %rcx, %rdx
+jne .L19
+.L20:
+vzeroupper
+ret
+SIZE(fmath_expf_avx2)
