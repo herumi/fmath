@@ -20,11 +20,7 @@ PRE(exp_coef):
 .long 0x3f800000,0x3f317218,0x3e75fd0b,0x3d63578a,0x3c1e6362,0x3aaf9319
 .balign 32
 PRE(log_coef):
-.long 0x3f800000,0xbefffff1,0x3eaab78a,0xbe7d89b8
-PRE(log2):
-.long 0x3f317218
-PRE(_0x7fffffff):
-.long 0x7fffffff
+.long 0xbefffff1,0x3eaab78a,0xbe7d89b8
 PRE(log_A0):
 .long 0x3f7ece44
 PRE(log_A1):
@@ -34,11 +30,7 @@ PRE(log_A2):
 PRE(log_A3):
 .long 0x3f000000
 PRE(log_A4):
-.long 0xbf800000
-PRE(log_A5):
 .long 0x3f317218
-PRE(log_boundary):
-.long 0x3ca3d70a
 PRE(NaN):
 .long 0x7fc00000
 PRE(minusInf):
@@ -204,7 +196,7 @@ TYPE(fmath_logf_avx512)
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm4
 vbroadcastss PRE(log_A0)(%rip), %zmm8
-vbroadcastss PRE(log_coef)+12(%rip), %zmm9
+vbroadcastss PRE(log_coef)+8(%rip), %zmm9
 vmovups PRE(log_tbl1)(%rip), %zmm5
 vmovups PRE(log_tbl2)(%rip), %zmm6
 mov %rdx, %rcx
@@ -264,22 +256,22 @@ vmovaps %zmm9, %zmm18
 vmovaps %zmm9, %zmm19
 vmovaps %zmm9, %zmm20
 vmovaps %zmm9, %zmm21
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm18
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm1, %zmm19
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm2, %zmm20
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm3, %zmm21
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm18
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm1, %zmm19
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm2, %zmm20
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm3, %zmm21
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm0, %zmm18
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm1, %zmm19
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm2, %zmm20
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm3, %zmm21
 vfmadd213ps %zmm4, %zmm0, %zmm18
 vfmadd213ps %zmm4, %zmm1, %zmm19
 vfmadd213ps %zmm4, %zmm2, %zmm20
 vfmadd213ps %zmm4, %zmm3, %zmm21
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm14, %zmm10
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm15, %zmm11
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm16, %zmm12
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm17, %zmm13
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm14, %zmm10
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm15, %zmm11
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm16, %zmm12
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm17, %zmm13
 vfmadd213ps %zmm10, %zmm18, %zmm0
 vfmadd213ps %zmm11, %zmm19, %zmm1
 vfmadd213ps %zmm12, %zmm20, %zmm2
@@ -310,10 +302,10 @@ vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11
 vmovaps %zmm9, %zmm12
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm12
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm12
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm0, %zmm12
 vfmadd213ps %zmm4, %zmm0, %zmm12
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm11, %zmm10
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm11, %zmm10
 vfmadd213ps %zmm10, %zmm12, %zmm0
 vmovups %zmm0, (%rdi)
 add $64, %rdi
@@ -341,10 +333,10 @@ vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11
 vmovaps %zmm9, %zmm12
-vfmadd213ps PRE(log_coef)+8(%rip){1to16}, %zmm0, %zmm12
 vfmadd213ps PRE(log_coef)+4(%rip){1to16}, %zmm0, %zmm12
+vfmadd213ps PRE(log_coef)(%rip){1to16}, %zmm0, %zmm12
 vfmadd213ps %zmm4, %zmm0, %zmm12
-vfmadd132ps PRE(log_A5)(%rip){1to16}, %zmm11, %zmm10
+vfmadd132ps PRE(log_A4)(%rip){1to16}, %zmm11, %zmm10
 vfmadd213ps %zmm10, %zmm12, %zmm0
 vmovups %zmm0, (%rdi){%k1}
 .L12:
