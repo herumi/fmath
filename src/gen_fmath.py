@@ -232,36 +232,29 @@ class ExpGen(Algo):
         genericLoopAVX512(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
+# ref. https://lpha-z.hatenablog.com/entry/2023/09/03/231500
 class LogGen(Algo):
   def __init__(self, unrollN, mode):
     super().__init__(unrollN, mode)
     self.precise = True
     self.checkSign = False # return -Inf for 0 and NaN for negative
-    self.L = 4 # table bit size (4 or 5)
-    self.deg = 4 # degree of poly (4 or 3)
+    self.L = 4 # table bit size
+    self.deg = 4
     tmpRegN = 4
     if self.precise:
       tmpRegN += 1
     constRegN = 5 # tbl1, tbl2, t, one, c[deg]
-    if self.L == 5:
-      constRegN += 2 # tbl1H, tbl2H
     self.setTmpRegN(tmpRegN)
     self.setConstRegN(constRegN)
   def data(self):
     align(32)
-    if self.deg == 3:
-      self.ctbl = [1.0, -0.50004360205995410, 0.3333713161833]
-    else:
-      self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
+    self.ctbl = [1.0, -0.49999999, 0.3333955701, -0.25008487]
 
     putMem('log_coef', 'f32', self.ctbl)
     putMem('log2', 'f32', math.log(2))
     putMem('_0x7fffffff', 'u32', hex(0x7fffffff))
 
-    if self.L == 4:
-      bound = 0.02
-    else:
-      bound = 0.01
+    bound = 0.02
     putMem('log_boundary', 'f32', bound)
 
     putMem('NaN', 'u32', hex(0x7fc00000))
@@ -309,15 +302,9 @@ class LogGen(Algo):
       un(vgetmantps)(v0, v0, 0) # a
       un(vpsrad)(v2, v0, 23 - self.L) # d
 
-      if self.L == 4:
-        un(vpermps)(v3, v2, self.tbl1) # b
-        un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
-        un(vpermps)(v3, v2, self.tbl2) # log_b
-      elif self.L == 5:
-        un(vmovaps)(v3, v2)
-        un(vpermi2ps)(v2, self.tbl1, self.tbl1H) # b
-        un(vfmsub213ps)(v0, v2, self.one) # c = a * b - 1
-        un(vpermi2ps)(v3, self.tbl2, self.tbl2H) # log_b
+      un(vpermps)(v3, v2, self.tbl1) # b
+      un(vfmsub213ps)(v0, v3, self.one) # c = a * b - 1
+      un(vpermps)(v3, v2, self.tbl2) # log_b
 
       un(vfmsub132ps)(v1, v3, ptr_b(rip+'log2')) # z = n * log2 - log_b
 
@@ -331,8 +318,7 @@ class LogGen(Algo):
         un(vxorps)(zipOr(v1, vk), v1, v1) # z = 0
 
       un(vmovaps)(v2, self.c3)
-      if self.deg == 4:
-        un(vfmadd213ps)(v2, v0, ptr_b(rip+'log_coef'+2*4)) # t = c4 * v0 + c3
+      un(vfmadd213ps)(v2, v0, ptr_b(rip+'log_coef'+2*4)) # t = c4 * v0 + c3
       un(vfmadd213ps)(v2, v0, ptr_b(rip+'log_coef'+1*4)) # t = t * v0 + c2
       un(vfmadd213ps)(v2, v0, self.one) # t = t * v0 + 1
       un(vfmadd213ps)(v0, v2, v1) # v0 = v0 * t + z
