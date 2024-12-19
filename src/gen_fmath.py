@@ -329,7 +329,7 @@ class ExpGenAVX2(Algo):
 
       un = genUnrollFunc()
       un(vmulps)(v1, v0, self.log2_e)
-      un(vroundps)(v0, v1, 8) # nearest even
+      un(vroundps)(v0, v1, 1) # floor
       un(vsubps)(v1, v1, v0) # a = x - n
       un(vcvttps2dq)(v0, v0) # n = int(n)
       un(vpaddd)(v0, v0, self.i127)

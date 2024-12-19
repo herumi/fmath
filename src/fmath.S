@@ -366,7 +366,7 @@ jmp .L14
 vmovups (%rsi), %ymm0
 add $32, %rsi
 vmulps %ymm7, %ymm0, %ymm9
-vroundps $8, %ymm9, %ymm0
+vroundps $1, %ymm9, %ymm0
 vsubps %ymm0, %ymm9, %ymm9
 vcvttps2dq %ymm0, %ymm0
 vpaddd %ymm8, %ymm0, %ymm0
@@ -390,7 +390,7 @@ jmp .L16
 vmovups (%rsi), %ymm0
 add $32, %rsi
 vmulps %ymm7, %ymm0, %ymm9
-vroundps $8, %ymm9, %ymm0
+vroundps $1, %ymm9, %ymm0
 vsubps %ymm0, %ymm9, %ymm9
 vcvttps2dq %ymm0, %ymm0
 vpaddd %ymm8, %ymm0, %ymm0
@@ -420,7 +420,7 @@ cmp %rcx, %rdx
 jne .L18
 vmovups (%rsp), %ymm0
 vmulps %ymm7, %ymm0, %ymm9
-vroundps $8, %ymm9, %ymm0
+vroundps $1, %ymm9, %ymm0
 vsubps %ymm0, %ymm9, %ymm9
 vcvttps2dq %ymm0, %ymm0
 vpaddd %ymm8, %ymm0, %ymm0
