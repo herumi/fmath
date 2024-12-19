@@ -349,6 +349,7 @@ SIZE(fmath_logf_avx512)
 .global PRE(fmath_expf_avx2)
 PRE(fmath_expf_avx2):
 TYPE(fmath_expf_avx2)
+sub $40, %rsp
 mov %rdx, %r11
 vbroadcastss PRE(log2_e)(%rip), %ymm7
 vbroadcastss PRE(i127)(%rip), %ymm8
@@ -386,7 +387,7 @@ jae .L13
 jmp .L16
 .balign 32
 .L15:
-vmovups (%rsi), %zmm0
+vmovups (%rsi), %ymm0
 add $32, %rsi
 vmulps %ymm7, %ymm0, %ymm9
 vroundps $8, %ymm9, %ymm0
@@ -412,8 +413,8 @@ and $7, %ecx
 jz .L20
 xor %rdx, %rdx
 .L18:
-mov (%rsi,%rdx,8), %rax
-mov %rax, (%rsp,%rdx,8)
+mov (%rsi,%rdx,4), %eax
+mov %eax, (%rsp,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
 jne .L18
@@ -434,12 +435,13 @@ vmulps %ymm10, %ymm0, %ymm0
 vmovups %ymm0, (%rsp)
 xor %rdx, %rdx
 .L19:
-mov (%rsp,%rdx,8), %rax
-mov %rax, (%rdi,%rdx,8)
+mov (%rsp,%rdx,4), %eax
+mov %eax, (%rdi,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
 jne .L19
 .L20:
 vzeroupper
+add $40, %rsp
 ret
 SIZE(fmath_expf_avx2)

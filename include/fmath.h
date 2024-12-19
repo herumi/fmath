@@ -24,8 +24,8 @@ namespace fmath {
 
 inline void expf_v(float *dst, const float *src, size_t n)
 {
-	fmath_expf_avx512(dst, src, n);
-//	fmath_expf_avx2(dst, src, n);
+//	fmath_expf_avx512(dst, src, n);
+	fmath_expf_avx2(dst, src, n);
 }
 
 inline void logf_v(float *dst, const float *src, size_t n)

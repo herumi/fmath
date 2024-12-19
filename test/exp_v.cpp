@@ -132,6 +132,20 @@ float putDiff(float begin, float end, float step, const F& f)
 	return maxe;
 }
 
+CYBOZU_TEST_AUTO(first)
+{
+	const size_t N = 31;
+	float x[N], y[N];
+	for (size_t i = 0; i < N; i++) {
+		x[i] = float(i * 0.5);
+	}
+	fmath::expf_v(y, x, N);
+	for (size_t i = 0; i < N; i++) {
+		float z = exp(x[i]);
+		printf("%zd %f %f %f %e\n", i, x[i], y[i], z, fabs(z-y[i]));
+	}
+}
+
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("expfC");

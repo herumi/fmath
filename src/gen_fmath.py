@@ -119,7 +119,7 @@ def LoopGenAVX2(func, dst, src, n, unrollN, v0):
 
   align(32)
   L(lpL)
-  vmovups(zm0, ptr(src))
+  vmovups(ym0, ptr(src))
   add(src, SIMD_BYTE)
   func(1, v0[0:1])
   vmovups(ptr(dst), ym0)
@@ -136,8 +136,8 @@ def LoopGenAVX2(func, dst, src, n, unrollN, v0):
   small1L = Label()
   xor_(rdx, rdx)
   L(small1L)
-  mov(rax, ptr(src+rdx*8))
-  mov(ptr(rsp+rdx*8), rax)
+  mov(eax, ptr(src+rdx*4))
+  mov(ptr(rsp+rdx*4), eax)
   add(rdx, 1)
   cmp(rdx, rcx)
   jne(small1L)
@@ -149,8 +149,8 @@ def LoopGenAVX2(func, dst, src, n, unrollN, v0):
   small2L = Label()
   xor_(rdx, rdx)
   L(small2L)
-  mov(rax, ptr(rsp+rdx*8))
-  mov(ptr(dst+rdx*8), rax)
+  mov(eax, ptr(rsp+rdx*4))
+  mov(ptr(dst+rdx*4), eax)
   add(rdx, 1)
   cmp(rdx, rcx)
   jne(small2L)
@@ -344,7 +344,7 @@ class ExpGenAVX2(Algo):
     unrollN = self.unrollN
     align(16)
     with FuncProc('fmath_expf_avx2'):
-      with StackFrame(3, 0, useRCX=True, useRDX=True, vNum=self.getTotalRegN(), vType=T_YMM) as sf:
+      with StackFrame(3, 0, useRCX=True, useRDX=True, stackSizeByte=32, vNum=self.getTotalRegN(), vType=T_YMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
         src = sf.p[1]

@@ -45,7 +45,7 @@ src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
 update:
 	$(MAKE) src/fmath.S src/fmath.asm
 
-obj/%.o: %.cpp
+obj/%.o: %.cpp include/fmath.h
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
 bin/%.exe: obj/%.o $(LIB)
