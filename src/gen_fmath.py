@@ -130,7 +130,7 @@ def LoopGenAVX2(func, dst, src, n, unrollN, v0):
   jae(lpL)
 
   L(mod8L)
-  and_(ecx, 7)
+  and_(ecx, ELEM_N-1)
   jz(exitL)
 
   small1L = Label()

@@ -134,15 +134,21 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(first)
 {
-	const size_t N = 31;
-	float x[N], y[N];
+	const size_t N = 32;
+	float x[N], y[N+1];
+	const float edge = 100;
+	y[N] = edge;
 	for (size_t i = 0; i < N; i++) {
 		x[i] = float(i * 0.5);
 	}
-	fmath::expf_v(y, x, N);
-	for (size_t i = 0; i < N; i++) {
-		float z = exp(x[i]);
-		printf("%zd %f %f %f %e\n", i, x[i], y[i], z, fabs(z-y[i]));
+	for (size_t n = 0; n < N; n++) {
+		memset(y, 0, N*sizeof(y[0]));
+		fmath::expf_v(y, x, n);
+		for (size_t i = 0; i < n; i++) {
+			float z = exp(x[i]);
+			CYBOZU_TEST_NEAR(y[i], z, 1e-5*y[i]);
+		}
+		CYBOZU_TEST_EQUAL(y[N], edge);
 	}
 }
 
