@@ -38,6 +38,7 @@ def parseHexFloat(s):
 # unrollN : number of unroll
 # v0 : input/output parameters
 def LoopGenAVX512(func, dst, src, n, unrollN, v0):
+  SIMD_BYTE = 64
   un = genUnrollFunc()
   mod16L = Label()
   exitL = Label()
@@ -62,7 +63,6 @@ def LoopGenAVX512(func, dst, src, n, unrollN, v0):
   L(check1L)
   cmp(n, ELEM_N*unrollN)
   jae(lpUnrollL)
-
   jmp(check2L)
 
   align(32)
@@ -90,6 +90,7 @@ def LoopGenAVX512(func, dst, src, n, unrollN, v0):
   L(exitL)
 
 def LoopGenAVX2(func, dst, src, n, unrollN, v0):
+  SIMD_BYTE = 32
   un = genUnrollFunc()
   mod8L = Label()
   exitL = Label()
@@ -114,7 +115,6 @@ def LoopGenAVX2(func, dst, src, n, unrollN, v0):
   L(check1L)
   cmp(n, ELEM_N*unrollN)
   jae(lpUnrollL)
-
   jmp(check2L)
 
   align(32)
@@ -328,13 +328,19 @@ class ExpGenAVX2(Algo):
       v2 = self.regManager.allocReg(n)
 
       un = genUnrollFunc()
-      un(vmulps)(v1, v0, self.log2_e)
-      un(vroundps)(v0, v1, 1) # floor
-      un(vsubps)(v1, v1, v0) # a = x - n
-      un(vcvttps2dq)(v0, v0) # n = int(n)
+      if False:
+        un(vmulps)(v1, v0, self.log2_e)
+        un(vroundps)(v0, v1, 0) # nearest even
+        un(vsubps)(v1, v1, v0) # a = x - n
+        un(vcvttps2dq)(v0, v0) # n = int(n)
+      else: # a little faster
+        un(vmulps)(v1, v0, self.log2_e)
+        un(vcvtps2dq)(v0, v1)
+        un(vcvtdq2ps)(v2, v0)
+        un(vsubps)(v1, v1, v2)
+
       un(vpaddd)(v0, v0, self.i127)
       un(vpslld)(v0, v0, 23)
-
       un(vmovaps)(v2, self.expCoeff[5])
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, self.expCoeff[i])
@@ -522,23 +528,18 @@ def main():
   global param
   param = parser.parse_args()
 
-  global SIMD_BYTE
   init(param)
   segment('data')
-  SIMD_BYTE=64
   exp512 = ExpGenAVX512(param.exp_unrollN, param.exp_mode)
   log512 = LogGenAVX512(param.log_unrollN, param.log_mode)
   exp512.data()
   log512.data()
-  SIMD_BYTE=32
-  exp2 = ExpGenAVX2(1, param.exp_mode)
+  exp2 = ExpGenAVX2(3, param.exp_mode)
   exp2.data()
 
   segment('text')
-  SIMD_BYTE=64
   exp512.code()
   log512.code()
-  SIMD_BYTE=32
   exp2.code()
 
   term()

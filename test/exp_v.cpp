@@ -134,7 +134,7 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(first)
 {
-	const size_t N = 32;
+	const size_t N = 31;
 	float x[N], y[N+1];
 	const float edge = 100;
 	y[N] = edge;
@@ -233,7 +233,7 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const int C = 30000;
+	const int C = 90000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = sin(i / float(n) * 7) * 20;
 	}

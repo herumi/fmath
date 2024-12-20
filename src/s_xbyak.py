@@ -672,15 +672,18 @@ def pops(x, n):
   return r
 
 # expand args
-# Unroll(2, op, [xm0, xm1], [xm2, xm3], xm4)
+# Unroll(op, [xm0, xm1], [xm2, xm3], xm4)
 # -> op(xm0, xm2, xm4)
 #    op(xm1, xm3, xm4)
-def Unroll(op, *args, addrOffset, simdByte):
+def Unroll(op, *args, addrOffset):
   xs = list(args)
   n = 100
+  bit = 0
   for e in xs:
     if isinstance(e, list):
       n = min(n, len(e))
+      bit = max(bit, e[0].bit)
+  simdByte = bit//8
 
   for i in range(n):
     ys = []
@@ -698,14 +701,13 @@ def Unroll(op, *args, addrOffset, simdByte):
         ys.append(e)
     op(*ys)
 
-SIMD_BYTE = 64
 def genUnrollFunc(addrOffset=None):
   """
     return a function takes op and outputs a function that takes *args and outputs n unrolled op
   """
   def fn(op):
     def gn(*args):
-      Unroll(op, *args, addrOffset=addrOffset, simdByte=SIMD_BYTE)
+      Unroll(op, *args, addrOffset=addrOffset)
     return gn
   return fn
 
