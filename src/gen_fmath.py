@@ -296,7 +296,7 @@ class ExpGenAVX512(Algo):
   def code(self):
     unrollN = self.unrollN
     align(16)
-    with FuncProc('fmath_expf_avx512'):
+    with FuncProc('fmath_expf_v_avx512'):
       with StackFrame(3, 0, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
@@ -358,7 +358,7 @@ class ExpGenAVX2(Algo):
   def code(self):
     unrollN = self.unrollN
     align(16)
-    with FuncProc('fmath_expf_avx2'):
+    with FuncProc('fmath_expf_v_avx2'):
       with StackFrame(3, 0, useRCX=True, useRDX=True, stackSizeByte=32, vNum=self.getTotalRegN(), vType=T_YMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
@@ -504,7 +504,7 @@ class LogGenAVX512(Algo):
     unrollN = self.unrollN
     tmpN = self.tmpRegN
     align(16)
-    with FuncProc('fmath_logf_avx512'):
+    with FuncProc('fmath_logf_v_avx512'):
       with StackFrame(3, 0, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]

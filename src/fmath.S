@@ -47,9 +47,9 @@ PRE(Inf):
 .long 0x7f800000
 .text
 .balign 16
-.global PRE(fmath_expf_avx512)
-PRE(fmath_expf_avx512):
-TYPE(fmath_expf_avx512)
+.global PRE(fmath_expf_v_avx512)
+PRE(fmath_expf_v_avx512):
+TYPE(fmath_expf_v_avx512)
 vbroadcastss PRE(log2_e)(%rip), %zmm13
 vbroadcastss PRE(exp_coef)(%rip), %zmm7
 vbroadcastss PRE(exp_coef)+4(%rip), %zmm8
@@ -194,11 +194,11 @@ vmovups %zmm0, (%rdi){%k1}
 .L6:
 vzeroupper
 ret
-SIZE(fmath_expf_avx512)
+SIZE(fmath_expf_v_avx512)
 .balign 16
-.global PRE(fmath_logf_avx512)
-PRE(fmath_logf_avx512):
-TYPE(fmath_logf_avx512)
+.global PRE(fmath_logf_v_avx512)
+PRE(fmath_logf_v_avx512):
+TYPE(fmath_logf_v_avx512)
 mov $1065353216, %eax
 vpbroadcastd %eax, %zmm4
 vbroadcastss PRE(log_A0)(%rip), %zmm8
@@ -348,11 +348,11 @@ vmovups %zmm0, (%rdi){%k1}
 .L12:
 vzeroupper
 ret
-SIZE(fmath_logf_avx512)
+SIZE(fmath_logf_v_avx512)
 .balign 16
-.global PRE(fmath_expf_avx2)
-PRE(fmath_expf_avx2):
-TYPE(fmath_expf_avx2)
+.global PRE(fmath_expf_v_avx2)
+PRE(fmath_expf_v_avx2):
+TYPE(fmath_expf_v_avx2)
 sub $40, %rsp
 mov %rdx, %r11
 vbroadcastss PRE(log_x_min)(%rip), %ymm9
@@ -488,4 +488,4 @@ jne .L19
 vzeroupper
 add $40, %rsp
 ret
-SIZE(fmath_expf_avx2)
+SIZE(fmath_expf_v_avx2)
