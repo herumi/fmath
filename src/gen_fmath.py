@@ -317,30 +317,39 @@ class ExpGenAVX2(Algo):
     super().__init__(unrollN, mode)
     self.setTmpRegN(3)
     self.EXP_COEF_N = 6
-    self.setConstRegN(self.EXP_COEF_N + 2) # coeff[], log2_e, i127
+    self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], x_min
 
   def data(self):
     putMem('i127', 'u32', 127)
+    putMem('log_x_min', 'u32', hex(float2uint(parseHexFloat('-0x1.61814ap+6f')))) # fmath::exp_avx2(-0x1.644714p+6) is error
+    putMem('Inf', 'u32', hex(0x7f800000))
 
   def expCore(self, n, v0):
     with self.regManager.pos:
       v1 = self.regManager.allocReg(n)
       v2 = self.regManager.allocReg(n)
+      keep = self.regManager.allocReg(n)
+      t = v2[0]
 
       un = genUnrollFunc()
+
+      un(vmaxps)(v0, v0, self.x_min)
+      vbroadcastss(t, ptr(rip+'log2_e'))
       if False:
-        un(vmulps)(v1, v0, self.log2_e)
+        un(vmulps)(v1, v0, t)
         un(vroundps)(v0, v1, 0) # nearest even
         un(vsubps)(v1, v1, v0) # a = x - n
         un(vcvttps2dq)(v0, v0) # n = int(n)
       else: # a little faster
-        un(vmulps)(v1, v0, self.log2_e)
+        un(vmulps)(v1, v0, t)
         un(vcvtps2dq)(v0, v1)
         un(vcvtdq2ps)(v2, v0)
         un(vsubps)(v1, v1, v2)
 
-      un(vpaddd)(v0, v0, self.i127)
+      vpbroadcastd(t, ptr(rip+'i127'))
+      un(vpaddd)(v0, v0, t)
       un(vpslld)(v0, v0, 23)
+
       un(vmovaps)(v2, self.expCoeff[5])
       for i in range(4, -1, -1):
         un(vfmadd213ps)(v2, v1, self.expCoeff[i])
@@ -357,11 +366,9 @@ class ExpGenAVX2(Algo):
         n = sf.p[2]
         v0 = self.regManager.allocReg(unrollN)
         self.expCoeff = self.regManager.allocReg(self.EXP_COEF_N)
-        self.log2_e = self.regManager.allocReg1()
-        self.i127 = self.regManager.allocReg1()
+        self.x_min = self.regManager.allocReg1()
 
-        vbroadcastss(self.log2_e, ptr(rip+'log2_e'))
-        vbroadcastss(self.i127, ptr(rip+'i127'))
+        vbroadcastss(self.x_min, ptr(rip+'log_x_min'))
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
@@ -534,7 +541,7 @@ def main():
   log512 = LogGenAVX512(param.log_unrollN, param.log_mode)
   exp512.data()
   log512.data()
-  exp2 = ExpGenAVX2(3, param.exp_mode)
+  exp2 = ExpGenAVX2(2, param.exp_mode)
   exp2.data()
 
   segment('text')

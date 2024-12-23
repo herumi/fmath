@@ -16,34 +16,28 @@ union fi {
 	uint32_t i;
 };
 
+} // local
+
 inline float u2f(uint32_t x)
 {
-	fi fi;
+	local::fi fi;
 	fi.i = x;
 	return fi.f;
 }
 
 inline uint32_t f2u(float x)
 {
-	fi fi;
+	local::fi fi;
 	fi.f = x;
 	return fi.i;
 }
 
-} // local
 
 float g_maxe;
 
 float diff(float x, float y)
 {
 	return std::abs(x - y) / x;
-}
-
-float fmath_expf(float x)
-{
-	float y;
-	fmath::expf_v(&y, &x, 1);
-	return y;
 }
 
 inline float split(int *pn, float x)
@@ -158,8 +152,8 @@ CYBOZU_TEST_AUTO(setMaxE)
 	putDiff(-10, 10, 0.5, expfC);
 	putDiff(-30, 30, 1e-5, expfC);
 	puts("fmath::expf_v");
-	putDiff(-10, 10, 0.5, fmath_expf);
-	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf);
+	putDiff(-10, 10, 0.5, fmath::expf);
+	g_maxe = putDiff(-30, 30, 1e-5, fmath::expf);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -247,7 +241,9 @@ CYBOZU_TEST_AUTO(bench)
 
 void limitTest(float f1(float), float f2(float))
 {
-	float tbl[] = { 0, FLT_MIN, 0.5, 1,  80, 100, 1000, FLT_MAX };
+	float tbl[] = { // abcdef
+		0.0f, FLT_MIN, 0.5f, 1.0f, 9.1, 0x1.62e42ap+6f, 0x1.62e42cp+6f, 0x1.62e42ep+6f, 0x1.62e430p+6f/*exp(x)=inf*/, 0x1.62e432p+6f, FLT_MAX, u2f(0x7f800000), /*Inf*/
+	};
 	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
 		float x = tbl[i];
 		float a = f1(x);
@@ -260,10 +256,57 @@ void limitTest(float f1(float), float f2(float))
 		printf("x=%e std=%e fmath2=%e diff=%e\n", -x, a, b, e);
 	}
 }
+
+void check(float x, float y, float z, float& max_e, float& max_x, float edge)
+{
+	float d1 = fabsf(y - z);
+	float e = (d1 < 1e-7 || y < 1e-7) ? d1 : d1/y;
+	if (e >= edge) {
+		printf("ERR x=%f(%0.6a:%08x) y=%e(%0.6a) z=%e(%0.6a) e=%e\n", x, x, f2u(x), y, y, z, z, e);
+		CYBOZU_TEST_ASSERT(false);
+	}
+	if (e > max_e) {
+		max_e = e;
+		max_x = x;
+	}
+}
+
+void testAll()
+{
+	puts("testAll");
+	const uint32_t INF = 0x7f800000;
+
+	float max_e, max_x;
+
+	// plus
+	max_e = max_x = 0;
+	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
+		float x = u2f(u);
+		float y = expf(x);
+		float z = fmath::expf(x);
+		if (f2u(y) != INF && f2u(z) != INF) {
+			check(x, y, z, max_e, max_x, 4.1e-6);
+		}
+	}
+	printf("max_e=%e max_x=%e\n", max_e, max_x);
+
+	// minus
+	max_e = max_x = 0;
+	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
+		float x = -u2f(u);
+		float y = expf(x);
+		float z = fmath::expf(x);
+		if (f2u(y) != INF && f2u(z) != INF) {
+			check(x, y, z, max_e, max_x, 1e-6);
+		}
+	}
+	printf("max_e=%e max_x=%e\n", max_e, max_x);
+}
+
 CYBOZU_TEST_AUTO(expLimit)
 {
 	puts("expLimit");
-	limitTest(std::exp, fmath_expf);
+	limitTest(std::exp, fmath::expf);
 }
 
 void bench()
@@ -285,8 +328,17 @@ void bench()
 int main(int argc, char *argv[])
 {
 	if (argc > 1) {
-		bench();
-		return 0;
+		switch (argv[1][0]) {
+		case 'b':
+			bench();
+			return 0;
+		case 'a':
+			testAll();
+			return 0;
+		default:
+			printf("ERR %c\n", argv[1][0]);
+			return 1;
+		}
 	}
 	return cybozu::test::autoRun.run(argc, argv);
 }
