@@ -541,7 +541,7 @@ def main():
   log512 = LogGenAVX512(param.log_unrollN, param.log_mode)
   exp512.data()
   log512.data()
-  exp2 = ExpGenAVX2(2, param.exp_mode)
+  exp2 = ExpGenAVX2(3, param.exp_mode)
   exp2.data()
 
   segment('text')

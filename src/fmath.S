@@ -355,78 +355,94 @@ PRE(fmath_expf_avx2):
 TYPE(fmath_expf_avx2)
 sub $40, %rsp
 mov %rdx, %r11
-vbroadcastss PRE(log_x_min)(%rip), %ymm8
-vbroadcastss PRE(exp_coef)(%rip), %ymm2
-vbroadcastss PRE(exp_coef)+4(%rip), %ymm3
-vbroadcastss PRE(exp_coef)+8(%rip), %ymm4
-vbroadcastss PRE(exp_coef)+12(%rip), %ymm5
-vbroadcastss PRE(exp_coef)+16(%rip), %ymm6
-vbroadcastss PRE(exp_coef)+20(%rip), %ymm7
+vbroadcastss PRE(log_x_min)(%rip), %ymm9
+vbroadcastss PRE(exp_coef)(%rip), %ymm3
+vbroadcastss PRE(exp_coef)+4(%rip), %ymm4
+vbroadcastss PRE(exp_coef)+8(%rip), %ymm5
+vbroadcastss PRE(exp_coef)+12(%rip), %ymm6
+vbroadcastss PRE(exp_coef)+16(%rip), %ymm7
+vbroadcastss PRE(exp_coef)+20(%rip), %ymm8
 mov %r11, %rcx
 jmp .L14
 .balign 32
 .L13:
 vmovups (%rsi), %ymm0
 vmovups 32(%rsi), %ymm1
-add $64, %rsi
-vmaxps %ymm8, %ymm0, %ymm0
-vmaxps %ymm8, %ymm1, %ymm1
-vbroadcastss PRE(log2_e)(%rip), %ymm11
-vmulps %ymm11, %ymm0, %ymm9
-vmulps %ymm11, %ymm1, %ymm10
-vcvtps2dq %ymm9, %ymm0
-vcvtps2dq %ymm10, %ymm1
-vcvtdq2ps %ymm0, %ymm11
-vcvtdq2ps %ymm1, %ymm12
-vsubps %ymm11, %ymm9, %ymm9
-vsubps %ymm12, %ymm10, %ymm10
-vpbroadcastd PRE(i127)(%rip), %ymm11
-vpaddd %ymm11, %ymm0, %ymm0
-vpaddd %ymm11, %ymm1, %ymm1
+vmovups 64(%rsi), %ymm2
+add $96, %rsi
+vmaxps %ymm9, %ymm0, %ymm0
+vmaxps %ymm9, %ymm1, %ymm1
+vmaxps %ymm9, %ymm2, %ymm2
+vbroadcastss PRE(log2_e)(%rip), %ymm13
+vmulps %ymm13, %ymm0, %ymm10
+vmulps %ymm13, %ymm1, %ymm11
+vmulps %ymm13, %ymm2, %ymm12
+vcvtps2dq %ymm10, %ymm0
+vcvtps2dq %ymm11, %ymm1
+vcvtps2dq %ymm12, %ymm2
+vcvtdq2ps %ymm0, %ymm13
+vcvtdq2ps %ymm1, %ymm14
+vcvtdq2ps %ymm2, %ymm15
+vsubps %ymm13, %ymm10, %ymm10
+vsubps %ymm14, %ymm11, %ymm11
+vsubps %ymm15, %ymm12, %ymm12
+vpbroadcastd PRE(i127)(%rip), %ymm13
+vpaddd %ymm13, %ymm0, %ymm0
+vpaddd %ymm13, %ymm1, %ymm1
+vpaddd %ymm13, %ymm2, %ymm2
 vpslld $23, %ymm0, %ymm0
 vpslld $23, %ymm1, %ymm1
-vmovaps %ymm7, %ymm11
-vmovaps %ymm7, %ymm12
-vfmadd213ps %ymm6, %ymm9, %ymm11
-vfmadd213ps %ymm6, %ymm10, %ymm12
-vfmadd213ps %ymm5, %ymm9, %ymm11
-vfmadd213ps %ymm5, %ymm10, %ymm12
-vfmadd213ps %ymm4, %ymm9, %ymm11
-vfmadd213ps %ymm4, %ymm10, %ymm12
-vfmadd213ps %ymm3, %ymm9, %ymm11
-vfmadd213ps %ymm3, %ymm10, %ymm12
-vfmadd213ps %ymm2, %ymm9, %ymm11
-vfmadd213ps %ymm2, %ymm10, %ymm12
-vmulps %ymm11, %ymm0, %ymm0
-vmulps %ymm12, %ymm1, %ymm1
+vpslld $23, %ymm2, %ymm2
+vmovaps %ymm8, %ymm13
+vmovaps %ymm8, %ymm14
+vmovaps %ymm8, %ymm15
+vfmadd213ps %ymm7, %ymm10, %ymm13
+vfmadd213ps %ymm7, %ymm11, %ymm14
+vfmadd213ps %ymm7, %ymm12, %ymm15
+vfmadd213ps %ymm6, %ymm10, %ymm13
+vfmadd213ps %ymm6, %ymm11, %ymm14
+vfmadd213ps %ymm6, %ymm12, %ymm15
+vfmadd213ps %ymm5, %ymm10, %ymm13
+vfmadd213ps %ymm5, %ymm11, %ymm14
+vfmadd213ps %ymm5, %ymm12, %ymm15
+vfmadd213ps %ymm4, %ymm10, %ymm13
+vfmadd213ps %ymm4, %ymm11, %ymm14
+vfmadd213ps %ymm4, %ymm12, %ymm15
+vfmadd213ps %ymm3, %ymm10, %ymm13
+vfmadd213ps %ymm3, %ymm11, %ymm14
+vfmadd213ps %ymm3, %ymm12, %ymm15
+vmulps %ymm13, %ymm0, %ymm0
+vmulps %ymm14, %ymm1, %ymm1
+vmulps %ymm15, %ymm2, %ymm2
 vmovups %ymm0, (%rdi)
 vmovups %ymm1, 32(%rdi)
-add $64, %rdi
-sub $16, %r11
+vmovups %ymm2, 64(%rdi)
+add $96, %rdi
+sub $24, %r11
 .L14:
-cmp $16, %r11
+cmp $24, %r11
 jae .L13
 jmp .L16
 .balign 32
 .L15:
 vmovups (%rsi), %ymm0
 add $32, %rsi
-vmaxps %ymm8, %ymm0, %ymm0
-vbroadcastss PRE(log2_e)(%rip), %ymm10
-vmulps %ymm10, %ymm0, %ymm9
-vcvtps2dq %ymm9, %ymm0
-vcvtdq2ps %ymm0, %ymm10
-vsubps %ymm10, %ymm9, %ymm9
-vpbroadcastd PRE(i127)(%rip), %ymm10
-vpaddd %ymm10, %ymm0, %ymm0
+vmaxps %ymm9, %ymm0, %ymm0
+vbroadcastss PRE(log2_e)(%rip), %ymm11
+vmulps %ymm11, %ymm0, %ymm10
+vcvtps2dq %ymm10, %ymm0
+vcvtdq2ps %ymm0, %ymm11
+vsubps %ymm11, %ymm10, %ymm10
+vpbroadcastd PRE(i127)(%rip), %ymm11
+vpaddd %ymm11, %ymm0, %ymm0
 vpslld $23, %ymm0, %ymm0
-vmovaps %ymm7, %ymm10
-vfmadd213ps %ymm6, %ymm9, %ymm10
-vfmadd213ps %ymm5, %ymm9, %ymm10
-vfmadd213ps %ymm4, %ymm9, %ymm10
-vfmadd213ps %ymm3, %ymm9, %ymm10
-vfmadd213ps %ymm2, %ymm9, %ymm10
-vmulps %ymm10, %ymm0, %ymm0
+vmovaps %ymm8, %ymm11
+vfmadd213ps %ymm7, %ymm10, %ymm11
+vfmadd213ps %ymm6, %ymm10, %ymm11
+vfmadd213ps %ymm5, %ymm10, %ymm11
+vfmadd213ps %ymm4, %ymm10, %ymm11
+vfmadd213ps %ymm3, %ymm10, %ymm11
+vmulps %ymm11, %ymm0, %ymm0
 vmovups %ymm0, (%rdi)
 add $32, %rdi
 sub $8, %r11
@@ -444,22 +460,22 @@ add $1, %rdx
 cmp %rcx, %rdx
 jne .L18
 vmovups (%rsp), %ymm0
-vmaxps %ymm8, %ymm0, %ymm0
-vbroadcastss PRE(log2_e)(%rip), %ymm10
-vmulps %ymm10, %ymm0, %ymm9
-vcvtps2dq %ymm9, %ymm0
-vcvtdq2ps %ymm0, %ymm10
-vsubps %ymm10, %ymm9, %ymm9
-vpbroadcastd PRE(i127)(%rip), %ymm10
-vpaddd %ymm10, %ymm0, %ymm0
+vmaxps %ymm9, %ymm0, %ymm0
+vbroadcastss PRE(log2_e)(%rip), %ymm11
+vmulps %ymm11, %ymm0, %ymm10
+vcvtps2dq %ymm10, %ymm0
+vcvtdq2ps %ymm0, %ymm11
+vsubps %ymm11, %ymm10, %ymm10
+vpbroadcastd PRE(i127)(%rip), %ymm11
+vpaddd %ymm11, %ymm0, %ymm0
 vpslld $23, %ymm0, %ymm0
-vmovaps %ymm7, %ymm10
-vfmadd213ps %ymm6, %ymm9, %ymm10
-vfmadd213ps %ymm5, %ymm9, %ymm10
-vfmadd213ps %ymm4, %ymm9, %ymm10
-vfmadd213ps %ymm3, %ymm9, %ymm10
-vfmadd213ps %ymm2, %ymm9, %ymm10
-vmulps %ymm10, %ymm0, %ymm0
+vmovaps %ymm8, %ymm11
+vfmadd213ps %ymm7, %ymm10, %ymm11
+vfmadd213ps %ymm6, %ymm10, %ymm11
+vfmadd213ps %ymm5, %ymm10, %ymm11
+vfmadd213ps %ymm4, %ymm10, %ymm11
+vfmadd213ps %ymm3, %ymm10, %ymm11
+vmulps %ymm11, %ymm0, %ymm0
 vmovups %ymm0, (%rsp)
 xor %rdx, %rdx
 .L19:

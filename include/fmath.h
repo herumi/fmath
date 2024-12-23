@@ -10,11 +10,16 @@
 extern "C" {
 #endif
 
+void fmath_init(); // select AVX-512 functions if it is available
+
 void fmath_expf_avx512(float *dst, const float *src, size_t n);
 void fmath_logf_avx512(float *dst, const float *src, size_t n);
 
 void fmath_expf_avx2(float *dst, const float *src, size_t n);
 void fmath_logf_avx2(float *dst, const float *src, size_t n);
+
+extern void (*fmath_expf_v)(float *dst, const float *src, size_t n);
+extern void (*fmath_logf_v)(float *dst, const float *src, size_t n);
 
 #ifdef __cplusplus
 }
@@ -22,16 +27,19 @@ void fmath_logf_avx2(float *dst, const float *src, size_t n);
 
 namespace fmath {
 
+inline void init()
+{
+	fmath_init();
+}
+
 inline void expf_v(float *dst, const float *src, size_t n)
 {
-//	fmath_expf_avx512(dst, src, n);
-	fmath_expf_avx2(dst, src, n);
+	fmath_expf_v(dst, src, n);
 }
 
 inline void logf_v(float *dst, const float *src, size_t n)
 {
-	fmath_logf_avx512(dst, src, n);
-//	fmath_logf_avx2(dst, src, n);
+	fmath_logf_v(dst, src, n);
 }
 
 inline float expf(float x)

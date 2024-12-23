@@ -1,20 +1,27 @@
-#include "cpu.hpp"
-#include <stdio.h>
+#define XBYAK_ONLY_CLASS_CPU
+#include "xbyak_util.h"
+#include "fmath.h"
 
-static const uint64_t g_cpuType = Cpu::getType();
+#ifdef __GNUC__
+	#define ATTRIBUTE __attribute__((constructor))
+#else
+	#define ATTRIBUTE
+#endif
 
-struct Init {
-	Init()
-	{
-		uint64_t t = FMATH_tAVX512F | FMATH_tAVX512VL | FMATH_tAVX512DQ;
-		if ((g_cpuType & t) != t) {
-			fprintf(stderr, "AVX-512 is not supported\n");
-		}
-	}
-} s_init;
+extern "C" {
 
+void (*fmath_expf_v)(float *dst, const float *src, size_t n) = fmath_expf_avx2;
+void (*fmath_logf_v)(float *dst, const float *src, size_t n) = 0;//fmath_logf_avx2;
 
-uint64_t fmath_get_cpu_type()
+void ATTRIBUTE fmath_init()
 {
-	return g_cpuType;
+	static const Xbyak::util::Cpu cpu;
+	using namespace Xbyak::util;
+	if (cpu.has(Cpu::tAVX512F|Cpu::tAVX512DQ)) {
+		fmath_expf_v = fmath_expf_avx512;
+		fmath_logf_v = fmath_logf_avx512;
+	}
 }
+
+}
+
