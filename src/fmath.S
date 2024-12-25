@@ -296,9 +296,9 @@ vgetexpps %zmm0, %zmm10
 vgetmantps $0, %zmm0, %zmm0
 vmovaps %zmm0, %zmm11
 vfmadd213ps PRE(log_A1)(%rip){1to16}, %zmm8, %zmm11
-vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k6
-vaddps %zmm4, %zmm10, %zmm10{%k6}
-vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k6}
+vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k2
+vaddps %zmm4, %zmm10, %zmm10{%k2}
+vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11
@@ -326,9 +326,9 @@ vgetexpps %zmm0, %zmm10
 vgetmantps $0, %zmm0, %zmm0
 vmovaps %zmm0, %zmm11
 vfmadd213ps PRE(log_A1)(%rip){1to16}, %zmm8, %zmm11
-vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k7
-vaddps %zmm4, %zmm10, %zmm10{%k7}
-vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k7}
+vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k2
+vaddps %zmm4, %zmm10, %zmm10{%k2}
+vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k2}
 vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11

@@ -246,7 +246,6 @@ class Algo:
     vk = []
     for i in range(n):
       vk.append(MaskReg(self.maskRegPos+i))
-    self.maskRegPos += n
     return vk
 
 # exp_v(float *dst, const float *src, size_t n);
