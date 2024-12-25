@@ -227,6 +227,7 @@ class Algo:
     self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
+    self.maskRegPos = 2 # v0 is not exists and v1 is reserved, so idx begins with number 2
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -243,8 +244,9 @@ class Algo:
     v0 is not exists and v1 is reserved, so idx begins with number 2
     """
     vk = []
-    for i in range(self.unrollN):
-      vk.append(MaskReg(i+2))
+    for i in range(n):
+      vk.append(MaskReg(self.maskRegPos+i))
+    self.maskRegPos += n
     return vk
 
 # exp_v(float *dst, const float *src, size_t n);
@@ -377,14 +379,14 @@ class ExpGenAVX2(Algo):
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
 class LogGenAVX512(Algo):
-  def __init__(self, unrollN, mode):
+  def __init__(self, unrollN, mode, checkSign=False):
     super().__init__(unrollN, mode)
     self.precise = True
-    self.checkSign = False # return -Inf for 0 and NaN for negative
+    self.checkSign = checkSign # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size
     self.deg = 4
     tmpRegN = 5
-    if self.precise:
+    if self.checkSign:
       tmpRegN += 1
     constRegN = 5 # tbl1, tbl2, t, one, c[deg]
     self.setTmpRegN(tmpRegN)
@@ -400,7 +402,7 @@ class LogGenAVX512(Algo):
     putMem('log_A3', 'f32', 0.5)
     putMem('log_A4', 'f32', float.fromhex('0x1.62e430p-1'))
 
-    putMem('NaN', 'u32', hex(0x7fc00000))
+    putMem('minusNaN', 'u32', hex(0xffc00000))
     putMem('minusInf', 'u32', hex(0xff800000))
 
     invs_table = """
@@ -420,24 +422,6 @@ class LogGenAVX512(Algo):
       0x1.1a813e0p+0f,
       0x1.11180c0p+0f,
       0x1.04d9b40p+0f,
-    """
-    logs_table = """
-      +0x0.000000p+0f,
-      +0x1.e5b538p-5f,
-      +0x1.e2118ap-4f,
-      +0x1.5fb476p-3f,
-      +0x1.c8b0a8p-3f,
-      +0x1.166fecp-2f,
-      +0x1.45eeaap-2f,
-      +0x1.7383aap-2f,
-      -0x1.26c4fcp-2f,
-      -0x1.f96f70p-3f,
-      -0x1.a97736p-3f,
-      -0x1.5bd74ap-3f,
-      -0x1.118fbcp-3f,
-      -0x1.9387e8p-4f,
-      -0x1.08c23ep-4f,
-      -0x1.338588p-6f,
     """
     logTbl1 = parseHexFloat(invs_table)
     logTbl2 = [0]
@@ -464,10 +448,11 @@ class LogGenAVX512(Algo):
       v1 = self.regManager.allocReg(n)
       v2 = self.regManager.allocReg(n)
       v3 = self.regManager.allocReg(n)
+      vk = self.getMaskRegs(n)
 
       t = self.t
       un = genUnrollFunc()
-      if self.precise:
+      if self.checkSign:
         keepX = self.regManager.allocReg(n)
         un(vmovaps)(keepX, v0)
 
@@ -475,7 +460,6 @@ class LogGenAVX512(Algo):
       un(vgetmantps)(v0, v0, 0) # mant
       un(vmovaps)(v2, v0)
       un(vfmadd213ps)(v2, self.A0, ptr_b(rip+'log_A1')) # idxf
-      vk = self.getMaskRegs(self.unrollN)
       un(vcmpgeps)(vk, v0, ptr_b(rip+'log_A2'))
       un(vaddps)(zipOr(v1, vk), v1, self.one)
       un(vmulps)(zipOr(v0, vk), v0, ptr_b(rip+'log_A3'))
@@ -492,13 +476,11 @@ class LogGenAVX512(Algo):
       un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
 
       if self.checkSign:
-        # check x < 0 or x == 0
-        NEG = 1 << 6
-        ZERO = (1 << 1) | (1 << 2)
-        un(vfpclassps)(vk, keepX, NEG)
-        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'NaN'))
-        un(vfpclassps)(vk, keepX, ZERO)
-        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'minusInf'))
+        # set -Inf if x < 0
+        z = v1[0]
+        vxorps(z, z, z)
+        un(vcmpltps)(vk, keepX, z)
+        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'minusNaN'))
 
   def code(self):
     unrollN = self.unrollN

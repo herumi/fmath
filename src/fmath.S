@@ -31,8 +31,8 @@ PRE(log_A3):
 .long 0x3f000000
 PRE(log_A4):
 .long 0x3f317218
-PRE(NaN):
-.long 0x7fc00000
+PRE(minusNaN):
+.long 0xffc00000
 PRE(minusInf):
 .long 0xff800000
 PRE(log_tbl1):
@@ -214,10 +214,6 @@ vmovups 64(%rsi), %zmm1
 vmovups 128(%rsi), %zmm2
 vmovups 192(%rsi), %zmm3
 add $256, %rsi
-vmovaps %zmm0, %zmm22
-vmovaps %zmm1, %zmm23
-vmovaps %zmm2, %zmm24
-vmovaps %zmm3, %zmm25
 vgetexpps %zmm0, %zmm10
 vgetexpps %zmm1, %zmm11
 vgetexpps %zmm2, %zmm12
@@ -296,14 +292,13 @@ jmp .L10
 .L9:
 vmovups (%rsi), %zmm0
 add $64, %rsi
-vmovaps %zmm0, %zmm13
 vgetexpps %zmm0, %zmm10
 vgetmantps $0, %zmm0, %zmm0
 vmovaps %zmm0, %zmm11
 vfmadd213ps PRE(log_A1)(%rip){1to16}, %zmm8, %zmm11
-vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k2
-vaddps %zmm4, %zmm10, %zmm10{%k2}
-vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k6
+vaddps %zmm4, %zmm10, %zmm10{%k6}
+vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k6}
 vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11
@@ -327,14 +322,13 @@ shl %cl, %eax
 sub $1, %eax
 kmovd %eax, %k1
 vmovups (%rsi), %zmm0{%k1}{z}
-vmovaps %zmm0, %zmm13
 vgetexpps %zmm0, %zmm10
 vgetmantps $0, %zmm0, %zmm0
 vmovaps %zmm0, %zmm11
 vfmadd213ps PRE(log_A1)(%rip){1to16}, %zmm8, %zmm11
-vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k2
-vaddps %zmm4, %zmm10, %zmm10{%k2}
-vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vcmpgeps PRE(log_A2)(%rip){1to16}, %zmm0, %k7
+vaddps %zmm4, %zmm10, %zmm10{%k7}
+vmulps PRE(log_A3)(%rip){1to16}, %zmm0, %zmm0{%k7}
 vpermps %zmm5, %zmm11, %zmm12
 vfmsub213ps %zmm4, %zmm12, %zmm0
 vpermps %zmm6, %zmm11, %zmm11

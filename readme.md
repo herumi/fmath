@@ -28,8 +28,8 @@ f.get(x) returns pow(x, 1.234);
 `fmath.h` provides the following functions:
 
 ```c
-void fmath_expf_avx512(float *dst, const float *src, size_t n);
-void fmath_logf_avx512(float *dst, const float *src, size_t n);
+void fmath_expf_v_avx512(float *dst, const float *src, size_t n);
+void fmath_logf_v_avx512(float *dst, const float *src, size_t n);
 ```
 
 ```cpp
