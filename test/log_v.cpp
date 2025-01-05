@@ -76,6 +76,34 @@ float putDiff(float begin, float end, float step, const F& f)
 	return maxe;
 }
 
+#if 0
+void test(size_t pos)
+{
+	printf("pos=%zd\n", pos);
+	const size_t N = 8;
+	float x[N], y[N];
+	for (size_t i = 0; i < N; i++) {
+		if (i == pos) {
+			x[i] = 1.5;
+		} else {
+			x[i] = i*0.5+1;
+		}
+		y[i] = 0;
+	}
+	fmath::logf_v(y, x, N);
+	for (size_t i = 0; i < N; i++) {
+		float z = logf(x[i]);
+		printf("%2zd x=%e std=%e my=%e diff=%e\n", i, x[i], z, y[i], fabs(z-y[i]));
+	}
+}
+
+CYBOZU_TEST_AUTO(QQQ)
+{
+	test(1);
+//	exit(1);
+}
+#endif
+
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("fmath::logf_v");
@@ -85,6 +113,7 @@ CYBOZU_TEST_AUTO(setMaxE)
 	putDiff(1, 1.01, 1e-6, fmath_logf);
 	putDiff(0.99, 1, 1e-6, fmath_logf);
 	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf);
+	printf("g_maxe=%e\n", g_maxe);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)

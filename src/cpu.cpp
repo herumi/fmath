@@ -11,7 +11,7 @@
 extern "C" {
 
 void (*fmath_expf_v)(float *dst, const float *src, size_t n) = fmath_expf_v_avx2;
-void (*fmath_logf_v)(float *dst, const float *src, size_t n) = 0;//fmath_logf_v_avx2;
+void (*fmath_logf_v)(float *dst, const float *src, size_t n) = fmath_logf_v_avx2;
 
 void ATTRIBUTE fmath_init()
 {
@@ -19,7 +19,7 @@ void ATTRIBUTE fmath_init()
 	using namespace Xbyak::util;
 	if (cpu.has(Cpu::tAVX512F|Cpu::tAVX512DQ)) {
 		fmath_expf_v = fmath_expf_v_avx512;
-		fmath_logf_v = fmath_logf_v_avx512;
+//		fmath_logf_v = fmath_logf_v_avx512;
 	}
 }
 
