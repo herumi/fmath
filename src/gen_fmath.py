@@ -595,7 +595,6 @@ class LogGenAVX2(Algo):
       v3 = self.regManager.allocReg(n)
       tL = self.regManager.allocReg1()
       tH = self.regManager.allocReg1()
-      vk = self.getMaskRegs(n)
 
       t = self.t
       un = genUnrollFunc()
@@ -604,9 +603,12 @@ class LogGenAVX2(Algo):
       un(vgetmantps)(v0, v0, 0) # mant
       un(vmovaps)(v2, v0)
       un(vfmadd213ps)(v2, self.A0, ptr(rip+'log2_A1')) # idxf
-      un(vcmpgeps)(vk, v0, ptr(rip+'log2_A2'))
-      un(vaddps)(zipOr(v1, vk), v1, self.one)
-      un(vmulps)(zipOr(v0, vk), v0, ptr(rip+'log2_A3'))
+      for i in range(n):
+        vcmpgeps(tL, v0[i], ptr(rip+'log2_A2'))
+        vandps(tH, self.one, tL)
+        vaddps(v1[i], v1[i], tH)
+        vblendvps(tH, self.one, ptr(rip+'log2_A3'), tL)
+        vmulps(v0[i], v0[i], tH)
 
       self.vpermpsEmu(v3, v2, tL, tH, self.tbl1, self.tbl1H)
       un(vfmsub213ps)(v0, v3, self.one) # t

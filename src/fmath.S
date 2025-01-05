@@ -529,9 +529,11 @@ vgetexpps %ymm0, %ymm9
 vgetmantps $0, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %k2
-vaddps %ymm1, %ymm9, %ymm9{%k2}
-vmulps PRE(log2_A3)(%rip), %ymm0, %ymm0{%k2}
+vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
+vandps %ymm12, %ymm1, %ymm13
+vaddps %ymm13, %ymm9, %ymm9
+vblendvps %ymm12, PRE(log2_A3)(%rip), %ymm1, %ymm13
+vmulps %ymm13, %ymm0, %ymm0
 vpermps %ymm2, %ymm10, %ymm12
 vpermps %ymm3, %ymm10, %ymm13
 vpslld $28, %ymm10, %ymm11
@@ -562,9 +564,11 @@ vgetexpps %ymm0, %ymm9
 vgetmantps $0, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %k2
-vaddps %ymm1, %ymm9, %ymm9{%k2}
-vmulps PRE(log2_A3)(%rip), %ymm0, %ymm0{%k2}
+vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
+vandps %ymm12, %ymm1, %ymm13
+vaddps %ymm13, %ymm9, %ymm9
+vblendvps %ymm12, PRE(log2_A3)(%rip), %ymm1, %ymm13
+vmulps %ymm13, %ymm0, %ymm0
 vpermps %ymm2, %ymm10, %ymm12
 vpermps %ymm3, %ymm10, %ymm13
 vpslld $28, %ymm10, %ymm11
@@ -601,9 +605,11 @@ vgetexpps %ymm0, %ymm9
 vgetmantps $0, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %k2
-vaddps %ymm1, %ymm9, %ymm9{%k2}
-vmulps PRE(log2_A3)(%rip), %ymm0, %ymm0{%k2}
+vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
+vandps %ymm12, %ymm1, %ymm13
+vaddps %ymm13, %ymm9, %ymm9
+vblendvps %ymm12, PRE(log2_A3)(%rip), %ymm1, %ymm13
+vmulps %ymm13, %ymm0, %ymm0
 vpermps %ymm2, %ymm10, %ymm12
 vpermps %ymm3, %ymm10, %ymm13
 vpslld $28, %ymm10, %ymm11
