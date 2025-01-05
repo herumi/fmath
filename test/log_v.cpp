@@ -4,9 +4,8 @@
 #include <cybozu/benchmark.hpp>
 #include <float.h>
 #include <vector>
-
-#include <xbyak/xbyak_util.h>
 #include <cmath>
+
 namespace local {
 
 union fi {
@@ -76,18 +75,12 @@ float putDiff(float begin, float end, float step, const F& f)
 	return maxe;
 }
 
-#if 0
-void test(size_t pos)
+CYBOZU_TEST_AUTO(QQQ)
 {
-	printf("pos=%zd\n", pos);
 	const size_t N = 8;
 	float x[N], y[N];
 	for (size_t i = 0; i < N; i++) {
-		if (i == pos) {
-			x[i] = 1.5;
-		} else {
-			x[i] = i*0.5+1;
-		}
+		x[i] = i*0.5+1;
 		y[i] = 0;
 	}
 	fmath::logf_v(y, x, N);
@@ -96,13 +89,6 @@ void test(size_t pos)
 		printf("%2zd x=%e std=%e my=%e diff=%e\n", i, x[i], z, y[i], fabs(z-y[i]));
 	}
 }
-
-CYBOZU_TEST_AUTO(QQQ)
-{
-	test(1);
-//	exit(1);
-}
-#endif
 
 CYBOZU_TEST_AUTO(setMaxE)
 {
@@ -116,7 +102,7 @@ CYBOZU_TEST_AUTO(setMaxE)
 	printf("g_maxe=%e\n", g_maxe);
 }
 
-void checkDiff(const float *x, const float *y, size_t n, bool put = false)
+void checkDiff(const float *x, const float *y, size_t n, bool put = true)
 {
 	for (size_t i = 0; i < n; i++) {
 		float d = diff(x[i], y[i]);
