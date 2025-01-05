@@ -30,6 +30,8 @@ dd 7f800000h
 align 64
 minusNaN:
 dd 0ffc00000h,0ffc00000h,0ffc00000h,0ffc00000h,0ffc00000h,0ffc00000h,0ffc00000h,0ffc00000h
+log2_f1:
+dd 3f800000h,3f800000h,3f800000h,3f800000h,3f800000h,3f800000h,3f800000h,3f800000h
 log2_0x7fffffff:
 dd 2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647
 log2_coef:
@@ -577,8 +579,7 @@ vmovups xmmword ptr [rsp+144], xmm12
 vmovups xmmword ptr [rsp+160], xmm13
 mov r10, rcx
 mov r11, rdx
-mov eax, 1065353216
-vpbroadcastd ymm1, eax
+vmovaps ymm1, ymmword ptr log2_f1
 vmovaps ymm7, ymmword ptr log2_A0
 vmovaps ymm8, ymmword ptr log2_coef+64
 vmovups ymm2, ymmword ptr log2_tbl1

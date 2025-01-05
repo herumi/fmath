@@ -44,6 +44,8 @@ PRE(Inf):
 .balign 64
 PRE(minusNaN):
 .long 0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000
+PRE(log2_f1):
+.long 0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000
 PRE(log2_0x7fffffff):
 .long 2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647
 PRE(log2_coef):
@@ -515,8 +517,7 @@ PRE(fmath_logf_v_avx2):
 TYPE(fmath_logf_v_avx2)
 sub $40, %rsp
 mov %rdx, %r11
-mov $1065353216, %eax
-vpbroadcastd %eax, %ymm1
+vmovaps PRE(log2_f1)(%rip), %ymm1
 vmovaps PRE(log2_A0)(%rip), %ymm7
 vmovaps PRE(log2_coef)+64(%rip), %ymm8
 vmovups PRE(log2_tbl1)(%rip), %ymm2

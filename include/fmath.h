@@ -25,6 +25,7 @@ extern void (*fmath_logf_v)(float *dst, const float *src, size_t n);
 }
 #endif
 
+#ifdef __cplusplus
 namespace fmath {
 
 inline void init()
@@ -57,4 +58,4 @@ inline float logf(float x)
 }
 
 } // fmath
-
+#endif

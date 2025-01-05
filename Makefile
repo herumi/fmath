@@ -38,7 +38,7 @@ obj/%.o: %.cpp include/fmath.h
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
 obj/cpu.o: cpu.cpp include/fmath.h
-	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d) #-fno-exceptions -fno-rtti
+	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d) -fno-exceptions -fno-rtti -fno-threadsafe-statics
 
 bin/%.exe: obj/%.o $(LIB)
 	$(CXX) -o $@ $< $(LDFLAGS)

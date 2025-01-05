@@ -526,6 +526,7 @@ class LogGenAVX2(Algo):
   def data(self):
     align(64)
     putMem('minusNaN', 'u32', hex(0xffc00000), N)
+    putMem('log2_f1', 'f32', 1, N)
     putMem('log2_0x7fffffff', 'u32', 0x7fffffff, N)
     self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556f14p-2f, -0x1.fb1370p-3f")
 
@@ -648,7 +649,7 @@ class LogGenAVX2(Algo):
         self.A0 = self.regManager.allocReg1()
         self.c3 = self.regManager.allocReg1()
 
-        setFloat(self.one, 1.0)
+        vmovaps(self.one, ptr(rip+'log2_f1'))
         vmovaps(self.A0, ptr(rip+'log2_A0'))
         vmovaps(self.c3, ptr(rip+'log2_coef'+(self.deg-2)*4*N))
         vmovups(self.tbl1, ptr(rip+'log2_tbl1'))
