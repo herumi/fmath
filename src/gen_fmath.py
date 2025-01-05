@@ -526,7 +526,7 @@ class LogGenAVX2(Algo):
   def data(self):
     align(64)
     putMem('minusNaN', 'u32', hex(0xffc00000), N)
-    putMem('log2_i7fffffff', 'u32', 0x7fffffff, N)
+    putMem('log2_0x7fffffff', 'u32', 0x7fffffff, N)
     self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556f14p-2f, -0x1.fb1370p-3f")
 
     putMem('log2_coef', 'f32', self.ctbl, N)
@@ -536,6 +536,8 @@ class LogGenAVX2(Algo):
     putMem('log2_A3', 'f32', 0.5, N)
     putMem('log2_A4', 'f32', float.fromhex('0x1.62e430p-1'), N)
     putMem('log2_i15', 'u32', 15, N)
+    putMem('log2_0xffffff', 'u32', 0xffffff, N)
+    putMem('log2_f127', 'f32', 127, N)
 
 
     invs_table = """
@@ -599,8 +601,12 @@ class LogGenAVX2(Algo):
       t = self.t
       un = genUnrollFunc()
 
-      un(vgetexpps)(v1, v0) # expo
-      un(vgetmantps)(v0, v0, 0) # mant
+      un(vandps)(v1, v0, ptr(rip+'log2_0x7fffffff'))
+      un(vpsrld)(v1, v1, 23)
+      un(vcvtdq2ps)(v1, v1)
+      un(vsubps)(v1, v1, ptr(rip+'log2_f127'))
+      un(vandps)(v0, v0, ptr(rip+'log2_0xffffff'))
+      un(vorps)(v0, v0, self.one)
       un(vmovaps)(v2, v0)
       un(vfmadd213ps)(v2, self.A0, ptr(rip+'log2_A1')) # idxf
       for i in range(n):

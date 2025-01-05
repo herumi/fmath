@@ -44,7 +44,7 @@ PRE(Inf):
 .balign 64
 PRE(minusNaN):
 .long 0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000
-PRE(log2_i7fffffff):
+PRE(log2_0x7fffffff):
 .long 2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647
 PRE(log2_coef):
 .long 0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8
@@ -60,6 +60,10 @@ PRE(log2_A4):
 .long 0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218
 PRE(log2_i15):
 .long 15,15,15,15,15,15,15,15
+PRE(log2_0xffffff):
+.long 16777215,16777215,16777215,16777215,16777215,16777215,16777215,16777215
+PRE(log2_f127):
+.long 0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000
 .balign 64
 PRE(log2_tbl1):
 .long 0x3f800000,0x3f714349,0x3f63937f,0x3f579acc,0x3f4cd4af,0x3f430d4f,0x3f3a3632,0x3f321ac1,0x3faab27a,0x3fa3d44b,0x3f9d8e2f,0x3f97b205,0x3f924ac6,0x3f8d409f,0x3f888c06,0x3f826cda
@@ -525,8 +529,12 @@ jmp .L22
 .L21:
 vmovups (%rsi), %ymm0
 add $32, %rsi
-vgetexpps %ymm0, %ymm9
-vgetmantps $0, %ymm0, %ymm0
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm9
+vpsrld $23, %ymm9, %ymm9
+vcvtdq2ps %ymm9, %ymm9
+vsubps PRE(log2_f127)(%rip), %ymm9, %ymm9
+vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
+vorps %ymm1, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
 vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
@@ -560,8 +568,12 @@ jmp .L24
 .L23:
 vmovups (%rsi), %ymm0
 add $32, %rsi
-vgetexpps %ymm0, %ymm9
-vgetmantps $0, %ymm0, %ymm0
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm9
+vpsrld $23, %ymm9, %ymm9
+vcvtdq2ps %ymm9, %ymm9
+vsubps PRE(log2_f127)(%rip), %ymm9, %ymm9
+vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
+vorps %ymm1, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
 vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
@@ -601,8 +613,12 @@ add $1, %rdx
 cmp %rcx, %rdx
 jne .L26
 vmovups (%rsp), %ymm0
-vgetexpps %ymm0, %ymm9
-vgetmantps $0, %ymm0, %ymm0
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm9
+vpsrld $23, %ymm9, %ymm9
+vcvtdq2ps %ymm9, %ymm9
+vsubps PRE(log2_f127)(%rip), %ymm9, %ymm9
+vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
+vorps %ymm1, %ymm0, %ymm0
 vmovaps %ymm0, %ymm10
 vfmadd213ps PRE(log2_A1)(%rip), %ymm7, %ymm10
 vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm12
