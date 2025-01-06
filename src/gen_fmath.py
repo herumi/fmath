@@ -41,19 +41,15 @@ def LoopGen(func, dst, src, n, unrollN, v0):
   isAVX512 = v0[0].bit == 512
   SIMD_BYTE = v0[0].bit//8
   un = genUnrollFunc()
-  modL = Label()
-  exitL = Label()
-  lpL = Label()
-  check1L = Label()
-  check2L = Label()
-  lpUnrollL = Label()
 
   mov(rcx, n)
+  check1L = Label()
   jmp(check1L)
 
   ELEM_N = SIMD_BYTE // 4
 
   align(32)
+  lpUnrollL = Label()
   L(lpUnrollL)
   un(vmovups)(v0, ptr(src))
   add(src, SIMD_BYTE*unrollN)
@@ -66,9 +62,11 @@ def LoopGen(func, dst, src, n, unrollN, v0):
   jae(lpUnrollL)
 
   if unrollN > 1:
+    check2L = Label()
     jmp(check2L)
 
     align(32)
+    lpL = Label()
     L(lpL)
     vmovups(v0[0], ptr(src))
     add(src, SIMD_BYTE)
@@ -80,10 +78,13 @@ def LoopGen(func, dst, src, n, unrollN, v0):
     cmp(n, ELEM_N)
     jae(lpL)
 
+  modL = Label()
+  L(modL)
+  and_(ecx, ELEM_N-1)
+  exitL = Label()
+  jz(exitL)
+
   if isAVX512:
-    L(modL)
-    and_(ecx, 15)
-    jz(exitL)
     mov(eax, 1)    # eax = 1
     shl(eax, cl)   # eax = 1 << n
     sub(eax, 1)
@@ -91,12 +92,7 @@ def LoopGen(func, dst, src, n, unrollN, v0):
     vmovups(v0[0]|k1|T_z, ptr(src))
     func(1, v0[0:1])
     vmovups(ptr(dst)|k1, v0[0])
-    L(exitL)
   else:
-    L(modL)
-    and_(ecx, ELEM_N-1)
-    jz(exitL)
-  
     small1L = Label()
     xor_(rdx, rdx)
     L(small1L)
@@ -105,11 +101,11 @@ def LoopGen(func, dst, src, n, unrollN, v0):
     add(rdx, 1)
     cmp(rdx, rcx)
     jne(small1L)
-  
+
     vmovups(v0[0], ptr(rsp))
     func(1, v0[0:1])
     vmovups(ptr(rsp), v0[0])
-  
+
     small2L = Label()
     xor_(rdx, rdx)
     L(small2L)
@@ -118,8 +114,8 @@ def LoopGen(func, dst, src, n, unrollN, v0):
     add(rdx, 1)
     cmp(rdx, rcx)
     jne(small2L)
-  
-    L(exitL)
+
+  L(exitL)
 
 class Counter:
   def __init__(self):
