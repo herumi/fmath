@@ -225,9 +225,8 @@ def putMem(name, s, v, repeat=1):
   writer(vs)
 
 class Algo:
-  def __init__(self, unrollN, mode):
+  def __init__(self, unrollN):
     self.unrollN = unrollN
-    self.mode = mode
     self.tmpRegN = 0 # # of temporary registers
     self.constRegN = 0 # # of constant (permanent) registers
     self.maskRegPos = 2 # v0 is not exists and v1 is reserved, so idx begins with number 2
@@ -239,7 +238,7 @@ class Algo:
     self.constRegN = constRegN
 
   def getTotalRegN(self):
-    return self.tmpRegN * self.unrollN + self.constRegN
+    return self.tmpRegN + self.constRegN
 
   def getMaskRegs(self, n):
     """
@@ -253,9 +252,9 @@ class Algo:
 
 # exp_v(float *dst, const float *src, size_t n);
 class ExpGenAVX512(Algo):
-  def __init__(self, unrollN, mode):
-    super().__init__(unrollN, mode)
-    self.setTmpRegN(3)
+  def __init__(self, unrollN):
+    super().__init__(unrollN)
+    self.setTmpRegN(3*unrollN)
     self.EXP_COEF_N = 6
     self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], log2_e
 
@@ -317,9 +316,9 @@ class ExpGenAVX512(Algo):
         LoopGenAVX512(self.expCore, dst, src, n, unrollN, v0)
 
 class ExpGenAVX2(Algo):
-  def __init__(self, unrollN, mode):
-    super().__init__(unrollN, mode)
-    self.setTmpRegN(3)
+  def __init__(self, unrollN):
+    super().__init__(unrollN)
+    self.setTmpRegN(3*unrollN)
     self.EXP_COEF_N = 6
     self.setConstRegN(self.EXP_COEF_N + 1) # coeff[], x_min
 
@@ -332,7 +331,6 @@ class ExpGenAVX2(Algo):
     with self.regManager.pos:
       v1 = self.regManager.allocReg(n)
       v2 = self.regManager.allocReg(n)
-      keep = self.regManager.allocReg(n)
       t = v2[0]
 
       un = genUnrollFunc()
@@ -381,16 +379,16 @@ class ExpGenAVX2(Algo):
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
 class LogGenAVX512(Algo):
-  def __init__(self, unrollN, mode, checkSign=False):
-    super().__init__(unrollN, mode)
+  def __init__(self, unrollN, checkSign=False):
+    super().__init__(unrollN)
     self.checkSign = checkSign # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size
     self.deg = 4
-    tmpRegN = 5
+    tmpRegN = 4
     #if self.checkSign:
     #  tmpRegN += 1
     constRegN = 5 # tbl1, tbl2, t, one, c[deg]
-    self.setTmpRegN(tmpRegN)
+    self.setTmpRegN(tmpRegN*unrollN)
     self.setConstRegN(constRegN)
   def data(self):
     align(64)
@@ -450,7 +448,6 @@ class LogGenAVX512(Algo):
       v3 = self.regManager.allocReg(n)
       vk = self.getMaskRegs(n)
 
-      t = self.t
       un = genUnrollFunc()
       if self.checkSign:
         # the following code returns -NaN if v0 = 0xffffffff, so set it if v0 < 0
@@ -485,7 +482,6 @@ class LogGenAVX512(Algo):
 
   def code(self):
     unrollN = self.unrollN
-    tmpN = self.tmpRegN
     align(16)
     with FuncProc('fmath_logf_v_avx512'):
       with StackFrame(3, 0, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
@@ -497,7 +493,6 @@ class LogGenAVX512(Algo):
         self.one = self.regManager.allocReg1()
         self.tbl1 = self.regManager.allocReg1()
         self.tbl2 = self.regManager.allocReg1()
-        self.t = self.regManager.allocReg1()
         self.A0 = self.regManager.allocReg1()
         self.c3 = self.regManager.allocReg1()
 
@@ -512,16 +507,16 @@ class LogGenAVX512(Algo):
 # QQQ
 N=8
 class LogGenAVX2(Algo):
-  def __init__(self, unrollN, mode, checkSign=False):
-    super().__init__(unrollN, mode)
+  def __init__(self, unrollN, checkSign=False):
+    super().__init__(unrollN)
     self.checkSign = checkSign # return -Inf for 0 and NaN for negative
     self.L = 4 # table bit size
     self.deg = 4
-    tmpRegN = 7
+    tmpRegN = 4
     #if self.checkSign:
     #  tmpRegN += 1
-    constRegN = 7 # tbl1L, tbl1H, tbl2L, tbl2H, t, one, c[deg]
-    self.setTmpRegN(tmpRegN)
+    constRegN = 2 # one, A0
+    self.setTmpRegN(tmpRegN*unrollN+2)
     self.setConstRegN(constRegN)
   def data(self):
     align(64)
@@ -582,12 +577,12 @@ class LogGenAVX2(Algo):
   log a = log(1 + c) - log b
   """
 
-  def vpermpsEmu(self, y, x, tL, tH, tblL, tblH):
+  def vpermpsEmu(self, y, x, tL, tH, tblName):
     un = genUnrollFunc()
     n = len(x)
     for i in range(n):
-      vpermps(tL, x[i], tblL)
-      vpermps(tH, x[i], tblH)
+      vpermps(tL, x[i], ptr(rip+tblName))
+      vpermps(tH, x[i], ptr(rip+tblName+4*8))
       vpslld(y[i], x[i], 31-3)
       vblendvps(y[i], tL, tH, y[i])
 
@@ -599,8 +594,7 @@ class LogGenAVX2(Algo):
       tL = self.regManager.allocReg1()
       tH = self.regManager.allocReg1()
 
-      t = self.t
-      un = genUnrollFunc()
+      un = genUnrollFunc(addrOffset=0)
 
       un(vandps)(v1, v0, ptr(rip+'log2_0x7fffffff'))
       un(vpsrld)(v1, v1, 23)
@@ -617,21 +611,21 @@ class LogGenAVX2(Algo):
         vblendvps(tH, self.one, ptr(rip+'log2_A3'), tL)
         vmulps(v0[i], v0[i], tH)
 
-      self.vpermpsEmu(v3, v2, tL, tH, self.tbl1, self.tbl1H)
-      un(vfmsub213ps)(v0, v3, self.one) # t
-      self.vpermpsEmu(v2, v2, tL, tH, self.tbl2, self.tbl2H)
+      self.vpermpsEmu(v3, v2, tL, tH, 'log2_tbl1')
+      un(vfmsub213ps)(v0, v3, self.one)
+      self.vpermpsEmu(v2, v2, tL, tH, 'log2_tbl2')
 
-      un(vmovaps)(v3, self.c3)
+      vmovaps(v3[0], ptr(rip+'log2_coef'+2*4*N))
+      if len(v3) > 1:
+        un(vmovaps)(v3[1:], v3[0])
       un(vfmadd213ps)(v3, v0, ptr(rip+'log2_coef'+1*4*N)) # poly = c4 * v0 + c3
       un(vfmadd213ps)(v3, v0, ptr(rip+'log2_coef'+0*4*N)) # poly = poly * v0 + c2
       un(vfmadd213ps)(v3, v0, self.one) # poly = poly * v0 + 1
       un(vfmadd132ps)(v1, v2, ptr(rip+'log2_A4')) # expo * A4 + v2
       un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
 
-
   def code(self):
     unrollN = self.unrollN
-    tmpN = self.tmpRegN
     align(16)
     with FuncProc('fmath_logf_v_avx2'):
       with StackFrame(3, 0, useRCX=True, useRDX=True, stackSizeByte=32, vNum=self.getTotalRegN(), vType=T_YMM) as sf:
@@ -641,39 +635,26 @@ class LogGenAVX2(Algo):
         n = sf.p[2]
         v0 = self.regManager.allocReg(unrollN)
         self.one = self.regManager.allocReg1()
-        self.tbl1 = self.regManager.allocReg1()
-        self.tbl1H = self.regManager.allocReg1()
-        self.tbl2 = self.regManager.allocReg1()
-        self.tbl2H = self.regManager.allocReg1()
-        self.t = self.regManager.allocReg1()
         self.A0 = self.regManager.allocReg1()
-        self.c3 = self.regManager.allocReg1()
 
         vmovaps(self.one, ptr(rip+'log2_f1'))
         vmovaps(self.A0, ptr(rip+'log2_A0'))
-        vmovaps(self.c3, ptr(rip+'log2_coef'+(self.deg-2)*4*N))
-        vmovups(self.tbl1, ptr(rip+'log2_tbl1'))
-        vmovups(self.tbl1H, ptr(rip+'log2_tbl1'+4*8))
-        vmovups(self.tbl2, ptr(rip+'log2_tbl2'))
-        vmovups(self.tbl2H, ptr(rip+'log2_tbl2'+4*8))
 
         LoopGenAVX2(self.logCore, dst, src, n, unrollN, v0)
 
 def main():
   parser = getDefaultParser()
   parser.add_argument('-exp_un', '--exp_unrollN', help='number of unroll exp', type=int, default=7)
-  parser.add_argument('-exp_mode', '--exp_mode', help='exp mode', type=str, default='allreg')
   parser.add_argument('-log_un', '--log_unrollN', help='number of unroll log', type=int, default=4)
-  parser.add_argument('-log_mode', '--log_mode', help='log mode', type=str, default='allreg')
   global param
   param = parser.parse_args()
 
   init(param)
   segment('data')
-  exp512 = ExpGenAVX512(param.exp_unrollN, param.exp_mode)
-  log512 = LogGenAVX512(param.log_unrollN, param.log_mode)
-  exp2 = ExpGenAVX2(3, param.exp_mode)
-  log2 = LogGenAVX2(1, param.exp_mode)
+  exp512 = ExpGenAVX512(param.exp_unrollN)
+  log512 = LogGenAVX512(param.log_unrollN)
+  exp2 = ExpGenAVX2(3)
+  log2 = LogGenAVX2(2)
   exp512.data()
   log512.data()
   exp2.data()

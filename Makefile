@@ -26,7 +26,7 @@ obj/fmath.o: src/fmath.S
 #	curl https://raw.githubusercontent.com/herumi/s_xbyak/main/s_xbyak.py > $@
 
 src/fmath.S: src/gen_fmath.py src/s_xbyak.py
-	$(PYTHON) $< -m gas -exp_mode $(EXP_MODE) > $@
+	$(PYTHON) $< -m gas > $@
 
 src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m masm > $@
@@ -52,10 +52,9 @@ fastexp: fastexp.o
 avx2: avx2.cpp fmath.hpp
 	$(CXX) -o $@ $< -O3 -mavx2 -mtune=native -Iinclude
 
-EXP_MODE?=allreg
 EXP_UN?=4
 exp_unroll_n: obj/exp_v.o
-	@$(PYTHON) src/gen_fmath.py -m gas -exp_un $(EXP_UN) -exp_mode $(EXP_MODE) > src/fmath$(EXP_UN).S
+	@$(PYTHON) src/gen_fmath.py -m gas -exp_un $(EXP_UN) > src/fmath$(EXP_UN).S
 	@$(CXX) -o bin/exp_v$(EXP_UN).exe obj/exp_v.o src/fmath$(EXP_UN).S $(CFLAGS) -I ../include
 	@bin/exp_v$(EXP_UN).exe b
 	@bin/exp_v$(EXP_UN).exe b

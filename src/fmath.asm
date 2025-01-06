@@ -250,8 +250,8 @@ vmovups xmmword ptr [rsp+160], xmm15
 mov r10, rcx
 mov eax, 1065353216
 vpbroadcastd zmm4, eax
-vbroadcastss zmm8, dword ptr log_A0
-vbroadcastss zmm9, dword ptr log_coef+8
+vbroadcastss zmm7, dword ptr log_A0
+vbroadcastss zmm8, dword ptr log_coef+8
 vmovups zmm5, zmmword ptr log_tbl1
 vmovups zmm6, zmmword ptr log_tbl2
 mov rcx, r8
@@ -263,70 +263,70 @@ vmovups zmm1, zmmword ptr [rdx+64]
 vmovups zmm2, zmmword ptr [rdx+128]
 vmovups zmm3, zmmword ptr [rdx+192]
 add rdx, 256
-vgetexpps zmm10, zmm0
-vgetexpps zmm11, zmm1
-vgetexpps zmm12, zmm2
-vgetexpps zmm13, zmm3
+vgetexpps zmm9, zmm0
+vgetexpps zmm10, zmm1
+vgetexpps zmm11, zmm2
+vgetexpps zmm12, zmm3
 vgetmantps zmm0, zmm0, 0
 vgetmantps zmm1, zmm1, 0
 vgetmantps zmm2, zmm2, 0
 vgetmantps zmm3, zmm3, 0
-vmovaps zmm14, zmm0
-vmovaps zmm15, zmm1
-vmovaps zmm16, zmm2
-vmovaps zmm17, zmm3
-vfmadd213ps zmm14, zmm8, dword bcst log_A1
-vfmadd213ps zmm15, zmm8, dword bcst log_A1
-vfmadd213ps zmm16, zmm8, dword bcst log_A1
-vfmadd213ps zmm17, zmm8, dword bcst log_A1
+vmovaps zmm13, zmm0
+vmovaps zmm14, zmm1
+vmovaps zmm15, zmm2
+vmovaps zmm16, zmm3
+vfmadd213ps zmm13, zmm7, dword bcst log_A1
+vfmadd213ps zmm14, zmm7, dword bcst log_A1
+vfmadd213ps zmm15, zmm7, dword bcst log_A1
+vfmadd213ps zmm16, zmm7, dword bcst log_A1
 vcmpgeps k2, zmm0, dword bcst log_A2
 vcmpgeps k3, zmm1, dword bcst log_A2
 vcmpgeps k4, zmm2, dword bcst log_A2
 vcmpgeps k5, zmm3, dword bcst log_A2
-vaddps zmm10{k2}, zmm10, zmm4
-vaddps zmm11{k3}, zmm11, zmm4
-vaddps zmm12{k4}, zmm12, zmm4
-vaddps zmm13{k5}, zmm13, zmm4
+vaddps zmm9{k2}, zmm9, zmm4
+vaddps zmm10{k3}, zmm10, zmm4
+vaddps zmm11{k4}, zmm11, zmm4
+vaddps zmm12{k5}, zmm12, zmm4
 vmulps zmm0{k2}, zmm0, dword bcst log_A3
 vmulps zmm1{k3}, zmm1, dword bcst log_A3
 vmulps zmm2{k4}, zmm2, dword bcst log_A3
 vmulps zmm3{k5}, zmm3, dword bcst log_A3
+vpermps zmm17, zmm13, zmm5
 vpermps zmm18, zmm14, zmm5
 vpermps zmm19, zmm15, zmm5
 vpermps zmm20, zmm16, zmm5
-vpermps zmm21, zmm17, zmm5
-vfmsub213ps zmm0, zmm18, zmm4
-vfmsub213ps zmm1, zmm19, zmm4
-vfmsub213ps zmm2, zmm20, zmm4
-vfmsub213ps zmm3, zmm21, zmm4
+vfmsub213ps zmm0, zmm17, zmm4
+vfmsub213ps zmm1, zmm18, zmm4
+vfmsub213ps zmm2, zmm19, zmm4
+vfmsub213ps zmm3, zmm20, zmm4
+vpermps zmm13, zmm13, zmm6
 vpermps zmm14, zmm14, zmm6
 vpermps zmm15, zmm15, zmm6
 vpermps zmm16, zmm16, zmm6
-vpermps zmm17, zmm17, zmm6
-vmovaps zmm18, zmm9
-vmovaps zmm19, zmm9
-vmovaps zmm20, zmm9
-vmovaps zmm21, zmm9
-vfmadd213ps zmm18, zmm0, dword bcst log_coef+4
-vfmadd213ps zmm19, zmm1, dword bcst log_coef+4
-vfmadd213ps zmm20, zmm2, dword bcst log_coef+4
-vfmadd213ps zmm21, zmm3, dword bcst log_coef+4
-vfmadd213ps zmm18, zmm0, dword bcst log_coef
-vfmadd213ps zmm19, zmm1, dword bcst log_coef
-vfmadd213ps zmm20, zmm2, dword bcst log_coef
-vfmadd213ps zmm21, zmm3, dword bcst log_coef
-vfmadd213ps zmm18, zmm0, zmm4
-vfmadd213ps zmm19, zmm1, zmm4
-vfmadd213ps zmm20, zmm2, zmm4
-vfmadd213ps zmm21, zmm3, zmm4
+vmovaps zmm17, zmm8
+vmovaps zmm18, zmm8
+vmovaps zmm19, zmm8
+vmovaps zmm20, zmm8
+vfmadd213ps zmm17, zmm0, dword bcst log_coef+4
+vfmadd213ps zmm18, zmm1, dword bcst log_coef+4
+vfmadd213ps zmm19, zmm2, dword bcst log_coef+4
+vfmadd213ps zmm20, zmm3, dword bcst log_coef+4
+vfmadd213ps zmm17, zmm0, dword bcst log_coef
+vfmadd213ps zmm18, zmm1, dword bcst log_coef
+vfmadd213ps zmm19, zmm2, dword bcst log_coef
+vfmadd213ps zmm20, zmm3, dword bcst log_coef
+vfmadd213ps zmm17, zmm0, zmm4
+vfmadd213ps zmm18, zmm1, zmm4
+vfmadd213ps zmm19, zmm2, zmm4
+vfmadd213ps zmm20, zmm3, zmm4
+vfmadd132ps zmm9, zmm13, dword bcst log_A4
 vfmadd132ps zmm10, zmm14, dword bcst log_A4
 vfmadd132ps zmm11, zmm15, dword bcst log_A4
 vfmadd132ps zmm12, zmm16, dword bcst log_A4
-vfmadd132ps zmm13, zmm17, dword bcst log_A4
-vfmadd213ps zmm0, zmm18, zmm10
-vfmadd213ps zmm1, zmm19, zmm11
-vfmadd213ps zmm2, zmm20, zmm12
-vfmadd213ps zmm3, zmm21, zmm13
+vfmadd213ps zmm0, zmm17, zmm9
+vfmadd213ps zmm1, zmm18, zmm10
+vfmadd213ps zmm2, zmm19, zmm11
+vfmadd213ps zmm3, zmm20, zmm12
 vmovups zmmword ptr [r10], zmm0
 vmovups zmmword ptr [r10+64], zmm1
 vmovups zmmword ptr [r10+128], zmm2
@@ -341,22 +341,22 @@ align 32
 @L9:
 vmovups zmm0, zmmword ptr [rdx]
 add rdx, 64
-vgetexpps zmm10, zmm0
+vgetexpps zmm9, zmm0
 vgetmantps zmm0, zmm0, 0
-vmovaps zmm11, zmm0
-vfmadd213ps zmm11, zmm8, dword bcst log_A1
+vmovaps zmm10, zmm0
+vfmadd213ps zmm10, zmm7, dword bcst log_A1
 vcmpgeps k2, zmm0, dword bcst log_A2
-vaddps zmm10{k2}, zmm10, zmm4
+vaddps zmm9{k2}, zmm9, zmm4
 vmulps zmm0{k2}, zmm0, dword bcst log_A3
-vpermps zmm12, zmm11, zmm5
-vfmsub213ps zmm0, zmm12, zmm4
-vpermps zmm11, zmm11, zmm6
-vmovaps zmm12, zmm9
-vfmadd213ps zmm12, zmm0, dword bcst log_coef+4
-vfmadd213ps zmm12, zmm0, dword bcst log_coef
-vfmadd213ps zmm12, zmm0, zmm4
-vfmadd132ps zmm10, zmm11, dword bcst log_A4
-vfmadd213ps zmm0, zmm12, zmm10
+vpermps zmm11, zmm10, zmm5
+vfmsub213ps zmm0, zmm11, zmm4
+vpermps zmm10, zmm10, zmm6
+vmovaps zmm11, zmm8
+vfmadd213ps zmm11, zmm0, dword bcst log_coef+4
+vfmadd213ps zmm11, zmm0, dword bcst log_coef
+vfmadd213ps zmm11, zmm0, zmm4
+vfmadd132ps zmm9, zmm10, dword bcst log_A4
+vfmadd213ps zmm0, zmm11, zmm9
 vmovups zmmword ptr [r10], zmm0
 add r10, 64
 sub r8, 16
@@ -371,22 +371,22 @@ shl eax, cl
 sub eax, 1
 kmovd k1, eax
 vmovups zmm0{k1}{z}, zmmword ptr [rdx]
-vgetexpps zmm10, zmm0
+vgetexpps zmm9, zmm0
 vgetmantps zmm0, zmm0, 0
-vmovaps zmm11, zmm0
-vfmadd213ps zmm11, zmm8, dword bcst log_A1
+vmovaps zmm10, zmm0
+vfmadd213ps zmm10, zmm7, dword bcst log_A1
 vcmpgeps k2, zmm0, dword bcst log_A2
-vaddps zmm10{k2}, zmm10, zmm4
+vaddps zmm9{k2}, zmm9, zmm4
 vmulps zmm0{k2}, zmm0, dword bcst log_A3
-vpermps zmm12, zmm11, zmm5
-vfmsub213ps zmm0, zmm12, zmm4
-vpermps zmm11, zmm11, zmm6
-vmovaps zmm12, zmm9
-vfmadd213ps zmm12, zmm0, dword bcst log_coef+4
-vfmadd213ps zmm12, zmm0, dword bcst log_coef
-vfmadd213ps zmm12, zmm0, zmm4
-vfmadd132ps zmm10, zmm11, dword bcst log_A4
-vfmadd213ps zmm0, zmm12, zmm10
+vpermps zmm11, zmm10, zmm5
+vfmsub213ps zmm0, zmm11, zmm4
+vpermps zmm10, zmm10, zmm6
+vmovaps zmm11, zmm8
+vfmadd213ps zmm11, zmm0, dword bcst log_coef+4
+vfmadd213ps zmm11, zmm0, dword bcst log_coef
+vfmadd213ps zmm11, zmm0, zmm4
+vfmadd132ps zmm9, zmm10, dword bcst log_A4
+vfmadd213ps zmm0, zmm11, zmm9
 vmovups zmmword ptr [r10]{k1}, zmm0
 @L12:
 vmovups xmm5, xmmword ptr [rsp]
@@ -567,7 +567,7 @@ ret
 fmath_expf_v_avx2 endp
 align 16
 fmath_logf_v_avx2 proc export
-sub rsp, 184
+sub rsp, 152
 vmovups xmmword ptr [rsp+32], xmm5
 vmovups xmmword ptr [rsp+48], xmm6
 vmovups xmmword ptr [rsp+64], xmm7
@@ -575,90 +575,113 @@ vmovups xmmword ptr [rsp+80], xmm8
 vmovups xmmword ptr [rsp+96], xmm9
 vmovups xmmword ptr [rsp+112], xmm10
 vmovups xmmword ptr [rsp+128], xmm11
-vmovups xmmword ptr [rsp+144], xmm12
-vmovups xmmword ptr [rsp+160], xmm13
 mov r10, rcx
 mov r11, rdx
-vmovaps ymm1, ymmword ptr log2_f1
-vmovaps ymm7, ymmword ptr log2_A0
-vmovaps ymm8, ymmword ptr log2_coef+64
-vmovups ymm2, ymmword ptr log2_tbl1
-vmovups ymm3, ymmword ptr log2_tbl1+32
-vmovups ymm4, ymmword ptr log2_tbl2
-vmovups ymm5, ymmword ptr log2_tbl2+32
+vmovaps ymm2, ymmword ptr log2_f1
+vmovaps ymm3, ymmword ptr log2_A0
 mov rcx, r8
 jmp @L22
 align 32
 @L21:
 vmovups ymm0, ymmword ptr [r11]
-add r11, 32
-vandps ymm9, ymm0, ymmword ptr log2_0x7fffffff
-vpsrld ymm9, ymm9, 23
-vcvtdq2ps ymm9, ymm9
-vsubps ymm9, ymm9, ymmword ptr log2_f127
+vmovups ymm1, ymmword ptr [r11+32]
+add r11, 64
+vandps ymm4, ymm0, ymmword ptr log2_0x7fffffff
+vandps ymm5, ymm1, ymmword ptr log2_0x7fffffff
+vpsrld ymm4, ymm4, 23
+vpsrld ymm5, ymm5, 23
+vcvtdq2ps ymm4, ymm4
+vcvtdq2ps ymm5, ymm5
+vsubps ymm4, ymm4, ymmword ptr log2_f127
+vsubps ymm5, ymm5, ymmword ptr log2_f127
 vandps ymm0, ymm0, ymmword ptr log2_0xffffff
-vorps ymm0, ymm0, ymm1
-vmovaps ymm10, ymm0
-vfmadd213ps ymm10, ymm7, ymmword ptr log2_A1
-vcmpgeps ymm12, ymm0, ymmword ptr log2_A2
-vandps ymm13, ymm1, ymm12
-vaddps ymm9, ymm9, ymm13
-vblendvps ymm13, ymm1, ymmword ptr log2_A3, ymm12
-vmulps ymm0, ymm0, ymm13
-vpermps ymm12, ymm10, ymm2
-vpermps ymm13, ymm10, ymm3
-vpslld ymm11, ymm10, 28
-vblendvps ymm11, ymm12, ymm13, ymm11
-vfmsub213ps ymm0, ymm11, ymm1
-vpermps ymm12, ymm10, ymm4
-vpermps ymm13, ymm10, ymm5
-vpslld ymm10, ymm10, 28
-vblendvps ymm10, ymm12, ymm13, ymm10
-vmovaps ymm11, ymm8
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef+32
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef
-vfmadd213ps ymm11, ymm0, ymm1
-vfmadd132ps ymm9, ymm10, ymmword ptr log2_A4
-vfmadd213ps ymm0, ymm11, ymm9
+vandps ymm1, ymm1, ymmword ptr log2_0xffffff
+vorps ymm0, ymm0, ymm2
+vorps ymm1, ymm1, ymm2
+vmovaps ymm6, ymm0
+vmovaps ymm7, ymm1
+vfmadd213ps ymm6, ymm3, ymmword ptr log2_A1
+vfmadd213ps ymm7, ymm3, ymmword ptr log2_A1
+vcmpgeps ymm10, ymm0, ymmword ptr log2_A2
+vandps ymm11, ymm2, ymm10
+vaddps ymm4, ymm4, ymm11
+vblendvps ymm11, ymm2, ymmword ptr log2_A3, ymm10
+vmulps ymm0, ymm0, ymm11
+vcmpgeps ymm10, ymm1, ymmword ptr log2_A2
+vandps ymm11, ymm2, ymm10
+vaddps ymm5, ymm5, ymm11
+vblendvps ymm11, ymm2, ymmword ptr log2_A3, ymm10
+vmulps ymm1, ymm1, ymm11
+vpermps ymm10, ymm6, ymmword ptr log2_tbl1
+vpermps ymm11, ymm6, ymmword ptr log2_tbl1+32
+vpslld ymm8, ymm6, 28
+vblendvps ymm8, ymm10, ymm11, ymm8
+vpermps ymm10, ymm7, ymmword ptr log2_tbl1
+vpermps ymm11, ymm7, ymmword ptr log2_tbl1+32
+vpslld ymm9, ymm7, 28
+vblendvps ymm9, ymm10, ymm11, ymm9
+vfmsub213ps ymm0, ymm8, ymm2
+vfmsub213ps ymm1, ymm9, ymm2
+vpermps ymm10, ymm6, ymmword ptr log2_tbl2
+vpermps ymm11, ymm6, ymmword ptr log2_tbl2+32
+vpslld ymm6, ymm6, 28
+vblendvps ymm6, ymm10, ymm11, ymm6
+vpermps ymm10, ymm7, ymmword ptr log2_tbl2
+vpermps ymm11, ymm7, ymmword ptr log2_tbl2+32
+vpslld ymm7, ymm7, 28
+vblendvps ymm7, ymm10, ymm11, ymm7
+vmovaps ymm8, ymmword ptr log2_coef+64
+vmovaps ymm9, ymm8
+vfmadd213ps ymm8, ymm0, ymmword ptr log2_coef+32
+vfmadd213ps ymm9, ymm1, ymmword ptr log2_coef+32
+vfmadd213ps ymm8, ymm0, ymmword ptr log2_coef
+vfmadd213ps ymm9, ymm1, ymmword ptr log2_coef
+vfmadd213ps ymm8, ymm0, ymm2
+vfmadd213ps ymm9, ymm1, ymm2
+vfmadd132ps ymm4, ymm6, ymmword ptr log2_A4
+vfmadd132ps ymm5, ymm7, ymmword ptr log2_A4
+vfmadd213ps ymm0, ymm8, ymm4
+vfmadd213ps ymm1, ymm9, ymm5
 vmovups ymmword ptr [r10], ymm0
-add r10, 32
-sub r8, 8
+vmovups ymmword ptr [r10+32], ymm1
+add r10, 64
+sub r8, 16
 @L22:
-cmp r8, 8
+cmp r8, 16
 jae @L21
 jmp @L24
 align 32
 @L23:
 vmovups ymm0, ymmword ptr [r11]
 add r11, 32
-vandps ymm9, ymm0, ymmword ptr log2_0x7fffffff
-vpsrld ymm9, ymm9, 23
-vcvtdq2ps ymm9, ymm9
-vsubps ymm9, ymm9, ymmword ptr log2_f127
+vandps ymm4, ymm0, ymmword ptr log2_0x7fffffff
+vpsrld ymm4, ymm4, 23
+vcvtdq2ps ymm4, ymm4
+vsubps ymm4, ymm4, ymmword ptr log2_f127
 vandps ymm0, ymm0, ymmword ptr log2_0xffffff
-vorps ymm0, ymm0, ymm1
-vmovaps ymm10, ymm0
-vfmadd213ps ymm10, ymm7, ymmword ptr log2_A1
-vcmpgeps ymm12, ymm0, ymmword ptr log2_A2
-vandps ymm13, ymm1, ymm12
-vaddps ymm9, ymm9, ymm13
-vblendvps ymm13, ymm1, ymmword ptr log2_A3, ymm12
-vmulps ymm0, ymm0, ymm13
-vpermps ymm12, ymm10, ymm2
-vpermps ymm13, ymm10, ymm3
-vpslld ymm11, ymm10, 28
-vblendvps ymm11, ymm12, ymm13, ymm11
-vfmsub213ps ymm0, ymm11, ymm1
-vpermps ymm12, ymm10, ymm4
-vpermps ymm13, ymm10, ymm5
-vpslld ymm10, ymm10, 28
-vblendvps ymm10, ymm12, ymm13, ymm10
-vmovaps ymm11, ymm8
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef+32
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef
-vfmadd213ps ymm11, ymm0, ymm1
-vfmadd132ps ymm9, ymm10, ymmword ptr log2_A4
-vfmadd213ps ymm0, ymm11, ymm9
+vorps ymm0, ymm0, ymm2
+vmovaps ymm5, ymm0
+vfmadd213ps ymm5, ymm3, ymmword ptr log2_A1
+vcmpgeps ymm7, ymm0, ymmword ptr log2_A2
+vandps ymm8, ymm2, ymm7
+vaddps ymm4, ymm4, ymm8
+vblendvps ymm8, ymm2, ymmword ptr log2_A3, ymm7
+vmulps ymm0, ymm0, ymm8
+vpermps ymm7, ymm5, ymmword ptr log2_tbl1
+vpermps ymm8, ymm5, ymmword ptr log2_tbl1+32
+vpslld ymm6, ymm5, 28
+vblendvps ymm6, ymm7, ymm8, ymm6
+vfmsub213ps ymm0, ymm6, ymm2
+vpermps ymm7, ymm5, ymmword ptr log2_tbl2
+vpermps ymm8, ymm5, ymmword ptr log2_tbl2+32
+vpslld ymm5, ymm5, 28
+vblendvps ymm5, ymm7, ymm8, ymm5
+vmovaps ymm6, ymmword ptr log2_coef+64
+vfmadd213ps ymm6, ymm0, ymmword ptr log2_coef+32
+vfmadd213ps ymm6, ymm0, ymmword ptr log2_coef
+vfmadd213ps ymm6, ymm0, ymm2
+vfmadd132ps ymm4, ymm5, ymmword ptr log2_A4
+vfmadd213ps ymm0, ymm6, ymm4
 vmovups ymmword ptr [r10], ymm0
 add r10, 32
 sub r8, 8
@@ -676,34 +699,34 @@ add rdx, 1
 cmp rdx, rcx
 jne @L26
 vmovups ymm0, ymmword ptr [rsp]
-vandps ymm9, ymm0, ymmword ptr log2_0x7fffffff
-vpsrld ymm9, ymm9, 23
-vcvtdq2ps ymm9, ymm9
-vsubps ymm9, ymm9, ymmword ptr log2_f127
+vandps ymm4, ymm0, ymmword ptr log2_0x7fffffff
+vpsrld ymm4, ymm4, 23
+vcvtdq2ps ymm4, ymm4
+vsubps ymm4, ymm4, ymmword ptr log2_f127
 vandps ymm0, ymm0, ymmword ptr log2_0xffffff
-vorps ymm0, ymm0, ymm1
-vmovaps ymm10, ymm0
-vfmadd213ps ymm10, ymm7, ymmword ptr log2_A1
-vcmpgeps ymm12, ymm0, ymmword ptr log2_A2
-vandps ymm13, ymm1, ymm12
-vaddps ymm9, ymm9, ymm13
-vblendvps ymm13, ymm1, ymmword ptr log2_A3, ymm12
-vmulps ymm0, ymm0, ymm13
-vpermps ymm12, ymm10, ymm2
-vpermps ymm13, ymm10, ymm3
-vpslld ymm11, ymm10, 28
-vblendvps ymm11, ymm12, ymm13, ymm11
-vfmsub213ps ymm0, ymm11, ymm1
-vpermps ymm12, ymm10, ymm4
-vpermps ymm13, ymm10, ymm5
-vpslld ymm10, ymm10, 28
-vblendvps ymm10, ymm12, ymm13, ymm10
-vmovaps ymm11, ymm8
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef+32
-vfmadd213ps ymm11, ymm0, ymmword ptr log2_coef
-vfmadd213ps ymm11, ymm0, ymm1
-vfmadd132ps ymm9, ymm10, ymmword ptr log2_A4
-vfmadd213ps ymm0, ymm11, ymm9
+vorps ymm0, ymm0, ymm2
+vmovaps ymm5, ymm0
+vfmadd213ps ymm5, ymm3, ymmword ptr log2_A1
+vcmpgeps ymm7, ymm0, ymmword ptr log2_A2
+vandps ymm8, ymm2, ymm7
+vaddps ymm4, ymm4, ymm8
+vblendvps ymm8, ymm2, ymmword ptr log2_A3, ymm7
+vmulps ymm0, ymm0, ymm8
+vpermps ymm7, ymm5, ymmword ptr log2_tbl1
+vpermps ymm8, ymm5, ymmword ptr log2_tbl1+32
+vpslld ymm6, ymm5, 28
+vblendvps ymm6, ymm7, ymm8, ymm6
+vfmsub213ps ymm0, ymm6, ymm2
+vpermps ymm7, ymm5, ymmword ptr log2_tbl2
+vpermps ymm8, ymm5, ymmword ptr log2_tbl2+32
+vpslld ymm5, ymm5, 28
+vblendvps ymm5, ymm7, ymm8, ymm5
+vmovaps ymm6, ymmword ptr log2_coef+64
+vfmadd213ps ymm6, ymm0, ymmword ptr log2_coef+32
+vfmadd213ps ymm6, ymm0, ymmword ptr log2_coef
+vfmadd213ps ymm6, ymm0, ymm2
+vfmadd132ps ymm4, ymm5, ymmword ptr log2_A4
+vfmadd213ps ymm0, ymm6, ymm4
 vmovups ymmword ptr [rsp], ymm0
 xor rdx, rdx
 @L27:
@@ -720,10 +743,8 @@ vmovups xmm8, xmmword ptr [rsp+80]
 vmovups xmm9, xmmword ptr [rsp+96]
 vmovups xmm10, xmmword ptr [rsp+112]
 vmovups xmm11, xmmword ptr [rsp+128]
-vmovups xmm12, xmmword ptr [rsp+144]
-vmovups xmm13, xmmword ptr [rsp+160]
 vzeroupper
-add rsp, 184
+add rsp, 152
 ret
 fmath_logf_v_avx2 endp
 _text$x ends
