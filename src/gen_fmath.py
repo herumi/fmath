@@ -37,10 +37,11 @@ def parseHexFloat(s):
 # n : size of array
 # unrollN : number of unroll
 # v0 : input/output parameters
-def LoopGenAVX512(func, dst, src, n, unrollN, v0):
-  SIMD_BYTE = 64
+def LoopGen(func, dst, src, n, unrollN, v0):
+  isAVX512 = v0[0].bit == 512
+  SIMD_BYTE = v0[0].bit//8
   un = genUnrollFunc()
-  mod16L = Label()
+  modL = Label()
   exitL = Label()
   lpL = Label()
   check1L = Label()
@@ -63,99 +64,62 @@ def LoopGenAVX512(func, dst, src, n, unrollN, v0):
   L(check1L)
   cmp(n, ELEM_N*unrollN)
   jae(lpUnrollL)
-  jmp(check2L)
 
-  align(32)
-  L(lpL)
-  vmovups(zm0, ptr(src))
-  add(src, SIMD_BYTE)
-  func(1, v0[0:1])
-  vmovups(ptr(dst), zm0)
-  add(dst, SIMD_BYTE)
-  sub(n, ELEM_N)
-  L(check2L)
-  cmp(n, ELEM_N)
-  jae(lpL)
+  if unrollN > 1:
+    jmp(check2L)
 
-  L(mod16L)
-  and_(ecx, 15)
-  jz(exitL)
-  mov(eax, 1)    # eax = 1
-  shl(eax, cl)   # eax = 1 << n
-  sub(eax, 1)
-  kmovd(k1, eax)
-  vmovups(zm0|k1|T_z, ptr(src))
-  func(1, v0[0:1])
-  vmovups(ptr(dst)|k1, zm0)
-  L(exitL)
+    align(32)
+    L(lpL)
+    vmovups(v0[0], ptr(src))
+    add(src, SIMD_BYTE)
+    func(1, v0[0:1])
+    vmovups(ptr(dst), v0[0])
+    add(dst, SIMD_BYTE)
+    sub(n, ELEM_N)
+    L(check2L)
+    cmp(n, ELEM_N)
+    jae(lpL)
 
-def LoopGenAVX2(func, dst, src, n, unrollN, v0):
-  SIMD_BYTE = 32
-  un = genUnrollFunc()
-  mod8L = Label()
-  exitL = Label()
-  lpL = Label()
-  check1L = Label()
-  check2L = Label()
-  lpUnrollL = Label()
-
-  mov(rcx, n)
-  jmp(check1L)
-
-  ELEM_N = SIMD_BYTE // 4
-
-  align(32)
-  L(lpUnrollL)
-  un(vmovups)(v0, ptr(src))
-  add(src, SIMD_BYTE*unrollN)
-  func(unrollN, v0)
-  un(vmovups)(ptr(dst), v0)
-  add(dst, SIMD_BYTE*unrollN)
-  sub(n, ELEM_N*unrollN)
-  L(check1L)
-  cmp(n, ELEM_N*unrollN)
-  jae(lpUnrollL)
-  jmp(check2L)
-
-  align(32)
-  L(lpL)
-  vmovups(ym0, ptr(src))
-  add(src, SIMD_BYTE)
-  func(1, v0[0:1])
-  vmovups(ptr(dst), ym0)
-  add(dst, SIMD_BYTE)
-  sub(n, ELEM_N)
-  L(check2L)
-  cmp(n, ELEM_N)
-  jae(lpL)
-
-  L(mod8L)
-  and_(ecx, ELEM_N-1)
-  jz(exitL)
-
-  small1L = Label()
-  xor_(rdx, rdx)
-  L(small1L)
-  mov(eax, ptr(src+rdx*4))
-  mov(ptr(rsp+rdx*4), eax)
-  add(rdx, 1)
-  cmp(rdx, rcx)
-  jne(small1L)
-
-  vmovups(ym0, ptr(rsp))
-  func(1, v0[0:1])
-  vmovups(ptr(rsp), ym0)
-
-  small2L = Label()
-  xor_(rdx, rdx)
-  L(small2L)
-  mov(eax, ptr(rsp+rdx*4))
-  mov(ptr(dst+rdx*4), eax)
-  add(rdx, 1)
-  cmp(rdx, rcx)
-  jne(small2L)
-
-  L(exitL)
+  if isAVX512:
+    L(modL)
+    and_(ecx, 15)
+    jz(exitL)
+    mov(eax, 1)    # eax = 1
+    shl(eax, cl)   # eax = 1 << n
+    sub(eax, 1)
+    kmovd(k1, eax)
+    vmovups(v0[0]|k1|T_z, ptr(src))
+    func(1, v0[0:1])
+    vmovups(ptr(dst)|k1, v0[0])
+    L(exitL)
+  else:
+    L(modL)
+    and_(ecx, ELEM_N-1)
+    jz(exitL)
+  
+    small1L = Label()
+    xor_(rdx, rdx)
+    L(small1L)
+    mov(eax, ptr(src+rdx*4))
+    mov(ptr(rsp+rdx*4), eax)
+    add(rdx, 1)
+    cmp(rdx, rcx)
+    jne(small1L)
+  
+    vmovups(v0[0], ptr(rsp))
+    func(1, v0[0:1])
+    vmovups(ptr(rsp), v0[0])
+  
+    small2L = Label()
+    xor_(rdx, rdx)
+    L(small2L)
+    mov(eax, ptr(rsp+rdx*4))
+    mov(ptr(dst+rdx*4), eax)
+    add(rdx, 1)
+    cmp(rdx, rcx)
+    jne(small2L)
+  
+    L(exitL)
 
 class Counter:
   def __init__(self):
@@ -313,7 +277,7 @@ class ExpGenAVX512(Algo):
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
-        LoopGenAVX512(self.expCore, dst, src, n, unrollN, v0)
+        LoopGen(self.expCore, dst, src, n, unrollN, v0)
 
 class ExpGenAVX2(Algo):
   def __init__(self, unrollN):
@@ -374,7 +338,7 @@ class ExpGenAVX2(Algo):
         for i in range(self.EXP_COEF_N):
           vbroadcastss(self.expCoeff[i], ptr(rip+'exp_coef'+i*4))
 
-        LoopGenAVX2(self.expCore, dst, src, n, unrollN, v0)
+        LoopGen(self.expCore, dst, src, n, unrollN, v0)
 
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
@@ -502,7 +466,7 @@ class LogGenAVX512(Algo):
         vmovups(self.tbl1, ptr(rip+'log_tbl1'))
         vmovups(self.tbl2, ptr(rip+'log_tbl2'))
 
-        LoopGenAVX512(self.logCore, dst, src, n, unrollN, v0)
+        LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
 # QQQ
 N=8
@@ -648,7 +612,7 @@ class LogGenAVX2(Algo):
         vmovaps(self.tbl2L, ptr(rip+'log2_tbl2'))
         vmovaps(self.tbl2H, ptr(rip+'log2_tbl2'+32))
 
-        LoopGenAVX2(self.logCore, dst, src, n, unrollN, v0)
+        LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
 def main():
   parser = getDefaultParser()
