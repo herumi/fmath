@@ -37,18 +37,18 @@ float diff(float x, float y)
 	return fabs(x) > 1e-10 ? d / fabs(x) : d;
 }
 
-float fmath_logf(float x)
-{
-	float y;
-	fmath::logf_v(&y, &x, 1);
-	return y;
-}
-
 void std_log_v(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
 		dst[i] = std::log(src[i]);
 	}
+}
+
+float fmath_logf(float x)
+{
+	float y;
+	fmath::logf_v(&y, &x, 1);
+	return y;
 }
 
 template<class F>
@@ -75,12 +75,12 @@ float putDiff(float begin, float end, float step, const F& f)
 	return maxe;
 }
 
-CYBOZU_TEST_AUTO(QQQ)
+CYBOZU_TEST_AUTO(first)
 {
 	const size_t N = 8;
 	float x[N], y[N];
 	for (size_t i = 0; i < N; i++) {
-		x[i] = i*0.5+1;
+		x[i] = i*0.3+1;
 		y[i] = 0;
 	}
 	fmath::logf_v(y, x, N);
@@ -138,7 +138,7 @@ CYBOZU_TEST_AUTO(bench)
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("", C, std_log_v, &y0[0], &x[0], n);
 	putClk("std_log_v", C * (n / 32));
-	CYBOZU_BENCH_C("", C, fmath::logf_v, &y1[0], &x[0], n);
+	CYBOZU_BENCH_C("", C, fmath_logf_v, &y1[0], &x[0], n);
 	putClk("fmath::logf_v", C * (n / 32));
 	checkDiff(y0.data(), y1.data(), n);
 }

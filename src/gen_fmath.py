@@ -85,8 +85,8 @@ def LoopGen(func, dst, src, n, unrollN, v0):
   jz(exitL)
 
   if isAVX512:
-    mov(eax, 1)    # eax = 1
-    shl(eax, cl)   # eax = 1 << n
+    mov(eax, 1)
+    shl(eax, cl) # eax = 1 << n
     sub(eax, 1)
     kmovd(k1, eax)
     vmovups(v0[0]|k1|T_z, ptr(src))
@@ -187,9 +187,9 @@ def putMem(name, s, v, repeat=1):
 class Algo:
   def __init__(self, unrollN):
     self.unrollN = unrollN
-    self.tmpRegN = 0 # # of temporary registers
-    self.constRegN = 0 # # of constant (permanent) registers
-    self.maskRegPos = 2 # v0 is not exists and v1 is reserved, so idx begins with number 2
+    self.tmpRegN = 0 # number of temporary registers
+    self.constRegN = 0 # number of constant (permanent) registers
+    self.maskRegPos = 2 # k0 does not exist and k1 is reserved by LoopGen, so idx begins with number 2
 
   def setTmpRegN(self, tmpRegN):
     self.tmpRegN = tmpRegN
@@ -201,10 +201,7 @@ class Algo:
     return self.tmpRegN + self.constRegN
 
   def getMaskRegs(self, n):
-    """
-    get n elements mask regs
-    v0 is not exists and v1 is reserved, so idx begins with number 2
-    """
+    # get n elements mask regs
     vk = []
     for i in range(n):
       vk.append(MaskReg(self.maskRegPos+i))
@@ -342,12 +339,8 @@ class LogGenAVX512(Algo):
   def __init__(self, unrollN, checkSign=False):
     super().__init__(unrollN)
     self.checkSign = checkSign # return -Inf for 0 and NaN for negative
-    self.L = 4 # table bit size
-    self.deg = 4
     tmpRegN = 4
-    #if self.checkSign:
-    #  tmpRegN += 1
-    constRegN = 5 # tbl1, tbl2, t, one, c[deg]
+    constRegN = 5 # tbl1, tbl2, t, one, c3
     self.setTmpRegN(tmpRegN*unrollN)
     self.setConstRegN(constRegN)
   def data(self):
@@ -360,6 +353,7 @@ class LogGenAVX512(Algo):
     putMem('log_A2', 'f32', float.fromhex('0x1.79c328p+0'))
     putMem('log_A3', 'f32', 0.5)
     putMem('log_A4', 'f32', float.fromhex('0x1.62e430p-1'))
+    putMem('log_f1', 'f32', 1.0)
 
     invs_table = """
       0x1.0000000p+0f,
@@ -386,8 +380,6 @@ class LogGenAVX512(Algo):
 
     putMem('log_tbl1', 'f32', logTbl1)
     putMem('log_tbl2', 'f32', logTbl2)
-
-#    putMem('minusInf', 'u32', hex(0xff800000), 16)
 
 
   """
@@ -433,13 +425,6 @@ class LogGenAVX512(Algo):
       un(vfmadd132ps)(v1, v2, ptr_b(rip+'log_A4')) # expo * A4 + v2
       un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
 
-#      if self.checkSign:
-#        # set -Inf if x < 0
-#        z = v1[0]
-#        vxorps(z, z, z)
-#        un(vcmpltps)(vk, keepX, z)
-#        un(vblendmps)(zipOr(v0, vk), v0, ptr_b(rip+'minusNaN'))
-
   def code(self):
     unrollN = self.unrollN
     align(16)
@@ -458,14 +443,44 @@ class LogGenAVX512(Algo):
 
         setFloat(self.one, 1.0)
         vbroadcastss(self.A0, ptr(rip+'log_A0'))
-        vbroadcastss(self.c3, ptr(rip+'log_coef'+(self.deg-2)*4))
+        vbroadcastss(self.c3, ptr(rip+'log_coef'+2*4))
         vmovups(self.tbl1, ptr(rip+'log_tbl1'))
         vmovups(self.tbl2, ptr(rip+'log_tbl2'))
 
         LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
-# QQQ
-N=8
+    """
+    align(16)
+    with FuncProc('fmath_logf_avx512'):
+      with StackFrame(0, 0, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
+        [z0, z1, z2, z3, zt] = sf.v[:5]
+        [v0, v1, v2, v3, t] = map(lambda r: Xmm(r.idx), sf.v[:5])
+        if self.checkSign:
+          vpsrad(v1, v0, 31)
+          vorps(v0, v0, v1)
+
+        vgetexpss(v1, v0, v0) # expo
+        vgetmantss(v0, v0, v0, 0) # mant
+        vmovaps(v2, v0)
+        vmovss(t, ptr(rip+'log_A0'))
+        vfmadd213ss(v2, t, ptr(rip+'log_A1')) # idxf
+        vcmpgess(k1, v0, ptr(rip+'log_A2'))
+        vmovss(t, ptr(rip+'log_f1'))
+        vaddss(v1|k1, v1, t)
+        vmulss(v0|k1, v0, ptr(rip+'log_A3'))
+
+        vpermps(z3, z2, ptr(rip+'log_tbl1')) # invs
+        vfmsub213ss(v0, v3, t) # t
+        vpermps(z2, z2, ptr(rip+'log_tbl2')) # logs
+
+        vmovss(v3, ptr(rip+'log_coef'+2*4))
+        vfmadd213ss(v3, v0, ptr(rip+'log_coef'+1*4)) # poly = c4 * v0 + c3
+        vfmadd213ss(v3, v0, ptr(rip+'log_coef'+0*4)) # poly = poly * v0 + c2
+        vfmadd213ss(v3, v0, t) # poly = poly * v0 + 1
+        vfmadd132ss(v1, v2, ptr(rip+'log_A4')) # expo * A4 + v2
+        vfmadd213ss(v0, v3, v1) # v0 = t * poly + z
+     """
+
 class LogGenAVX2(Algo):
   def __init__(self, unrollN, checkSign=False):
     super().__init__(unrollN)
@@ -479,6 +494,7 @@ class LogGenAVX2(Algo):
     self.setTmpRegN(tmpRegN*unrollN+2) # 4*2+2=10
     self.setConstRegN(constRegN)
   def data(self):
+    N=8
     align(64)
     putMem('minusNaN', 'u32', hex(0xffc00000), N)
     putMem('log2_f1', 'f32', 1, N)
@@ -547,6 +563,7 @@ class LogGenAVX2(Algo):
       vblendvps(y[i], tL, tH, y[i])
 
   def logCore(self, n, v0):
+    N=8
     with self.regManager.pos:
       v1 = self.regManager.allocReg(n)
       v2 = self.regManager.allocReg(n)

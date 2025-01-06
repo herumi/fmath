@@ -43,19 +43,5 @@ inline void logf_v(float *dst, const float *src, size_t n)
 	fmath_logf_v(dst, src, n);
 }
 
-inline float expf(float x)
-{
-	float y;
-	expf_v(&y, &x, 1);
-	return y;
-}
-
-inline float logf(float x)
-{
-	float y;
-	logf_v(&y, &x, 1);
-	return y;
-}
-
 } // fmath
 #endif

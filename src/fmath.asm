@@ -17,6 +17,8 @@ log_A3:
 dd 3f000000h
 log_A4:
 dd 3f317218h
+log_f1:
+dd 3f800000h
 log_tbl1:
 dd 3f800000h,3f714349h,3f63937fh,3f579acch,3f4cd4afh,3f430d4fh,3f3a3632h,3f321ac1h,3faab27ah,3fa3d44bh,3f9d8e2fh,3f97b205h,3f924ac6h,3f8d409fh,3f888c06h,3f826cdah
 log_tbl2:
