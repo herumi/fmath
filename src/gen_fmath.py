@@ -515,8 +515,8 @@ class LogGenAVX2(Algo):
     tmpRegN = 4
     #if self.checkSign:
     #  tmpRegN += 1
-    constRegN = 2 # one, A0
-    self.setTmpRegN(tmpRegN*unrollN+2)
+    constRegN = 6 # one, A0, tbl1L, tbl1H, tbl2L, tbl2H
+    self.setTmpRegN(tmpRegN*unrollN+2) # 4*2+2=10
     self.setConstRegN(constRegN)
   def data(self):
     align(64)
@@ -577,12 +577,12 @@ class LogGenAVX2(Algo):
   log a = log(1 + c) - log b
   """
 
-  def vpermpsEmu(self, y, x, tL, tH, tblName):
+  def vpermpsEmu(self, y, x, tL, tH, tblL, tblH):
     un = genUnrollFunc()
     n = len(x)
     for i in range(n):
-      vpermps(tL, x[i], ptr(rip+tblName))
-      vpermps(tH, x[i], ptr(rip+tblName+4*8))
+      vpermps(tL, x[i], tblL)
+      vpermps(tH, x[i], tblH)
       vpslld(y[i], x[i], 31-3)
       vblendvps(y[i], tL, tH, y[i])
 
@@ -611,9 +611,9 @@ class LogGenAVX2(Algo):
         vblendvps(tH, self.one, ptr(rip+'log2_A3'), tL)
         vmulps(v0[i], v0[i], tH)
 
-      self.vpermpsEmu(v3, v2, tL, tH, 'log2_tbl1')
+      self.vpermpsEmu(v3, v2, tL, tH, self.tbl1L, self.tbl1H)
       un(vfmsub213ps)(v0, v3, self.one)
-      self.vpermpsEmu(v2, v2, tL, tH, 'log2_tbl2')
+      self.vpermpsEmu(v2, v2, tL, tH, self.tbl2L, self.tbl2H)
 
       vmovaps(v3[0], ptr(rip+'log2_coef'+2*4*N))
       if len(v3) > 1:
@@ -636,9 +636,17 @@ class LogGenAVX2(Algo):
         v0 = self.regManager.allocReg(unrollN)
         self.one = self.regManager.allocReg1()
         self.A0 = self.regManager.allocReg1()
+        self.tbl1L = self.regManager.allocReg1()
+        self.tbl1H = self.regManager.allocReg1()
+        self.tbl2L = self.regManager.allocReg1()
+        self.tbl2H = self.regManager.allocReg1()
 
         vmovaps(self.one, ptr(rip+'log2_f1'))
         vmovaps(self.A0, ptr(rip+'log2_A0'))
+        vmovaps(self.tbl1L, ptr(rip+'log2_tbl1'))
+        vmovaps(self.tbl1H, ptr(rip+'log2_tbl1'+32))
+        vmovaps(self.tbl2L, ptr(rip+'log2_tbl2'))
+        vmovaps(self.tbl2H, ptr(rip+'log2_tbl2'+32))
 
         LoopGenAVX2(self.logCore, dst, src, n, unrollN, v0)
 
