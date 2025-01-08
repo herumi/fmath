@@ -44,35 +44,35 @@ PRE(log_x_min):
 PRE(Inf):
 .long 0x7f800000
 .balign 64
-PRE(minusNaN):
-.long 0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000,0xffc00000
-PRE(log2_f1):
-.long 0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000
 PRE(log2_0x7fffffff):
 .long 2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647,2147483647
-PRE(log2_coef):
-.long 0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0xbefffff1,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0x3eaab78a,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8,0xbe7d89b8
-PRE(log2_A0):
-.long 0x3f7ece44,0x3f7ece44,0x3f7ece44,0x3f7ece44,0x3f7ece44,0x3f7ece44,0x3f7ece44,0x3f7ece44
-PRE(log2_A1):
-.long 0x49000000,0x49000000,0x49000000,0x49000000,0x49000000,0x49000000,0x49000000,0x49000000
-PRE(log2_A2):
-.long 0x3fbce194,0x3fbce194,0x3fbce194,0x3fbce194,0x3fbce194,0x3fbce194,0x3fbce194,0x3fbce194
-PRE(log2_A3):
-.long 0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000
-PRE(log2_A4):
-.long 0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218
-PRE(log2_i15):
-.long 15,15,15,15,15,15,15,15
-PRE(log2_0xffffff):
-.long 16777215,16777215,16777215,16777215,16777215,16777215,16777215,16777215
 PRE(log2_f127):
 .long 0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000,0x42fe0000
+PRE(log2_0xffffff):
+.long 16777215,16777215,16777215,16777215,16777215,16777215,16777215,16777215
+PRE(log2_ROUND):
+.long 0x49800000,0x49800000,0x49800000,0x49800000,0x49800000,0x49800000,0x49800000,0x49800000
+PRE(log2_BOUND):
+.long 0x3fb80000,0x3fb80000,0x3fb80000,0x3fb80000,0x3fb80000,0x3fb80000,0x3fb80000,0x3fb80000
+PRE(log2_f1):
+.long 0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000,0x3f800000
+PRE(log2_f0p5):
+.long 0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000,0x3f000000
+PRE(log2_A):
+.long 0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9
+PRE(log2_B):
+.long 0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e
+PRE(log2_C):
+.long 0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53
+PRE(log2_D):
+.long 0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33
+PRE(log2_log2):
+.long 0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218
 .balign 64
 PRE(log2_tbl1):
-.long 0x3f800000,0x3f714349,0x3f63937f,0x3f579acc,0x3f4cd4af,0x3f430d4f,0x3f3a3632,0x3f321ac1,0x3faab27a,0x3fa3d44b,0x3f9d8e2f,0x3f97b205,0x3f924ac6,0x3f8d409f,0x3f888c06,0x3f826cda
+.long 0x3f800000,0x3f639220,0x3f4ccccd,0x3f3a2e8c,0x3faaaaab,0x3f9d89d9,0x3f924777,0x3f888507
 PRE(log2_tbl2):
-.long 0x0,0x3d72da9c,0x3df108c5,0x3e2fda3b,0x3e645854,0x3e8b37f6,0x3ea2f755,0x3eb9c1d5,0xbe93627e,0xbe7cb7b8,0xbe54bb9b,0xbe2deba5,0xbe08c7de,0xbdc9c3f4,0xbd84611f,0xbc99c2c4
+.long 0x0,0x3df1151c,0x3e647fbd,0x3ea30c5d,0xbe934b12,0xbe549f6c,0xbe08b0b5,0xbd83f82e
 PRE(log2_i7):
 .long 7,7,7,7,7,7,7,7
 .text
@@ -520,11 +520,8 @@ TYPE(fmath_logf_v_avx2)
 sub $40, %rsp
 mov %rdx, %r11
 vmovaps PRE(log2_f1)(%rip), %ymm2
-vmovaps PRE(log2_A0)(%rip), %ymm3
-vmovaps PRE(log2_tbl1)(%rip), %ymm4
-vmovaps PRE(log2_tbl1)+32(%rip), %ymm5
-vmovaps PRE(log2_tbl2)(%rip), %ymm6
-vmovaps PRE(log2_tbl2)+32(%rip), %ymm7
+vmovaps PRE(log2_tbl1)(%rip), %ymm3
+vmovaps PRE(log2_tbl2)(%rip), %ymm4
 mov %r11, %rcx
 jmp .L22
 .balign 32
@@ -532,62 +529,50 @@ jmp .L22
 vmovups (%rsi), %ymm0
 vmovups 32(%rsi), %ymm1
 add $64, %rsi
-vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm8
-vandps PRE(log2_0x7fffffff)(%rip), %ymm1, %ymm9
-vpsrld $23, %ymm8, %ymm8
-vpsrld $23, %ymm9, %ymm9
-vcvtdq2ps %ymm8, %ymm8
-vcvtdq2ps %ymm9, %ymm9
-vsubps PRE(log2_f127)(%rip), %ymm8, %ymm8
-vsubps PRE(log2_f127)(%rip), %ymm9, %ymm9
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm5
+vandps PRE(log2_0x7fffffff)(%rip), %ymm1, %ymm6
+vpsrld $23, %ymm5, %ymm5
+vpsrld $23, %ymm6, %ymm6
+vcvtdq2ps %ymm5, %ymm5
+vcvtdq2ps %ymm6, %ymm6
+vsubps PRE(log2_f127)(%rip), %ymm5, %ymm5
+vsubps PRE(log2_f127)(%rip), %ymm6, %ymm6
 vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
 vandps PRE(log2_0xffffff)(%rip), %ymm1, %ymm1
 vorps %ymm2, %ymm0, %ymm0
 vorps %ymm2, %ymm1, %ymm1
-vmovaps %ymm0, %ymm10
-vmovaps %ymm1, %ymm11
-vfmadd213ps PRE(log2_A1)(%rip), %ymm3, %ymm10
-vfmadd213ps PRE(log2_A1)(%rip), %ymm3, %ymm11
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm14
-vandps %ymm14, %ymm2, %ymm15
-vaddps %ymm15, %ymm8, %ymm8
-vblendvps %ymm14, PRE(log2_A3)(%rip), %ymm2, %ymm15
-vmulps %ymm15, %ymm0, %ymm0
-vcmpgeps PRE(log2_A2)(%rip), %ymm1, %ymm14
-vandps %ymm14, %ymm2, %ymm15
-vaddps %ymm15, %ymm9, %ymm9
-vblendvps %ymm14, PRE(log2_A3)(%rip), %ymm2, %ymm15
-vmulps %ymm15, %ymm1, %ymm1
-vpermps %ymm4, %ymm10, %ymm14
-vpermps %ymm5, %ymm10, %ymm15
-vpslld $28, %ymm10, %ymm12
-vblendvps %ymm12, %ymm15, %ymm14, %ymm12
-vpermps %ymm4, %ymm11, %ymm14
-vpermps %ymm5, %ymm11, %ymm15
-vpslld $28, %ymm11, %ymm13
-vblendvps %ymm13, %ymm15, %ymm14, %ymm13
-vfmsub213ps %ymm2, %ymm12, %ymm0
-vfmsub213ps %ymm2, %ymm13, %ymm1
-vpermps %ymm6, %ymm10, %ymm14
-vpermps %ymm7, %ymm10, %ymm15
-vpslld $28, %ymm10, %ymm10
-vblendvps %ymm10, %ymm15, %ymm14, %ymm10
-vpermps %ymm6, %ymm11, %ymm14
-vpermps %ymm7, %ymm11, %ymm15
-vpslld $28, %ymm11, %ymm11
-vblendvps %ymm11, %ymm15, %ymm14, %ymm11
-vmovaps PRE(log2_coef)+64(%rip), %ymm12
-vmovaps %ymm12, %ymm13
-vfmadd213ps PRE(log2_coef)+32(%rip), %ymm0, %ymm12
-vfmadd213ps PRE(log2_coef)+32(%rip), %ymm1, %ymm13
-vfmadd213ps PRE(log2_coef)(%rip), %ymm0, %ymm12
-vfmadd213ps PRE(log2_coef)(%rip), %ymm1, %ymm13
-vfmadd213ps %ymm2, %ymm0, %ymm12
-vfmadd213ps %ymm2, %ymm1, %ymm13
-vfmadd132ps PRE(log2_A4)(%rip), %ymm10, %ymm8
-vfmadd132ps PRE(log2_A4)(%rip), %ymm11, %ymm9
-vfmadd213ps %ymm8, %ymm12, %ymm0
-vfmadd213ps %ymm9, %ymm13, %ymm1
+vaddps PRE(log2_ROUND)(%rip), %ymm0, %ymm7
+vaddps PRE(log2_ROUND)(%rip), %ymm1, %ymm8
+vcmpgeps PRE(log2_BOUND)(%rip), %ymm0, %ymm11
+vandps %ymm11, %ymm2, %ymm12
+vaddps %ymm12, %ymm5, %ymm5
+vblendvps %ymm11, PRE(log2_f0p5)(%rip), %ymm2, %ymm12
+vmulps %ymm12, %ymm0, %ymm0
+vcmpgeps PRE(log2_BOUND)(%rip), %ymm1, %ymm11
+vandps %ymm11, %ymm2, %ymm12
+vaddps %ymm12, %ymm6, %ymm6
+vblendvps %ymm11, PRE(log2_f0p5)(%rip), %ymm2, %ymm12
+vmulps %ymm12, %ymm1, %ymm1
+vpermps %ymm3, %ymm7, %ymm9
+vpermps %ymm3, %ymm8, %ymm10
+vfmsub213ps %ymm2, %ymm9, %ymm0
+vfmsub213ps %ymm2, %ymm10, %ymm1
+vpermps %ymm4, %ymm7, %ymm7
+vpermps %ymm4, %ymm8, %ymm8
+vmovaps PRE(log2_D)(%rip), %ymm9
+vmovaps %ymm9, %ymm10
+vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm9
+vfmadd213ps PRE(log2_C)(%rip), %ymm1, %ymm10
+vfmadd213ps PRE(log2_B)(%rip), %ymm0, %ymm9
+vfmadd213ps PRE(log2_B)(%rip), %ymm1, %ymm10
+vfmadd213ps PRE(log2_A)(%rip), %ymm0, %ymm9
+vfmadd213ps PRE(log2_A)(%rip), %ymm1, %ymm10
+vfmadd213ps %ymm2, %ymm0, %ymm9
+vfmadd213ps %ymm2, %ymm1, %ymm10
+vfmadd132ps PRE(log2_log2)(%rip), %ymm7, %ymm5
+vfmadd132ps PRE(log2_log2)(%rip), %ymm8, %ymm6
+vfmadd213ps %ymm5, %ymm9, %ymm0
+vfmadd213ps %ymm6, %ymm10, %ymm1
 vmovups %ymm0, (%rdi)
 vmovups %ymm1, 32(%rdi)
 add $64, %rdi
@@ -600,34 +585,28 @@ jmp .L24
 .L23:
 vmovups (%rsi), %ymm0
 add $32, %rsi
-vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm8
-vpsrld $23, %ymm8, %ymm8
-vcvtdq2ps %ymm8, %ymm8
-vsubps PRE(log2_f127)(%rip), %ymm8, %ymm8
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm5
+vpsrld $23, %ymm5, %ymm5
+vcvtdq2ps %ymm5, %ymm5
+vsubps PRE(log2_f127)(%rip), %ymm5, %ymm5
 vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
 vorps %ymm2, %ymm0, %ymm0
-vmovaps %ymm0, %ymm9
-vfmadd213ps PRE(log2_A1)(%rip), %ymm3, %ymm9
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm11
-vandps %ymm11, %ymm2, %ymm12
-vaddps %ymm12, %ymm8, %ymm8
-vblendvps %ymm11, PRE(log2_A3)(%rip), %ymm2, %ymm12
-vmulps %ymm12, %ymm0, %ymm0
-vpermps %ymm4, %ymm9, %ymm11
-vpermps %ymm5, %ymm9, %ymm12
-vpslld $28, %ymm9, %ymm10
-vblendvps %ymm10, %ymm12, %ymm11, %ymm10
-vfmsub213ps %ymm2, %ymm10, %ymm0
-vpermps %ymm6, %ymm9, %ymm11
-vpermps %ymm7, %ymm9, %ymm12
-vpslld $28, %ymm9, %ymm9
-vblendvps %ymm9, %ymm12, %ymm11, %ymm9
-vmovaps PRE(log2_coef)+64(%rip), %ymm10
-vfmadd213ps PRE(log2_coef)+32(%rip), %ymm0, %ymm10
-vfmadd213ps PRE(log2_coef)(%rip), %ymm0, %ymm10
-vfmadd213ps %ymm2, %ymm0, %ymm10
-vfmadd132ps PRE(log2_A4)(%rip), %ymm9, %ymm8
-vfmadd213ps %ymm8, %ymm10, %ymm0
+vaddps PRE(log2_ROUND)(%rip), %ymm0, %ymm6
+vcmpgeps PRE(log2_BOUND)(%rip), %ymm0, %ymm8
+vandps %ymm8, %ymm2, %ymm9
+vaddps %ymm9, %ymm5, %ymm5
+vblendvps %ymm8, PRE(log2_f0p5)(%rip), %ymm2, %ymm9
+vmulps %ymm9, %ymm0, %ymm0
+vpermps %ymm3, %ymm6, %ymm7
+vfmsub213ps %ymm2, %ymm7, %ymm0
+vpermps %ymm4, %ymm6, %ymm6
+vmovaps PRE(log2_D)(%rip), %ymm7
+vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm7
+vfmadd213ps PRE(log2_B)(%rip), %ymm0, %ymm7
+vfmadd213ps PRE(log2_A)(%rip), %ymm0, %ymm7
+vfmadd213ps %ymm2, %ymm0, %ymm7
+vfmadd132ps PRE(log2_log2)(%rip), %ymm6, %ymm5
+vfmadd213ps %ymm5, %ymm7, %ymm0
 vmovups %ymm0, (%rdi)
 add $32, %rdi
 sub $8, %r11
@@ -645,34 +624,28 @@ add $1, %rdx
 cmp %rcx, %rdx
 jne .L26
 vmovups (%rsp), %ymm0
-vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm8
-vpsrld $23, %ymm8, %ymm8
-vcvtdq2ps %ymm8, %ymm8
-vsubps PRE(log2_f127)(%rip), %ymm8, %ymm8
+vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm5
+vpsrld $23, %ymm5, %ymm5
+vcvtdq2ps %ymm5, %ymm5
+vsubps PRE(log2_f127)(%rip), %ymm5, %ymm5
 vandps PRE(log2_0xffffff)(%rip), %ymm0, %ymm0
 vorps %ymm2, %ymm0, %ymm0
-vmovaps %ymm0, %ymm9
-vfmadd213ps PRE(log2_A1)(%rip), %ymm3, %ymm9
-vcmpgeps PRE(log2_A2)(%rip), %ymm0, %ymm11
-vandps %ymm11, %ymm2, %ymm12
-vaddps %ymm12, %ymm8, %ymm8
-vblendvps %ymm11, PRE(log2_A3)(%rip), %ymm2, %ymm12
-vmulps %ymm12, %ymm0, %ymm0
-vpermps %ymm4, %ymm9, %ymm11
-vpermps %ymm5, %ymm9, %ymm12
-vpslld $28, %ymm9, %ymm10
-vblendvps %ymm10, %ymm12, %ymm11, %ymm10
-vfmsub213ps %ymm2, %ymm10, %ymm0
-vpermps %ymm6, %ymm9, %ymm11
-vpermps %ymm7, %ymm9, %ymm12
-vpslld $28, %ymm9, %ymm9
-vblendvps %ymm9, %ymm12, %ymm11, %ymm9
-vmovaps PRE(log2_coef)+64(%rip), %ymm10
-vfmadd213ps PRE(log2_coef)+32(%rip), %ymm0, %ymm10
-vfmadd213ps PRE(log2_coef)(%rip), %ymm0, %ymm10
-vfmadd213ps %ymm2, %ymm0, %ymm10
-vfmadd132ps PRE(log2_A4)(%rip), %ymm9, %ymm8
-vfmadd213ps %ymm8, %ymm10, %ymm0
+vaddps PRE(log2_ROUND)(%rip), %ymm0, %ymm6
+vcmpgeps PRE(log2_BOUND)(%rip), %ymm0, %ymm8
+vandps %ymm8, %ymm2, %ymm9
+vaddps %ymm9, %ymm5, %ymm5
+vblendvps %ymm8, PRE(log2_f0p5)(%rip), %ymm2, %ymm9
+vmulps %ymm9, %ymm0, %ymm0
+vpermps %ymm3, %ymm6, %ymm7
+vfmsub213ps %ymm2, %ymm7, %ymm0
+vpermps %ymm4, %ymm6, %ymm6
+vmovaps PRE(log2_D)(%rip), %ymm7
+vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm7
+vfmadd213ps PRE(log2_B)(%rip), %ymm0, %ymm7
+vfmadd213ps PRE(log2_A)(%rip), %ymm0, %ymm7
+vfmadd213ps %ymm2, %ymm0, %ymm7
+vfmadd132ps PRE(log2_log2)(%rip), %ymm6, %ymm5
+vfmadd213ps %ymm5, %ymm7, %ymm0
 vmovups %ymm0, (%rsp)
 xor %rdx, %rdx
 .L27:

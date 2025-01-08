@@ -490,45 +490,34 @@ class LogGenAVX2(Algo):
     tmpRegN = 4
     #if self.checkSign:
     #  tmpRegN += 1
-    constRegN = 6 # one, A0, tbl1L, tbl1H, tbl2L, tbl2H
+    constRegN = 3 # one, tbl1, tbl2
     self.setTmpRegN(tmpRegN*unrollN+2) # 4*2+2=10
     self.setConstRegN(constRegN)
   def data(self):
     N=8
     align(64)
-    putMem('minusNaN', 'u32', hex(0xffc00000), N)
-    putMem('log2_f1', 'f32', 1, N)
     putMem('log2_0x7fffffff', 'u32', 0x7fffffff, N)
-    self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556f14p-2f, -0x1.fb1370p-3f")
-
-    putMem('log2_coef', 'f32', self.ctbl, N)
-    putMem('log2_A0', 'f32', float.fromhex('0x1.fd9c88p-1'), N)
-    putMem('log2_A1', 'f32', float.fromhex('0x1.p+19'), N)
-    putMem('log2_A2', 'f32', float.fromhex('0x1.79c328p+0'), N)
-    putMem('log2_A3', 'f32', 0.5, N)
-    putMem('log2_A4', 'f32', float.fromhex('0x1.62e430p-1'), N)
-    putMem('log2_i15', 'u32', 15, N)
-    putMem('log2_0xffffff', 'u32', 0xffffff, N)
     putMem('log2_f127', 'f32', 127, N)
-
+    putMem('log2_0xffffff', 'u32', 0xffffff, N)
+    putMem('log2_ROUND', 'f32', 2**(23-3), N)
+    putMem('log2_BOUND', 'f32', 1+7/16, N)
+    putMem('log2_f1', 'f32', 1, N)
+    putMem('log2_f0p5', 'f32', 0.5, N)
+    putMem('log2_A', 'f32', -.4999993134703166062199020, N)
+    putMem('log2_B', 'f32',  .3333377208103342588645233, N)
+    putMem('log2_C', 'f32', -.2507196324449547040133221, N)
+    putMem('log2_D', 'f32',  .1983421366559079527220503, N)
+    putMem('log2_log2', 'f32', float.fromhex('0x1.62e430p-1'), N)
 
     invs_table = """
-      0x1.0000000p+0f,
-      0x1.e286920p-1f,
-      0x1.c726fe0p-1f,
-      0x1.af35980p-1f,
-      0x1.99a95e0p-1f,
-      0x1.861a9e0p-1f,
-      0x1.746c640p-1f,
-      0x1.6435820p-1f,
-      0x1.5564f40p+0f,
-      0x1.47a8960p+0f,
-      0x1.3b1c5e0p+0f,
-      0x1.2f640a0p+0f,
-      0x1.24958c0p+0f,
-      0x1.1a813e0p+0f,
-      0x1.11180c0p+0f,
-      0x1.04d9b40p+0f,
+      0x1.000000p+0,
+      0x1.c72440p-1,
+      0x1.99999ap-1,
+      0x1.745d18p-1,
+      0x1.555556p+0,
+      0x1.3b13b2p+0,
+      0x1.248eeep+0,
+      0x1.110a0ep+0,
     """
     logTbl1 = parseHexFloat(invs_table)
     logTbl2 = [0]
@@ -576,29 +565,29 @@ class LogGenAVX2(Algo):
       un(vandps)(v1, v0, ptr(rip+'log2_0x7fffffff'))
       un(vpsrld)(v1, v1, 23)
       un(vcvtdq2ps)(v1, v1)
-      un(vsubps)(v1, v1, ptr(rip+'log2_f127'))
+      un(vsubps)(v1, v1, ptr(rip+'log2_f127')) # v1 = n
       un(vandps)(v0, v0, ptr(rip+'log2_0xffffff'))
-      un(vorps)(v0, v0, self.one)
-      un(vmovaps)(v2, v0)
-      un(vfmadd213ps)(v2, self.A0, ptr(rip+'log2_A1')) # idxf
+      un(vorps)(v0, v0, self.one) # v0 = a
+      un(vaddps)(v2, v0, ptr(rip+'log2_ROUND'))
       for i in range(n):
-        vcmpgeps(tL, v0[i], ptr(rip+'log2_A2'))
+        vcmpgeps(tL, v0[i], ptr(rip+'log2_BOUND'))
         vandps(tH, self.one, tL)
         vaddps(v1[i], v1[i], tH)
-        vblendvps(tH, self.one, ptr(rip+'log2_A3'), tL)
+        vblendvps(tH, self.one, ptr(rip+'log2_f0p5'), tL)
         vmulps(v0[i], v0[i], tH)
 
-      self.vpermpsEmu(v3, v2, tL, tH, self.tbl1L, self.tbl1H)
+      un(vpermps)(v3, v2, self.tbl1)
       un(vfmsub213ps)(v0, v3, self.one)
-      self.vpermpsEmu(v2, v2, tL, tH, self.tbl2L, self.tbl2H)
+      un(vpermps)(v2, v2, self.tbl2)
 
-      vmovaps(v3[0], ptr(rip+'log2_coef'+2*4*N))
+      vmovaps(v3[0], ptr(rip+'log2_D'))
       if len(v3) > 1:
         un(vmovaps)(v3[1:], v3[0])
-      un(vfmadd213ps)(v3, v0, ptr(rip+'log2_coef'+1*4*N)) # poly = c4 * v0 + c3
-      un(vfmadd213ps)(v3, v0, ptr(rip+'log2_coef'+0*4*N)) # poly = poly * v0 + c2
+      un(vfmadd213ps)(v3, v0, ptr(rip+'log2_C'))
+      un(vfmadd213ps)(v3, v0, ptr(rip+'log2_B'))
+      un(vfmadd213ps)(v3, v0, ptr(rip+'log2_A'))
       un(vfmadd213ps)(v3, v0, self.one) # poly = poly * v0 + 1
-      un(vfmadd132ps)(v1, v2, ptr(rip+'log2_A4')) # expo * A4 + v2
+      un(vfmadd132ps)(v1, v2, ptr(rip+'log2_log2')) # expo * A4 + v2
       un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
 
   def code(self):
@@ -612,18 +601,12 @@ class LogGenAVX2(Algo):
         n = sf.p[2]
         v0 = self.regManager.allocReg(unrollN)
         self.one = self.regManager.allocReg1()
-        self.A0 = self.regManager.allocReg1()
-        self.tbl1L = self.regManager.allocReg1()
-        self.tbl1H = self.regManager.allocReg1()
-        self.tbl2L = self.regManager.allocReg1()
-        self.tbl2H = self.regManager.allocReg1()
+        self.tbl1 = self.regManager.allocReg1()
+        self.tbl2 = self.regManager.allocReg1()
 
         vmovaps(self.one, ptr(rip+'log2_f1'))
-        vmovaps(self.A0, ptr(rip+'log2_A0'))
-        vmovaps(self.tbl1L, ptr(rip+'log2_tbl1'))
-        vmovaps(self.tbl1H, ptr(rip+'log2_tbl1'+32))
-        vmovaps(self.tbl2L, ptr(rip+'log2_tbl2'))
-        vmovaps(self.tbl2H, ptr(rip+'log2_tbl2'+32))
+        vmovaps(self.tbl1, ptr(rip+'log2_tbl1'))
+        vmovaps(self.tbl2, ptr(rip+'log2_tbl2'))
 
         LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
