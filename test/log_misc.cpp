@@ -8,6 +8,7 @@
 #include <cybozu/benchmark.hpp>
 #include <cybozu/xorshift.hpp>
 #include "reference.hpp"
+//#include "../fmath_old.hpp"
 
 inline float vpermps(float x, const float *tbl)
 {
@@ -332,6 +333,23 @@ void bench()
 		clk.put("std::logf");
 		printf("y=%e\n", y);
 	}
+#if 0
+	{
+		cybozu::CpuClock clk;
+		cybozu::XorShift rg;
+		float y = 0;
+		for (int i = 0; i < C; i++) {
+			uint32_t v = rg.get32() & 0x3fffffff;
+			float x = u2f(v) + FLT_MIN;
+			clk.begin();
+			y += fmath_old::log(x);
+			clk.end();
+			x += 10.0/C;
+		}
+		clk.put("old::logf");
+		printf("y=%e\n", y);
+	}
+#endif
 }
 
 int main()
