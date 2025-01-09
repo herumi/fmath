@@ -5,6 +5,8 @@
 #include <math.h>
 #include <bit>
 #include "fmath.h"
+#include <cybozu/benchmark.hpp>
+#include <cybozu/xorshift.hpp>
 
 inline uint32_t f2u(float x)
 {
@@ -133,6 +135,7 @@ evalf(s,25);
 static float minx = 100;
 static float maxx = -100;
 
+#if 0
 float my_logf2(float x)
 {
 	float expo = vgetexpps(x);
@@ -163,6 +166,7 @@ if (t > maxx) maxx = t;
 	float ret  = fma(poly, t, fma(expo, log2, logs));
 	return ret;
 }
+#endif
 
 void init()
 {
@@ -400,13 +404,43 @@ void roundTest()
 	puts("roundTest");
 	printf("AAA=%f\n", u2f(0x3fb80000)*16);
 	for (float x = 1; x < 2; x += 1/16.0) {
-#if 0
-		my_logf2(x);
-#else
 		float mant = vgetmantps(x);
 		float idxf = x + 0x1.p+20;
 		printf("x=%f(%08x:%.6a) mant=%f idx=%d %c\n", x, f2u(x), x, mant, f2u(idxf)&7, mant >= 0x1.78p+0f ? 'o' : '-');
-#endif
+	}
+}
+
+void bench()
+{
+	const int C = 1000000;
+	{
+		cybozu::CpuClock clk;
+		cybozu::XorShift rg;
+		float y = 0;
+		for (int i = 0; i < C; i++) {
+			uint32_t v = rg.get32() & 0x3fffffff;
+			float x = u2f(v) + FLT_MIN;
+			clk.begin();
+			y += fmath_logf(x);
+			clk.end();
+		}
+		clk.put("fmath_logf");
+		printf("y=%e\n", y);
+	}
+	{
+		cybozu::CpuClock clk;
+		cybozu::XorShift rg;
+		float y = 0;
+		for (int i = 0; i < C; i++) {
+			uint32_t v = rg.get32() & 0x3fffffff;
+			float x = u2f(v) + FLT_MIN;
+			clk.begin();
+			y += logf(x);
+			clk.end();
+			x += 10.0/C;
+		}
+		clk.put("std::logf");
+		printf("y=%e\n", y);
 	}
 }
 
@@ -419,16 +453,8 @@ int main()
 	init();
 	search2();
 	init2();
-	roundTest();
-	for (int i = 0; i < 32; i++) {
-		float x = (i + 1) / 15.;
-		float a = logf(x);
-		float b = fmath_logf(x);
-		float c = my_logf2(x);
-		printf("x=%f std=%f my=%f my2=%f diff=%e %e\n", x, a, b, c, fabs(a - b), fabs(a - c));
-	}
-//	puts("my_log2");
-//	count(my_logf2);
+	bench();
+//	roundTest();
 	puts("fmath::log");
 	count(fmath_logf);
 	printf("minx=%f(%.6a) maxx=%f(%.6a)\n", minx, minx, maxx, maxx);

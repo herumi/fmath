@@ -38,8 +38,11 @@ inline float vgetmantps(float x)
 
 extern "C" float fmath_logf(float x)
 {
+#if 0
+#else
 	float expo = vgetexpps(x);
 	float mant = vgetmantps(x);
+#endif
 	const float ROUND = 1<<(23-logc_L);//0x1.p+20f;
 	const float BOUND = 1.5f - 1.0f/(1<<(logc_L+1)); // 23/16=1+1/2-1/16
 	uint32_t idx = f2u(mant + ROUND) & mask(logc_L);
