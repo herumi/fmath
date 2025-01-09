@@ -37,17 +37,26 @@ float diff(float x, float y)
 	return fabs(x) > 1e-10 ? d / fabs(x) : d;
 }
 
-void std_log_v(float *dst, const float *src, size_t n)
+// array version by std::logf
+void std_logf_v(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
 		dst[i] = std::log(src[i]);
 	}
 }
 
-float fmath_logf(float x)
+// array version by fmath::logf (slow)
+void fmath_logf_v_slow(float *dst, const float *src, size_t n)
+{
+	for (size_t i = 0; i < n; i++) {
+		dst[i] = fmath_logf(src[i]);
+	}
+}
+// single version by fmath::logf_v (slow) for same interface of std::logf
+float fmath_logf_slow(float x)
 {
 	float y;
-	fmath::logf_v(&y, &x, 1);
+	fmath_logf_v(&y, &x, 1);
 	return y;
 }
 
@@ -94,12 +103,12 @@ CYBOZU_TEST_AUTO(first)
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("fmath::logf_v");
-	putDiff(1, 2, 1e-6, fmath_logf);
-	putDiff(2, 3, 1e-6, fmath_logf);
-	putDiff(0.99, 1.01, 1e-6, fmath_logf);
-	putDiff(1, 1.01, 1e-6, fmath_logf);
-	putDiff(0.99, 1, 1e-6, fmath_logf);
-	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf);
+	putDiff(1, 2, 1e-6, fmath_logf_slow);
+	putDiff(2, 3, 1e-6, fmath_logf_slow);
+	putDiff(0.99, 1.01, 1e-6, fmath_logf_slow);
+	putDiff(1, 1.01, 1e-6, fmath_logf_slow);
+	putDiff(0.99, 1, 1e-6, fmath_logf_slow);
+	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf_slow);
 	printf("g_maxe=%e\n", g_maxe);
 }
 
@@ -137,10 +146,16 @@ CYBOZU_TEST_AUTO(bench)
 		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
 	printf("for float x[%zd];\n", n);
-	CYBOZU_BENCH_C("", C, std_log_v, &y0[0], &x[0], n);
-	putClk("std_log_v", C * (n / 32));
+
+	CYBOZU_BENCH_C("", C, std_logf_v, &y0[0], &x[0], n);
+	putClk("std_logf_v", C * (n / 32));
+
+	CYBOZU_BENCH_C("", C, fmath_logf_v_slow, &y1[0], &x[0], n);
+	putClk("fmath_logf(C)", C * (n / 32));
+
 	CYBOZU_BENCH_C("", C, fmath_logf_v, &y1[0], &x[0], n);
 	putClk("fmath::logf_v", C * (n / 32));
+
 	checkDiff(y0.data(), y1.data(), n);
 }
 
@@ -150,7 +165,7 @@ CYBOZU_TEST_AUTO(limit)
 	const size_t n = sizeof(x) / sizeof(x[0]);
 	float y0[n];
 	float y1[n];
-	std_log_v(y0, x, n);
+	std_logf_v(y0, x, n);
 	fmath::logf_v(y1, x, n);
 	for (size_t i = 0; i < n; i++) {
 		printf("x=%.8e std=%.8e fmath2=%.8e diff=%e\n", x[i], y0[i], y1[i], diff(y0[i], y1[i]));
@@ -183,14 +198,14 @@ int main(int argc, char *argv[])
 	puts("small");
 	for (float x = 1e-3; x < 0.03; x += 1e-3) {
 		float y = logf(x);
-		float z = fmath_logf(x);
+		float z = fmath_logf_slow(x);
 		float d = fabs(y - z);
 		printf("x=%f y=%f z=%f %e\n", x, y, z, d);
 	}
 	puts("large");
 	for (float x = 0.1; x < 1; x += 0.1) {
 		float y = logf(x);
-		float z = fmath_logf(x);
+		float z = fmath_logf_slow(x);
 		float d = fabs(y - z);
 		printf("x=%f y=%f z=%f %e\n", x, y, z, d);
 	}

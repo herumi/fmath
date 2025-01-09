@@ -31,14 +31,18 @@ src/fmath.S: src/gen_fmath.py src/s_xbyak.py
 src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m masm > $@
 
+LOG_L?=5
+src/table.h: src/gen_fmath.py
+	$(PYTHON) $< -t $(LOG_L) > $@
+
 update:
 	$(MAKE) src/fmath.S src/fmath.asm
 
 obj/%.o: %.cpp include/fmath.h
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
-obj/cpu.o: cpu.cpp include/fmath.h
-	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d) -fno-exceptions -fno-rtti -fno-threadsafe-statics
+obj/cpu.o: cpu.cpp include/fmath.h src/table.h
+	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d) -fno-exceptions -fno-rtti -fno-threadsafe-statics #-fvisibility=hidden
 
 bin/%.exe: obj/%.o $(LIB)
 	$(CXX) -o $@ $< $(LDFLAGS)

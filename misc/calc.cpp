@@ -1,0 +1,436 @@
+#include <stdio.h>
+#include <memory.h>
+#include <stdint.h>
+#include <float.h>
+#include <math.h>
+#include <bit>
+#include "fmath.h"
+
+inline uint32_t f2u(float x)
+{
+	return std::bit_cast<uint32_t>(x);
+}
+
+inline float u2f(uint32_t x)
+{
+	return std::bit_cast<float>(x);
+}
+
+inline uint64_t d2u(double x)
+{
+	return std::bit_cast<uint64_t>(x);
+}
+
+inline double u2d(uint64_t x)
+{
+	return std::bit_cast<double>(x);
+}
+
+inline uint32_t mask(uint32_t x)
+{
+	return (1u << x) - 1;
+}
+
+inline float vgetexpps(float x)
+{
+	return ((f2u(x) << 1) >> 24) - 127.f;
+}
+
+inline float vgetmantps(float x)
+{
+	return u2f((f2u(x) & 0x00ffffff) | f2u(1.0f));
+}
+
+inline float vpermps(float x, const float *tbl)
+{
+	return tbl[f2u(x) & 0xf];
+}
+
+float invs_table[16] = {
+	0x1.000000p+0f, // 16/16
+	0x1.e1e1e2p-1f, // 16/17
+	0x1.c71c72p-1f, // 16/18
+	0x1.af286cp-1f, // 16/19
+	0x1.99999ap-1f, // 16/20
+	0x1.861862p-1f, // 16/21
+	0x1.745d18p-1f, // 16/22
+	0x1.642c86p-1f, // 16/23
+	0x1.555556p+0f, // 32/24
+	0x1.47ae14p+0f, // 32/25
+	0x1.3b13b2p+0f, // 32/26
+	0x1.2f684cp+0f, // 32/27
+	0x1.24924ap+0f, // 32/28
+	0x1.1a7b96p+0f, // 32/29
+	0x1.111112p+0f, // 32/30
+	0x1.084550p+0f, // ~32/31
+};
+float logs_table[16] = {
+	+0x0.000000p+0f,
+	+0x1.f0a30ap-5f,
+	+0x1.e27074p-4f,
+	+0x1.5ff306p-3f,
+	+0x1.c8ff7ap-3f,
+	+0x1.1675cap-2f,
+	+0x1.4618bap-2f,
+	+0x1.739d7ep-2f,
+	-0x1.269624p-2f,
+	-0x1.f991c4p-3f,
+	-0x1.a93ed8p-3f,
+	-0x1.5bf408p-3f,
+	-0x1.1178eep-3f,
+	-0x1.9335e4p-4f,
+	-0x1.08599ap-4f,
+	-0x1.047a88p-5f,
+};
+
+float my_logf(float x)
+{
+	float expo = vgetexpps(x);
+	float mant = vgetmantps(x);
+	float idxf = mant + 0x1.p+19;
+	if (mant >= 0x1.78p+0f) {
+		expo += 1.0f;
+		mant *= 0.5f;
+	}
+
+	float invs = vpermps(idxf, invs_table);
+	float t    = fma(mant, invs, -1.0f);
+	float logs = vpermps(idxf, logs_table);
+
+	float poly = fma(fma(fma(-0x1.fe9d24p-3f, t, 0x1.557ee2p-2f), t, -0x1.00000cp-1f), t, 1.0f);
+//    float log2 = log(2);
+	const float log2 = 0x1.62e430p-1f;
+	float ret  = fma(poly, t, fma(expo, log2, logs));
+	return ret;
+}
+
+float invs_table2[8] = {
+};
+
+float logs_table2[16] = {
+};
+
+float vpermps2(float x, const float *tbl)
+{
+	return tbl[f2u(x) & 0x7];
+}
+
+#if 0
+#define PUT(...) printf(__VA_ARGS__)
+#else
+#define PUT(...)
+#endif
+
+/*
+f:=x->x+A*x^2+B*x^3+C*x^4+D*x^5;
+g:=int((f(x)-log(1+x))^2,x=-0.5/9..0.5/8);
+sols:= solve({diff(g,A)=0,diff(g,B)=0,diff(g,C)=0,diff(g,D)=0},{A,B,C,D});
+Digits:=100;
+s:=eval(sols);
+evalf(s,25);
+*/
+
+static float minx = 100;
+static float maxx = -100;
+
+float my_logf2(float x)
+{
+	float expo = vgetexpps(x);
+	float mant = vgetmantps(x);
+	const float ROUND = 1<<(23-3);//0x1.p+20f;
+	const float BOUND = 0x1.7p+0f; // 23/16=1+7/16
+	float idxf = mant + ROUND;
+	PUT("x=%f(%08x:%.6a) expo=%d mant=%f idx=0x%x %c\n", x, f2u(x), x, int(expo), mant, f2u(idxf)&7, mant >= BOUND ? 'o' : '-');
+	if (mant >= BOUND) {
+		expo += 1.0f;
+		mant *= 0.5f;
+	}
+
+	float invs = vpermps2(idxf, invs_table2);
+	float t    = fma(mant, invs, -1.0f);
+if (t < minx) minx = t;
+if (t > maxx) maxx = t;
+	float logs = vpermps2(idxf, logs_table2);
+	PUT("invs=%f t=%f\n", invs, t);
+
+	float A = -.4999993134703166062199020;
+	float B = .3333377208103342588645233;
+	float C = -.2507196324449547040133221;
+	float D = .1983421366559079527220503;
+	float poly = fma(fma(fma(fma(D, t, C), t, B), t, A), t, 1.0f);
+//    float log2 = log(2);
+	const float log2 = 0x1.62e430p-1f;
+	float ret  = fma(poly, t, fma(expo, log2, logs));
+	return ret;
+}
+
+void init()
+{
+	for (int i = 0; i < 16; i++) {
+		float a = (i < 8) ? 16.0 / (16 + i) : 32.0 / (i + 16);
+		float b = -log(a);
+		printf("%.6a %.6a\n", a, b);
+		if (a != invs_table[i]) {
+			printf("ERR i=%d\n", i);
+		}
+		if (b != logs_table[i]) {
+			printf("ERR i=%d\n", i);
+		}
+	}
+}
+
+void init2()
+{
+	for (int i = 0; i < 8; i++) {
+		float v = 1 + i/8.0;
+		float a = (i < 4) ? 1/v : 2/v;
+		invs_table2[i] = a;
+		logs_table2[i] = -log(a);
+	}
+	printf("[7] %f %f\n", invs_table2[7], logs_table2[7]);
+//	invs_table2[7] = 0x1.111814p+0; // +
+//	logs_table2[7] = -0x1.08c2b6p-4;
+	invs_table2[7] = 0x1.110a0ep+0; // -
+	logs_table2[7] = -0x1.07f05cp-4;
+
+	invs_table2[6] = 0x1.248eeep+0; // -
+	logs_table2[6] = -0x1.11616ap-3;
+
+	invs_table2[1] = 0x1.c72440p-1; // +
+	logs_table2[1] = 0x1.e22a37p-4;
+
+//	invs_table2[1] = 0x1.c714a4p-1; // -
+//	logs_table2[1] = 0x1.e2b6b3p-4;
+
+	puts("inv");
+	for (int i = 0; i < 8; i++) {
+		printf("%.6a,\n", invs_table2[i]);
+	}
+	puts("logs");
+	for (int i = 0; i < 8; i++) {
+		printf("%.6a,\n", logs_table2[i]);
+	}
+}
+
+void search()
+{
+	float mina = 0;
+	double mind = 1;
+	for (int i = 0; i < 1000; i++) {
+		float a = u2f(f2u(32 / 31.) + i);
+		double b = log(a);
+		float c = b;
+		double d = fabs(b - c);
+		if (d < mind) {
+			mina = a;
+			mind = d;
+		}
+	}
+	puts("search1");
+	printf("mind=%e\n", mind);
+	printf("a=%.6a -log(a)=%.6a\n", mina, -log(mina));
+}
+
+void search2()
+{
+	float mina = 0;
+	double mind = 1;
+	for (int i = 0; i < 1000; i++) {
+		float a = u2f(f2u(8/9.) + i);
+		double b = log(a);
+		float c = b;
+		double d = fabs(b - c);
+		if (d < mind) {
+			mina = a;
+			mind = d;
+		}
+	}
+	puts("search2");
+	printf("mind=%e\n", mind);
+	printf("a=%.6a -log(a)=%.6a\n", mina, -log(mina));
+}
+
+/*
+my_log(x) for x in [FLT_MIN, FLT_MAX]
+eq= 2057411156
+le1=  71155775
+gt1=   2136209
+le2=       655
+gt2=      2632
+err=         5
+
+modify table2[7]
+// [7] search by float a = u2f(f2u(16 / 15.) + i);
+eq= 2057795224
+le1=  70716460
+gt1=   2191840
+le2=       271
+gt2=      2632
+err=         5
+
+// [7] search by float a = u2f(f2u(16 / 15.) - i);
+eq= 2057795975
+le1=  70716128
+gt1=   2191421
+le2=       271
+gt2=      2632
+err=         5
+
+// [6] float a = u2f(f2u(16 / 14.) - i);
+eq= 2057867299
+le1=  70726581
+gt1=   2109644
+le2=       271
+gt2=      2632
+err=         5
+
+// [6] float a = u2f(f2u(16 / 14.) + i);
+eq= 2057866938
+le1=  70726618
+gt1=   2109968
+le2=       271
+gt2=      2632
+err=         5
+
+// [1] float a = u2f(f2u(8/9.) + i);
+eq= 2058067311
+le1=  70904393
+gt1=   1732814
+le2=      1878
+gt2=        36
+err=         0
+minx=-0.055492(-0x1.c69788p-5) maxx=0.062500(0x1.000000p-4)
+gcc
+eq= 1594866282
+le1= 301833446
+gt1= 234004021
+le2=      1764
+gt2=       919
+err=         0
+*/
+struct DiffCounter {
+	uint32_t eq;
+	uint32_t le1, le2, gt1, gt2;
+	uint32_t err;
+	DiffCounter()
+		: eq(0), le1(0), le2(0), gt1(0), gt2(0), err(0) {}
+	bool cmp(float x1, float x2)
+	{
+		uint32_t u1 = f2u(x1);
+		uint32_t u2 = f2u(x2);
+		if (u1 == u2) {
+			eq++;
+			return true;
+		}
+		if (u1 + 1 == u2) {
+			le1++;
+			return true;
+		}
+		if (u1 + 2 == u2) {
+			le2++;
+			return true;
+		}
+		if (u1 == u2 + 1) {
+			gt1++;
+			return true;
+		}
+		if (u1 == u2 + 2) {
+			gt2++;
+			return true;
+		}
+		err++;
+		return false;
+	}
+	void put() const
+	{
+		printf("eq=% 10d\n", eq);
+		printf("le1=% 10d\n", le1);
+		printf("gt1=% 10d\n", gt1);
+		printf("le2=% 10d\n", le2);
+		printf("gt2=% 10d\n", gt2);
+		printf("err=% 10d\n", err);
+	}
+};
+
+void count(float f(float))
+{
+	puts("count");
+	DiffCounter dc;
+	float begin = FLT_MIN;
+	float end = FLT_MAX;
+	for (uint32_t u = f2u(begin); u <= f2u(end); u++) {
+		float x = u2f(u);
+		float a = logf(x);
+		float b = f(x);
+		if (!dc.cmp(a, b)) {
+			printf("u=%08x x=%f a=%f(%.6a) b=%f(%.6a) diff=%d\n", u, x, a, a, b, b, abs(int(f2u(a)) - int(f2u(b))));
+		}
+	}
+	dc.put();
+}
+
+/*
+AVX-512 with gcc
+eq= 1597497689
+le1= 302549878
+gt1= 230658864
+le2=         0
+gt2=         1
+err=         0
+
+AVX2 with Visual Studio
+eq= 1594885605
+le1= 301859683
+gt1= 233959218
+le2=      1891
+gt2=        35
+err=         0
+
+AVX2 with gcc
+eq= 1594866282
+le1= 301833446
+gt1= 234004021
+le2=      1764
+gt2=       919
+err=         0
+*/
+
+void roundTest()
+{
+	puts("roundTest");
+	printf("AAA=%f\n", u2f(0x3fb80000)*16);
+	for (float x = 1; x < 2; x += 1/16.0) {
+#if 0
+		my_logf2(x);
+#else
+		float mant = vgetmantps(x);
+		float idxf = x + 0x1.p+20;
+		printf("x=%f(%08x:%.6a) mant=%f idx=%d %c\n", x, f2u(x), x, mant, f2u(idxf)&7, mant >= 0x1.78p+0f ? 'o' : '-');
+#endif
+	}
+}
+
+int main()
+{
+//	testNext();
+	printf("half=%e %e\n", 0x1.8p+0, 0x1.78p+0);
+	printf("log2=%.6a\n", log(2.0f));
+	search();
+	init();
+	search2();
+	init2();
+	roundTest();
+	for (int i = 0; i < 32; i++) {
+		float x = (i + 1) / 15.;
+		float a = logf(x);
+		float b = fmath_logf(x);
+		float c = my_logf2(x);
+		printf("x=%f std=%f my=%f my2=%f diff=%e %e\n", x, a, b, c, fabs(a - b), fabs(a - c));
+	}
+//	puts("my_log2");
+//	count(my_logf2);
+	puts("fmath::log");
+	count(fmath_logf);
+	printf("minx=%f(%.6a) maxx=%f(%.6a)\n", minx, minx, maxx, maxx);
+	// minx=-0.055555(-0x1.c71c36p-5) maxx=0.062500(0x1.000000p-4)
+}

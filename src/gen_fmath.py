@@ -610,12 +610,49 @@ class LogGenAVX2(Algo):
 
         LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
+def castTof32(x):
+  return uint2float(float2uint(x))
+
+def f2hex(x):
+  s = castTof32(x).hex().replace('0000000p', 'p')
+  return s
+
+def genTable(L):
+  n = 2**L
+
+  print(f'#define logc_L {L}')
+  print('static const struct Table { float inv, mlog; } logc_tbl[] = {')
+  for i in range(n):
+    v = 1 + i/n
+    if i < n//2:
+      a = 1/v
+    else:
+      a = 2/v
+    a = castTof32(a)
+    if L == 3:
+      if i == 1:
+        a = parseHexFloat('0x1.c714a4p-1')
+      elif i == 6:
+        a = parseHexFloat('0x1.248eeep+0')
+      elif i == 7:
+        a = parseHexFloat('0x1.110a0ep+0')
+    b = -math.log(a)
+
+    print(f'{{{f2hex(a)},{f2hex(b)}}},', end='')
+    if i % 8 == 7:
+      print()
+  print('};')
+
 def main():
   parser = getDefaultParser()
   parser.add_argument('-exp_un', '--exp_unrollN', help='number of unroll exp', type=int, default=7)
   parser.add_argument('-log_un', '--log_unrollN', help='number of unroll log', type=int, default=4)
+  parser.add_argument('-t', '--table', help='bit size of table', type=int, default=0)
   global param
   param = parser.parse_args()
+  if param.table > 0:
+    genTable(param.table)
+    return
 
   init(param)
   segment('data')
