@@ -5,6 +5,7 @@
 #include <float.h>
 #include <vector>
 #include <cmath>
+#include "reference.hpp"
 
 namespace local {
 
@@ -49,7 +50,7 @@ void std_logf_v(float *dst, const float *src, size_t n)
 void fmath_logf_v_slow(float *dst, const float *src, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
-		dst[i] = fmath_logf(src[i]);
+		dst[i] = fmath_logfC(src[i]);
 	}
 }
 // single version by fmath::logf_v (slow) for same interface of std::logf
@@ -143,7 +144,7 @@ CYBOZU_TEST_AUTO(bench)
 	y1.resize(n);
 	const int C = 30000;
 	for (size_t i = 0; i < n; i++) {
-		x[i] = abs(sin(i / double(n) * 7) * 20 + 1e-8);
+		x[i] = fabs(sin(i / double(n) * 7) * 20 + 1e-8);
 	}
 	printf("for float x[%zd];\n", n);
 
@@ -151,7 +152,7 @@ CYBOZU_TEST_AUTO(bench)
 	putClk("std_logf_v", C * (n / 32));
 
 	CYBOZU_BENCH_C("", C, fmath_logf_v_slow, &y1[0], &x[0], n);
-	putClk("fmath_logf(C)", C * (n / 32));
+	putClk("fmath_logfC", C * (n / 32));
 
 	CYBOZU_BENCH_C("", C, fmath_logf_v, &y1[0], &x[0], n);
 	putClk("fmath::logf_v", C * (n / 32));

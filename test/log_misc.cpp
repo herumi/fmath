@@ -7,41 +7,7 @@
 #include "fmath.h"
 #include <cybozu/benchmark.hpp>
 #include <cybozu/xorshift.hpp>
-
-inline uint32_t f2u(float x)
-{
-	return std::bit_cast<uint32_t>(x);
-}
-
-inline float u2f(uint32_t x)
-{
-	return std::bit_cast<float>(x);
-}
-
-inline uint64_t d2u(double x)
-{
-	return std::bit_cast<uint64_t>(x);
-}
-
-inline double u2d(uint64_t x)
-{
-	return std::bit_cast<double>(x);
-}
-
-inline uint32_t mask(uint32_t x)
-{
-	return (1u << x) - 1;
-}
-
-inline float vgetexpps(float x)
-{
-	return ((f2u(x) << 1) >> 24) - 127.f;
-}
-
-inline float vgetmantps(float x)
-{
-	return u2f((f2u(x) & 0x00ffffff) | f2u(1.0f));
-}
+#include "reference.hpp"
 
 inline float vpermps(float x, const float *tbl)
 {
@@ -106,12 +72,6 @@ float my_logf(float x)
 	return ret;
 }
 
-float invs_table2[8] = {
-};
-
-float logs_table2[16] = {
-};
-
 float vpermps2(float x, const float *tbl)
 {
 	return tbl[f2u(x) & 0x7];
@@ -131,90 +91,6 @@ Digits:=100;
 s:=eval(sols);
 evalf(s,25);
 */
-
-static float minx = 100;
-static float maxx = -100;
-
-#if 0
-float my_logf2(float x)
-{
-	float expo = vgetexpps(x);
-	float mant = vgetmantps(x);
-	const float ROUND = 1<<(23-3);//0x1.p+20f;
-	const float BOUND = 0x1.7p+0f; // 23/16=1+7/16
-	float idxf = mant + ROUND;
-	PUT("x=%f(%08x:%.6a) expo=%d mant=%f idx=0x%x %c\n", x, f2u(x), x, int(expo), mant, f2u(idxf)&7, mant >= BOUND ? 'o' : '-');
-	if (mant >= BOUND) {
-		expo += 1.0f;
-		mant *= 0.5f;
-	}
-
-	float invs = vpermps2(idxf, invs_table2);
-	float t    = fma(mant, invs, -1.0f);
-if (t < minx) minx = t;
-if (t > maxx) maxx = t;
-	float logs = vpermps2(idxf, logs_table2);
-	PUT("invs=%f t=%f\n", invs, t);
-
-	float A = -.4999993134703166062199020;
-	float B = .3333377208103342588645233;
-	float C = -.2507196324449547040133221;
-	float D = .1983421366559079527220503;
-	float poly = fma(fma(fma(fma(D, t, C), t, B), t, A), t, 1.0f);
-//    float log2 = log(2);
-	const float log2 = 0x1.62e430p-1f;
-	float ret  = fma(poly, t, fma(expo, log2, logs));
-	return ret;
-}
-#endif
-
-void init()
-{
-	for (int i = 0; i < 16; i++) {
-		float a = (i < 8) ? 16.0 / (16 + i) : 32.0 / (i + 16);
-		float b = -log(a);
-		printf("%.6a %.6a\n", a, b);
-		if (a != invs_table[i]) {
-			printf("ERR i=%d\n", i);
-		}
-		if (b != logs_table[i]) {
-			printf("ERR i=%d\n", i);
-		}
-	}
-}
-
-void init2()
-{
-	for (int i = 0; i < 8; i++) {
-		float v = 1 + i/8.0;
-		float a = (i < 4) ? 1/v : 2/v;
-		invs_table2[i] = a;
-		logs_table2[i] = -log(a);
-	}
-	printf("[7] %f %f\n", invs_table2[7], logs_table2[7]);
-//	invs_table2[7] = 0x1.111814p+0; // +
-//	logs_table2[7] = -0x1.08c2b6p-4;
-	invs_table2[7] = 0x1.110a0ep+0; // -
-	logs_table2[7] = -0x1.07f05cp-4;
-
-	invs_table2[6] = 0x1.248eeep+0; // -
-	logs_table2[6] = -0x1.11616ap-3;
-
-	invs_table2[1] = 0x1.c72440p-1; // +
-	logs_table2[1] = 0x1.e22a37p-4;
-
-//	invs_table2[1] = 0x1.c714a4p-1; // -
-//	logs_table2[1] = 0x1.e2b6b3p-4;
-
-	puts("inv");
-	for (int i = 0; i < 8; i++) {
-		printf("%.6a,\n", invs_table2[i]);
-	}
-	puts("logs");
-	for (int i = 0; i < 8; i++) {
-		printf("%.6a,\n", logs_table2[i]);
-	}
-}
 
 void search()
 {
@@ -356,19 +232,33 @@ struct DiffCounter {
 	}
 };
 
-void count(float f(float))
+void count(void f(float *, const float *, size_t))
 {
 	puts("count");
 	DiffCounter dc;
-	float begin = FLT_MIN;
-	float end = FLT_MAX;
-	for (uint32_t u = f2u(begin); u <= f2u(end); u++) {
-		float x = u2f(u);
-		float a = logf(x);
-		float b = f(x);
-		if (!dc.cmp(a, b)) {
-			printf("u=%08x x=%f a=%f(%.6a) b=%f(%.6a) diff=%d\n", u, x, a, a, b, b, abs(int(f2u(a)) - int(f2u(b))));
+	uint32_t begin = f2u(FLT_MIN);
+	uint32_t end = f2u(FLT_MAX);
+	size_t remain = end - begin + 1;
+	uint32_t u = begin;
+	const size_t N = 4096;
+	float xa[N], aa[N], ba[N];
+	while (remain > 0) {
+		size_t n = (std::min)(N, remain);
+		for (size_t i = 0; i < n; i++) {
+			xa[i] = u2f(u + i);
+			aa[i] = logf(xa[i]);
 		}
+		f(ba, xa, n);
+		for (size_t i = 0; i < n; i++) {
+			float x = xa[i];
+			float a = aa[i];
+			float b = ba[i];
+			if (!dc.cmp(a, b)) {
+				printf("u=%08x x=%f a=%f(%.6a) b=%f(%.6a) diff=%d\n", f2u(x), x, a, a, b, b, abs(int(f2u(a)) - int(f2u(b))));
+			}
+		}
+		remain -= n;
+		u += n;
 	}
 	dc.put();
 }
@@ -421,10 +311,10 @@ void bench()
 			uint32_t v = rg.get32() & 0x3fffffff;
 			float x = u2f(v) + FLT_MIN;
 			clk.begin();
-			y += fmath_logf(x);
+			y += fmath_logfC(x);
 			clk.end();
 		}
-		clk.put("fmath_logf");
+		clk.put("fmath_logfC");
 		printf("y=%e\n", y);
 	}
 	{
@@ -450,13 +340,11 @@ int main()
 	printf("half=%e %e\n", 0x1.8p+0, 0x1.78p+0);
 	printf("log2=%.6a\n", log(2.0f));
 	search();
-	init();
 	search2();
-	init2();
 	bench();
 //	roundTest();
 	puts("fmath::log");
-	count(fmath_logf);
-	printf("minx=%f(%.6a) maxx=%f(%.6a)\n", minx, minx, maxx, maxx);
+	count(fmath_logf_v);
+//	printf("minx=%f(%.6a) maxx=%f(%.6a)\n", minx, minx, maxx, maxx);
 	// minx=-0.055555(-0x1.c71c36p-5) maxx=0.062500(0x1.000000p-4)
 }

@@ -12,8 +12,6 @@ extern "C" {
 
 void fmath_init(); // select AVX-512 functions if it is available
 
-float fmath_logf(float x);
-
 void fmath_expf_v_avx512(float *dst, const float *src, size_t n);
 void fmath_logf_v_avx512(float *dst, const float *src, size_t n);
 
@@ -43,11 +41,6 @@ inline void expf_v(float *dst, const float *src, size_t n)
 inline void logf_v(float *dst, const float *src, size_t n)
 {
 	fmath_logf_v(dst, src, n);
-}
-
-inline float logf(float x)
-{
-	return fmath_logf(x);
 }
 
 } // fmath

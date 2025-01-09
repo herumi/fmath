@@ -1,6 +1,6 @@
 PYTHON?=python3
-INC_DIR= -I../src  -I./include
-CFLAGS += $(INC_DIR) -O2 -DNDEBUG
+INC_DIR= -I../src  -I./include -I./test
+CFLAGS += $(INC_DIR) -O2 -DNDEBUG -std=c++20 -mfma
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 LDFLAGS=-L lib -lfmath
@@ -32,16 +32,16 @@ src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m masm > $@
 
 LOG_L?=5
-src/table.h: src/gen_fmath.py
+test/table.h: src/gen_fmath.py
 	$(PYTHON) $< -t $(LOG_L) > $@
 
 update:
 	$(MAKE) src/fmath.S src/fmath.asm
 
-obj/%.o: %.cpp include/fmath.h
+obj/%.o: %.cpp include/fmath.h test/table.h
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d)
 
-obj/cpu.o: cpu.cpp include/fmath.h src/table.h
+obj/cpu.o: cpu.cpp include/fmath.h
 	$(CXX) -c -o $@ $< $(CFLAGS) -MMD -MP -MF $(@:.o=.d) -fno-exceptions -fno-rtti -fno-threadsafe-statics #-fvisibility=hidden
 
 bin/%.exe: obj/%.o $(LIB)
@@ -94,7 +94,7 @@ log_unroll: obj/log_v.o
 	@sh -ec 'for i in 1 2 3 4 5; do echo LOG_UN=$$i; make -s log_unroll_n LOG_UN=$$i; done'
 
 clean:
-	$(RM) obj/*.o $(TARGET) bin/*.exe src/*.S
+	$(RM) obj/*.o obj/*.d $(TARGET) bin/*.exe src/*.S
 
 test: bin/exp_v.exe bin/log_v.exe
 	bin/exp_v.exe
