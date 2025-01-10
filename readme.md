@@ -63,6 +63,8 @@ fmath_expf_v(dst, src, n);  // dst[i] = exp(src[i])
 | logf_v   | 25.90       | 244.19    | 9.4x  |
 | expf_v   | 8.76        | 112.71    | 12.9x   |
 
+**Note**: Don't use these functions for small `n` because they are slow.
+
 # License
 
 - modified new BSD License
