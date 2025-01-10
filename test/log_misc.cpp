@@ -114,21 +114,36 @@ void search()
 
 void search2()
 {
-	float mina = 0;
-	double mind = 1;
-	for (int i = 0; i < 1000; i++) {
-		float a = u2f(f2u(8/9.) + i);
-		double b = log(a);
-		float c = b;
-		double d = fabs(b - c);
-		if (d < mind) {
-			mina = a;
-			mind = d;
-		}
-	}
 	puts("search2");
-	printf("mind=%e\n", mind);
-	printf("a=%.6a -log(a)=%.6a\n", mina, -log(mina));
+	const int n = 8;
+	puts("invs_table = [");
+	for (int j = 0; j < n; j++) {
+		float mina = 0;
+		double mind = 1;
+		float v = 1 + j / float(n);
+		float a0 = j < n/2 ? 1/v : 2/v;
+		for (int i = 0; i < 1000; i++) {
+			float a = u2f(f2u(a0) + i);
+			double b = logl(a);
+			float c = b;
+			double d = fabs(b - c);
+			if (d < mind) {
+				mina = a;
+				mind = d;
+			}
+
+			a = u2f(f2u(a0) - i);
+			b = logl(a);
+			c = b;
+			d = fabs(b - c);
+			if (d < mind) {
+				mina = a;
+				mind = d;
+			}
+		}
+		printf("%.6a,\n", mina);
+	}
+	puts("]");
 }
 
 /*
@@ -233,12 +248,10 @@ struct DiffCounter {
 	}
 };
 
-void count(void f(float *, const float *, size_t))
+void count(float stdf(float), void f(float *, const float *, size_t), uint32_t begin, uint32_t end)
 {
 	puts("count");
 	DiffCounter dc;
-	uint32_t begin = f2u(FLT_MIN);
-	uint32_t end = f2u(FLT_MAX);
 	size_t remain = end - begin + 1;
 	uint32_t u = begin;
 	const size_t N = 4096;
@@ -247,7 +260,7 @@ void count(void f(float *, const float *, size_t))
 		size_t n = (std::min)(N, remain);
 		for (size_t i = 0; i < n; i++) {
 			xa[i] = u2f(u + i);
-			aa[i] = logf(xa[i]);
+			aa[i] = stdf(xa[i]);
 		}
 		f(ba, xa, n);
 		for (size_t i = 0; i < n; i++) {
@@ -352,17 +365,30 @@ void bench()
 #endif
 }
 
+void fmath_logfC_v(float *y, const float *x, size_t n)
+{
+	for (size_t i = 0; i < n; i++) {
+		y[i] = fmath_logfC(x[i]);
+	}
+}
+
 int main()
 {
 //	testNext();
 	printf("half=%e %e\n", 0x1.8p+0, 0x1.78p+0);
 	printf("log2=%.6a\n", log(2.0f));
-	search();
+//	search();
 	search2();
 	bench();
 //	roundTest();
 	puts("fmath::log");
-	count(fmath_logf_v);
-//	printf("minx=%f(%.6a) maxx=%f(%.6a)\n", minx, minx, maxx, maxx);
-	// minx=-0.055555(-0x1.c71c36p-5) maxx=0.062500(0x1.000000p-4)
+	count(logf, fmath_logf_v, f2u(FLT_MIN), f2u(FLT_MAX));
+#if 0
+	puts("fmath_logfC");
+	g_mint = 100;
+	g_maxt = -100;
+	count(logf, fmath_logfC_v, f2u(FLT_MIN), f2u(FLT_MAX));
+	printf("g_mint=%f(%.6a) g_maxt=%f(%.6a)\n", g_mint, g_mint, g_maxt, g_maxt);
+	// g_mint=-0.055492(-0x1.c69788p-5) g_maxt=0.062500(0x1.000000p-4)
+#endif
 }

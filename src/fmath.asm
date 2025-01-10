@@ -56,11 +56,9 @@ log2_log2:
 dd 3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h
 align 64
 log2_tbl1:
-dd 3f800000h,3f639220h,3f4ccccdh,3f3a2e8ch,3faaaaabh,3f9d89d9h,3f924777h,3f888507h
+dd 3f800000h,3f639220h,3f4ccccdh,3f3a2e8ch,3faaae92h,3f9d8dbfh,3f924777h,3f888507h
 log2_tbl2:
-dd 0h,3df1151ch,3e647fbdh,3ea30c5dh,0be934b12h,0be549f6ch,0be08b0b5h,0bd83f82eh
-log2_i7:
-dd 7,7,7,7,7,7,7,7
+dd 0h,3df1151ch,3e647fbdh,3ea30c5dh,0be9356c6h,0be54b8c3h,0be08b0b5h,0bd83f82eh
 _data$x ends
 _text$x segment align(64) execute
 align 16

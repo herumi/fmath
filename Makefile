@@ -31,7 +31,7 @@ src/fmath.S: src/gen_fmath.py src/s_xbyak.py
 src/fmath.asm: src/gen_fmath.py src/s_xbyak.py
 	$(PYTHON) $< -m masm > $@
 
-LOG_L?=5
+LOG_L?=3
 test/table.h: src/gen_fmath.py
 	$(PYTHON) $< -t $(LOG_L) > $@
 

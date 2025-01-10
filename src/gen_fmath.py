@@ -481,6 +481,18 @@ class LogGenAVX512(Algo):
         vfmadd213ss(v0, v3, v1) # v0 = t * poly + z
      """
 
+invs_table = """
+0x1.000000p+0,
+0x1.c72440p-1,
+0x1.99999ap-1,
+0x1.745d18p-1,
+0x1.555d24p+0,
+0x1.3b1b7ep+0,
+0x1.248eeep+0,
+0x1.110a0ep+0,
+"""
+invs_tableAVX2_L3 = parseHexFloat(invs_table)
+
 class LogGenAVX2(Algo):
   def __init__(self, unrollN, checkSign=False):
     super().__init__(unrollN)
@@ -503,23 +515,21 @@ class LogGenAVX2(Algo):
     putMem('log2_BOUND', 'f32', 1+7/16, N)
     putMem('log2_f1', 'f32', 1, N)
     putMem('log2_f0p5', 'f32', 0.5, N)
+    """
+f:=x->x+a*x^2+b*x^3+c*x^4+d*x^5;
+g:=int((f(x)-log(1+x))^2,x=-0.5/9..0.5/8);
+sols:= solve({diff(g,a)=0,diff(g,b)=0,diff(g,c)=0,diff(g,d)=0},{a,b,c,d});
+Digits:=100;
+s:=eval(sols);
+evalf(s,25);
+    """
     putMem('log2_A', 'f32', -.4999993134703166062199020, N)
     putMem('log2_B', 'f32',  .3333377208103342588645233, N)
     putMem('log2_C', 'f32', -.2507196324449547040133221, N)
     putMem('log2_D', 'f32',  .1983421366559079527220503, N)
     putMem('log2_log2', 'f32', float.fromhex('0x1.62e430p-1'), N)
 
-    invs_table = """
-      0x1.000000p+0,
-      0x1.c72440p-1,
-      0x1.99999ap-1,
-      0x1.745d18p-1,
-      0x1.555556p+0,
-      0x1.3b13b2p+0,
-      0x1.248eeep+0,
-      0x1.110a0ep+0,
-    """
-    logTbl1 = parseHexFloat(invs_table)
+    logTbl1 = invs_tableAVX2_L3
     logTbl2 = [0]
     for v in logTbl1[1:]:
       logTbl2.append(-math.log(v))
@@ -527,7 +537,6 @@ class LogGenAVX2(Algo):
     align(64)
     putMem('log2_tbl1', 'f32', logTbl1)
     putMem('log2_tbl2', 'f32', logTbl2)
-    putMem('log2_i7', 'u32', 7, 8) # 3 bit
 
 
   """
@@ -630,12 +639,7 @@ def genTable(L):
       a = 2/v
     a = castTof32(a)
     if L == 3:
-      if i == 1:
-        a = parseHexFloat('0x1.c714a4p-1')
-      elif i == 6:
-        a = parseHexFloat('0x1.248eeep+0')
-      elif i == 7:
-        a = parseHexFloat('0x1.110a0ep+0')
+      a = invs_tableAVX2_L3[i]
     b = -math.log(a)
 
     print(f'{{{f2hex(a)},{f2hex(b)}}},', end='')

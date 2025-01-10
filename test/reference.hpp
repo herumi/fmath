@@ -40,10 +40,13 @@ inline float vgetmantps(float x)
 	return u2f((f2u(x) & 0x00ffffff) | f2u(1.0f));
 }
 
+float g_mint = 100;
+float g_maxt = -100;
+
 float fmath_logfC(float x)
 {
 	const float BOUND = 1.5f - 1.0f/(1<<(logc_L+1)); // 23/16=1+1/2-1/16
-#if 0
+#if 1
 	const float ROUND = 1<<(23-logc_L);//0x1.p+20f;
 	float n = vgetexpps(x);
 	float a = vgetmantps(x);
@@ -69,6 +72,10 @@ float fmath_logfC(float x)
 
 	float invs = logc_tbl[idx].inv;
 	float t    = fma(a, invs, -1.0f);
+
+if (t < g_mint) g_mint = t;
+if (t > g_maxt) g_maxt = t;
+
 	float logs = logc_tbl[idx].mlog;
 
 #if logc_L == 3

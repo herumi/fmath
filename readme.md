@@ -1,4 +1,67 @@
+# Fast Approximation Functions for std::logf and std::expf Operations on Arrays
 
+This library provides fast approximation functions for array operations involving `std::logf` and `std::expf`. These functions are optimized for performance while maintaining reasonable accuracy for most practical applications.
+
+## Function Overview
+
+### Natural Logarithm Array Operation
+```cpp
+void fmath_logf_v(float *dst, const float *src, size_t n);
+```
+
+This function computes the natural logarithm of each element in the source array and stores the results in the destination array.
+
+### Exponential Array Operation
+```cpp
+void fmath_expf_v(float *dst, const float *src, size_t n);
+```
+
+This function computes the exponential (e^x) of each element in the source array and stores the results in the destination array.
+
+#### Parameters
+- `dst`: Pointer to the destination array where results will be stored
+- `src`: Pointer to the source array containing input values
+- `n`: Number of elements to process
+
+#### Usage Examples
+```cpp
+#include "fmath.hpp"
+
+const size_t n = 1000;
+float src[n] = {1.0f, 2.0f, 3.0f, /* ... */};
+float dst[n];
+
+// Natural logarithm operation
+fmath_logf_v(dst, src, n);
+// Now dst contains log(src[i]) for each i
+
+// Exponential operation
+fmath_expf_v(dst, src, n);
+// Now dst contains exp(src[i]) for each i
+```
+
+## Implementation Details
+
+- The function uses SIMD instructions for improved performance
+- Optimized for modern CPU architectures
+- Trade-off between accuracy and speed, suitable for most practical applications
+
+## Requirements
+
+- C++11 or later
+- CPU with SSE2 support (most modern processors)
+
+## Performance Considerations
+
+The approximation function is designed to be significantly faster than standard library implementations while maintaining reasonable accuracy. It is particularly effective for large arrays where the performance benefit becomes more pronounced.
+
+## License
+
+[License information to be added]
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 # fast approximate function of exponential function exp and log
 
 ## How to use
