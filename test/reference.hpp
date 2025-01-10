@@ -1,11 +1,15 @@
 #pragma once
 
+#ifdef __cpp_lib_bit_cast
 #include <bit>
+#else
+#include <memory.h>
+#endif
 #include "table.h"
 
 inline uint32_t f2u(float x)
 {
-#if 1
+#ifdef __cpp_lib_bit_cast
 	return std::bit_cast<uint32_t>(x);
 #else
 	uint32_t u;
@@ -16,7 +20,7 @@ inline uint32_t f2u(float x)
 
 inline float u2f(uint32_t x)
 {
-#if 1
+#ifdef __cpp_lib_bit_cast
 	return std::bit_cast<float>(x);
 #else
 	float f;
