@@ -4,6 +4,7 @@
 #include <float.h>
 #include <math.h>
 #include <bit>
+#include <algorithm>
 #include "fmath.h"
 #include <cybozu/benchmark.hpp>
 #include <cybozu/xorshift.hpp>
@@ -379,7 +380,7 @@ int main()
 	printf("log2=%.6a\n", log(2.0f));
 //	search();
 	search2();
-	bench();
+//	bench();
 //	roundTest();
 	puts("fmath::log");
 	count(logf, fmath_logf_v, f2u(FLT_MIN), f2u(FLT_MAX));

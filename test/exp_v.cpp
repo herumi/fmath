@@ -116,6 +116,7 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(first)
 {
+	fmath_init();
 	const size_t N = 31;
 	float x[N], y[N+1];
 	const float edge = 100;

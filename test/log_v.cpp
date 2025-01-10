@@ -191,6 +191,7 @@ void bench()
 
 int main(int argc, char *argv[])
 {
+	fmath_init();
 	if (argc > 1) {
 		bench();
 		return 0;
