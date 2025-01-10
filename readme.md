@@ -20,7 +20,7 @@ void (*fmath_expf_v)(float *dst, const float *src, size_t n);
 ### Quick Start
 
 ```cpp
-#include "fmath.hpp"
+#include "fmath.h"
 
 const size_t n = 1000;
 float src[n] = {1.0f, 2.0f, 3.0f, /* ... */};
@@ -42,19 +42,26 @@ fmath_expf_v(dst, src, n);  // dst[i] = exp(src[i])
 
 ## Performance Benchmarks
 
-### Linux (Xeon w9-3495X)
+### Linux (Xeon w9-3495X w/ AVX-512)
 
 | Function | fmath (clk) | std (clk) | Speedup |
 |----------|-------------|-----------|---------|
 | logf_v   | 6.72       | 105.20    | 15.7x   |
 | expf_v   | 2.80       | 51.90     | 18.5x   |
 
-### Windows (Core i7-1165G7)
+### Windows (Core i7-1165G7 w/ AVX-512)
 
 | Function | fmath (clk) | std (clk) | Speedup |
 |----------|-------------|-----------|---------|
 | logf_v   | 15.22      | 257.46    | 16.9x   |
 | expf_v   | 6.29       | 123.02    | 19.5x   |
+
+### Windows (Core  i7-1255U w/o AVX-512)
+
+| Function | fmath (clk) | std (clk) | Speedup |
+|----------|-------------|-----------|---------|
+| logf_v   | 25.90       | 244.19    | 9.4x  |
+| expf_v   | 8.76        | 112.71    | 12.9x   |
 
 # License
 
