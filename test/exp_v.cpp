@@ -6,43 +6,29 @@
 #include <cybozu/benchmark.hpp>
 #include <cybozu/inttype.hpp>
 
-#include <xbyak/xbyak_util.h>
 #include <cmath>
-namespace local {
-
-union fi {
-	float f;
-	uint32_t i;
-};
-
-inline float u2f(uint32_t x)
-{
-	fi fi;
-	fi.i = x;
-	return fi.f;
-}
-
-inline uint32_t f2u(float x)
-{
-	fi fi;
-	fi.f = x;
-	return fi.i;
-}
-
-} // local
+#ifdef _WIN32
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+	#include <windows.h>
+	#include <malloc.h>
+	#ifdef _MSC_VER
+		#define XBYAK_TLS __declspec(thread)
+	#else
+		#define XBYAK_TLS __thread
+	#endif
+#elif defined(__GNUC__)
+	#include <unistd.h>
+	#include <sys/mman.h>
+#endif
+#include "reference.hpp"
 
 float g_maxe;
 
 float diff(float x, float y)
 {
 	return std::abs(x - y) / x;
-}
-
-float fmath_expf(float x)
-{
-	float y;
-	fmath::expf_v(&y, &x, 1);
-	return y;
 }
 
 inline float split(int *pn, float x)
@@ -74,9 +60,7 @@ inline float expfC(float x)
 		0x3c091331,
 	};
 	for (int i = 0; i < 5; i++) {
-		local::fi fi;
-		fi.i = expTbl[i];
-		C.expCoeff[i] = fi.f;
+		C.expCoeff[i] = u2f(expTbl[i]);
 	}
 	x *= C.log2_e;
 	int n;
@@ -84,8 +68,7 @@ inline float expfC(float x)
 	/* |a| <= 0.5 */
 	a *= C.log2;
 	/* |a| <= 0.3466 */
-	local::fi fi;
-	fi.i = (n + 127) << 23; // 2^n
+	float b = u2f((n + 127) << 23); // 2^n
 	/*
 		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
 		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
@@ -96,7 +79,7 @@ inline float expfC(float x)
 	x = a * x + C.expCoeff[1];
 	x = a * x + C.expCoeff[0];
 	x = a * x + C.expCoeff[0];
-	return x * fi.f;
+	return x * b;
 }
 
 void std_exp_v(float *dst, const float *src, size_t n)
@@ -131,14 +114,42 @@ float putDiff(float begin, float end, float step, const F& f)
 	return maxe;
 }
 
+CYBOZU_TEST_AUTO(first)
+{
+	fmath_init();
+	const size_t N = 31;
+	float x[N], y[N+1];
+	const float edge = 100;
+	y[N] = edge;
+	for (size_t i = 0; i < N; i++) {
+		x[i] = float(i * 0.5);
+	}
+	for (size_t n = 0; n < N; n++) {
+		memset(y, 0, N*sizeof(y[0]));
+		fmath::expf_v(y, x, n);
+		for (size_t i = 0; i < n; i++) {
+			float z = exp(x[i]);
+			CYBOZU_TEST_NEAR(y[i], z, 1e-5*y[i]);
+		}
+		CYBOZU_TEST_EQUAL(y[N], edge);
+	}
+}
+
+float fmath_expf_slow(float x)
+{
+	float y;
+	fmath_expf_v(&y, &x, 1);
+	return y;
+}
+
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("expfC");
 	putDiff(-10, 10, 0.5, expfC);
 	putDiff(-30, 30, 1e-5, expfC);
 	puts("fmath::expf_v");
-	putDiff(-10, 10, 0.5, fmath_expf);
-	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf);
+	putDiff(-10, 10, 0.5, fmath_expf_slow);
+	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf_slow);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -176,13 +187,52 @@ void putClk(const char *msg, size_t n)
 	printf("%s %.2fclk\n", msg, cybozu::bench::g_clk.getClock() / double(n));
 }
 
+enum ProtectMode {
+	PROTECT_RW = 0, // read/write
+	PROTECT_RWE = 1, // read/write/exec
+	PROTECT_RE = 2 // read/exec
+};
+
+static inline bool protect(const void *addr, size_t size, int protectMode)
+{
+#if defined(_WIN32)
+	const DWORD c_rw = PAGE_READWRITE;
+	const DWORD c_rwe = PAGE_EXECUTE_READWRITE;
+	const DWORD c_re = PAGE_EXECUTE_READ;
+	DWORD mode;
+#else
+	const int c_rw = PROT_READ | PROT_WRITE;
+	const int c_rwe = PROT_READ | PROT_WRITE | PROT_EXEC;
+	const int c_re = PROT_READ | PROT_EXEC;
+	int mode;
+#endif
+	switch (protectMode) {
+	case PROTECT_RW: mode = c_rw; break;
+	case PROTECT_RWE: mode = c_rwe; break;
+	case PROTECT_RE: mode = c_re; break;
+	default:
+		return false;
+	}
+#if defined(_WIN32)
+	DWORD oldProtect;
+	return VirtualProtect(const_cast<void*>(addr), size, mode, &oldProtect) != 0;
+#elif defined(__GNUC__)
+	size_t pageSize = sysconf(_SC_PAGESIZE);
+	size_t iaddr = reinterpret_cast<size_t>(addr);
+	size_t roundAddr = iaddr & ~(pageSize - static_cast<size_t>(1));
+	return mprotect(reinterpret_cast<void*>(roundAddr), size + (iaddr - roundAddr), mode) == 0;
+#else
+	return true;
+#endif
+}
+
 // return address which can be wrriten 64 byte
 float *getBoundary()
 {
 	const int size = 4096;
-	static MIE_ALIGN(4096) uint8_t top[size * 3];
+	alignas(4096) static uint8_t top[size * 3];
 	float *base = (float*)(top + size - 64);
-	bool isOK = Xbyak::CodeArray::protect(top + size, size, Xbyak::CodeArray::PROTECT_RE);
+	bool isOK = protect(top + size, size, PROTECT_RE);
 	CYBOZU_TEST_ASSERT(isOK);
 	return base;
 }
@@ -212,7 +262,7 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const int C = 30000;
+	const int C = 90000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = sin(i / float(n) * 7) * 20;
 	}
@@ -226,23 +276,72 @@ CYBOZU_TEST_AUTO(bench)
 
 void limitTest(float f1(float), float f2(float))
 {
-	float tbl[] = { 0, FLT_MIN, 0.5, 1,  80, 100, 1000, FLT_MAX };
+	float tbl[] = { // abcdef
+		0.0f, FLT_MIN, 0.5f, 1.0f, 9.1, 0x1.618148p+6f, 0x1.61814ap+6f, 0x1.61814cp+6f, 0x1.62e42ep+6f, 0x1.62e430p+6f/*exp(x)=inf*/, 0x1.62e432p+6f, FLT_MAX, u2f(0x7f800000), /*Inf*/
+	};
 	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
 		float x = tbl[i];
 		float a = f1(x);
 		float b = f2(x);
-		float e = fabs(a - b);
-		printf("x=%e std=%e fmath2=%e diff=%e\n", x, a, b, e);
+		float d = fabs(a-b);
+		printf("x=% e std=% .6a fmath2=% .6a d=%e\n", x, a, b, d);
 		a = f1(-x);
 		b = f2(-x);
-		e = fabs(a - b);
-		printf("x=%e std=%e fmath2=%e diff=%e\n", -x, a, b, e);
+		d = fabs(a-b);
+		printf("x=% e std=% .6a fmath2=% .6a d=%e\n", -x, a, b, d);
 	}
 }
+
+void check(float x, float y, float z, float& max_e, float& max_x, float edge)
+{
+	float d1 = fabsf(y - z);
+	float e = (d1 < 1e-7 || y < 1e-7) ? d1 : d1/y;
+	if (e >= edge) {
+		printf("ERR x=%f(%0.6a:%08x) y=%e(%0.6a) z=%e(%0.6a) e=%e\n", x, x, f2u(x), y, y, z, z, e);
+		CYBOZU_TEST_ASSERT(false);
+	}
+	if (e > max_e) {
+		max_e = e;
+		max_x = x;
+	}
+}
+
+void testAll()
+{
+	puts("testAll");
+	const uint32_t INF = 0x7f800000;
+
+	float max_e, max_x;
+
+	// plus
+	max_e = max_x = 0;
+	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
+		float x = u2f(u);
+		float y = expf(x);
+		float z = fmath_expf_slow(x);
+		if (f2u(y) != INF && f2u(z) != INF) {
+			check(x, y, z, max_e, max_x, 4.2e-6);
+		}
+	}
+	printf("max_e=%e max_x=%e\n", max_e, max_x);
+
+	// minus
+	max_e = max_x = 0;
+	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
+		float x = -u2f(u);
+		float y = expf(x);
+		float z = fmath_expf_slow(x);
+		if (f2u(y) != INF && f2u(z) != INF) {
+			check(x, y, z, max_e, max_x, 1e-6);
+		}
+	}
+	printf("max_e=%e max_x=%e\n", max_e, max_x);
+}
+
 CYBOZU_TEST_AUTO(expLimit)
 {
 	puts("expLimit");
-	limitTest(std::exp, fmath_expf);
+	limitTest(std::exp, fmath_expf_slow);
 }
 
 void bench()
@@ -264,8 +363,17 @@ void bench()
 int main(int argc, char *argv[])
 {
 	if (argc > 1) {
-		bench();
-		return 0;
+		switch (argv[1][0]) {
+		case 'b':
+			bench();
+			return 0;
+		case 'a':
+			testAll();
+			return 0;
+		default:
+			printf("ERR %c\n", argv[1][0]);
+			return 1;
+		}
 	}
 	return cybozu::test::autoRun.run(argc, argv);
 }
