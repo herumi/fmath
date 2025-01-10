@@ -151,8 +151,8 @@ CYBOZU_TEST_AUTO(bench)
 	CYBOZU_BENCH_C("", C, std_logf_v, &y0[0], &x[0], n);
 	putClk("std_logf_v", C * (n / 32));
 
-	CYBOZU_BENCH_C("", C, fmath_logf_v_slow, &y1[0], &x[0], n);
-	putClk("fmath_logfC", C * (n / 32));
+//	CYBOZU_BENCH_C("", C, fmath_logf_v_slow, &y1[0], &x[0], n);
+//	putClk("fmath_logfC", C * (n / 32));
 
 	CYBOZU_BENCH_C("", C, fmath_logf_v, &y1[0], &x[0], n);
 	putClk("fmath::logf_v", C * (n / 32));

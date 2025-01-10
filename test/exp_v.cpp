@@ -22,30 +22,7 @@
 	#include <unistd.h>
 	#include <sys/mman.h>
 #endif
-
-namespace local {
-
-union fi {
-	float f;
-	uint32_t i;
-};
-
-} // local
-
-inline float u2f(uint32_t x)
-{
-	local::fi fi;
-	fi.i = x;
-	return fi.f;
-}
-
-inline uint32_t f2u(float x)
-{
-	local::fi fi;
-	fi.f = x;
-	return fi.i;
-}
-
+#include "reference.hpp"
 
 float g_maxe;
 
@@ -83,9 +60,7 @@ inline float expfC(float x)
 		0x3c091331,
 	};
 	for (int i = 0; i < 5; i++) {
-		local::fi fi;
-		fi.i = expTbl[i];
-		C.expCoeff[i] = fi.f;
+		C.expCoeff[i] = u2f(expTbl[i]);
 	}
 	x *= C.log2_e;
 	int n;
@@ -93,8 +68,7 @@ inline float expfC(float x)
 	/* |a| <= 0.5 */
 	a *= C.log2;
 	/* |a| <= 0.3466 */
-	local::fi fi;
-	fi.i = (n + 127) << 23; // 2^n
+	float b = u2f((n + 127) << 23); // 2^n
 	/*
 		e^a = 1 + a + a^2/2! + a^3/3! + a^4/4! + a^5/5!
 		= 1 + a(1 + a(1/2! + a(1/3! + a(1/4! + a/5!))))
@@ -105,7 +79,7 @@ inline float expfC(float x)
 	x = a * x + C.expCoeff[1];
 	x = a * x + C.expCoeff[0];
 	x = a * x + C.expCoeff[0];
-	return x * fi.f;
+	return x * b;
 }
 
 void std_exp_v(float *dst, const float *src, size_t n)
@@ -160,14 +134,21 @@ CYBOZU_TEST_AUTO(first)
 	}
 }
 
+float fmath_expf_slow(float x)
+{
+	float y;
+	fmath_expf_v(&y, &x, 1);
+	return y;
+}
+
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("expfC");
 	putDiff(-10, 10, 0.5, expfC);
 	putDiff(-30, 30, 1e-5, expfC);
 	puts("fmath::expf_v");
-	putDiff(-10, 10, 0.5, fmath::expf);
-	g_maxe = putDiff(-30, 30, 1e-5, fmath::expf);
+	putDiff(-10, 10, 0.5, fmath_expf_slow);
+	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf_slow);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -336,7 +317,7 @@ void testAll()
 	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
 		float x = u2f(u);
 		float y = expf(x);
-		float z = fmath::expf(x);
+		float z = fmath_expf_slow(x);
 		if (f2u(y) != INF && f2u(z) != INF) {
 			check(x, y, z, max_e, max_x, 4.2e-6);
 		}
@@ -348,7 +329,7 @@ void testAll()
 	for (uint32_t u = 0; u <= 0x7fffffff; u++) {
 		float x = -u2f(u);
 		float y = expf(x);
-		float z = fmath::expf(x);
+		float z = fmath_expf_slow(x);
 		if (f2u(y) != INF && f2u(z) != INF) {
 			check(x, y, z, max_e, max_x, 1e-6);
 		}
@@ -359,7 +340,7 @@ void testAll()
 CYBOZU_TEST_AUTO(expLimit)
 {
 	puts("expLimit");
-	limitTest(std::exp, fmath::expf);
+	limitTest(std::exp, fmath_expf_slow);
 }
 
 void bench()
