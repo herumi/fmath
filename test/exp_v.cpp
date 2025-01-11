@@ -268,9 +268,9 @@ CYBOZU_TEST_AUTO(bench)
 	}
 	printf("for float x[%zd];\n", n);
 	CYBOZU_BENCH_C("", C, std_exp_v, &y0[0], &x[0], n);
-	putClk("std::exp", C * (n / 16));
+	putClk("std::exp", C * (n / 32));
 	CYBOZU_BENCH_C("", C, fmath::expf_v, &y1[0], &x[0], n);
-	putClk("fmath::expf_v", C * (n / 16));
+	putClk("fmath::expf_v", C * (n / 32));
 	checkDiff(y0.data(), y1.data(), n);
 }
 
