@@ -41,27 +41,28 @@ fmath_expf_v(dst, src, n);  // dst[i] = exp(src[i])
 - Automatically utilizes AVX-512 if available
 
 ## Performance Benchmarks
+Average cycles per 32 elements
 
 ### Linux (Xeon w9-3495X w/ AVX-512)
 
-| Function | fmath (clk) | std (clk) | Speedup |
-|----------|-------------|-----------|---------|
-| logf_v   | 6.72        | 105.20    | 15.7x   |
-| expf_v   | 5.60        | 103.80    | 18.5x   |
+| Function | fmath | std    | Speedup |
+|----------|-------|--------|---------|
+| logf_v   | 6.72  | 105.20 | 15.7x   |
+| expf_v   | 5.60  | 103.80 | 18.5x   |
 
 ### Windows (Core i7-1165G7 w/ AVX-512)
 
-| Function | fmath (clk) | std (clk) | Speedup |
-|----------|-------------|-----------|---------|
-| logf_v   | 15.22       | 257.46    | 16.9x   |
-| expf_v   | 12.58       | 246.04    | 19.5x   |
+| Function | fmath | std    | Speedup |
+|----------|-------|--------|---------|
+| logf_v   | 15.22 | 257.46 | 16.9x   |
+| expf_v   | 12.58 | 246.04 | 19.5x   |
 
 ### Windows (Core  i7-1255U w/o AVX-512)
 
-| Function | fmath (clk) | std (clk) | Speedup |
-|----------|-------------|-----------|---------|
-| logf_v   | 25.90       | 244.19    |  9.4x   |
-| expf_v   | 17.52       | 225.42    | 12.9x   |
+| Function | fmath | std    | Speedup |
+|----------|-------|--------|---------|
+| logf_v   | 25.90 | 244.19 |  9.4x   |
+| expf_v   | 17.52 | 225.42 | 12.9x   |
 
 **Note**: Don't use these functions for small `n` because they are slow.
 
