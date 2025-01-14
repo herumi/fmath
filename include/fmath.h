@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-void fmath_init(); // select AVX-512 functions if it is available
+void fmath_init(); // select AVX-512 functions if it is available (This function is automatically called.)
 
 void fmath_expf_v_avx512(float *dst, const float *src, size_t n);
 void fmath_logf_v_avx512(float *dst, const float *src, size_t n);
@@ -27,11 +27,6 @@ extern void (*fmath_logf_v)(float *dst, const float *src, size_t n);
 
 #ifdef __cplusplus
 namespace fmath {
-
-inline void init()
-{
-	fmath_init();
-}
 
 inline void expf_v(float *dst, const float *src, size_t n)
 {

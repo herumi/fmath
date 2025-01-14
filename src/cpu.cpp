@@ -29,3 +29,7 @@ void ATTRIBUTE fmath_init()
 
 }
 
+#ifdef _MSC_VER
+#pragma section(".CRT$XCU", read)
+__declspec(allocate(".CRT$XCU")) void(*fmath_init_ptr)() = fmath_init;
+#endif

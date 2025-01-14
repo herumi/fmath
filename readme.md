@@ -26,8 +26,6 @@ const size_t n = 1000;
 float src[n] = {1.0f, 2.0f, 3.0f, /* ... */};
 float dst[n];
 
-fmath_init();  // Required initialization on Windows (It is automatically called on Linux)
-
 // Calculate natural logarithm for array
 fmath_logf_v(dst, src, n);  // dst[i] = log(src[i])
 
