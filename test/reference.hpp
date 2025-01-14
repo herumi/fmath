@@ -83,14 +83,14 @@ if (t > g_maxt) g_maxt = t;
 	float logs = logc_tbl[idx].mlog;
 
 #if logc_L == 3
-	float A = -.4999993134703166062199020;
-	float B = .3333377208103342588645233;
-	float C = -.2507196324449547040133221;
-	float D = .1983421366559079527220503;
+	float A = -.4999993134703166062199020f;
+	float B = .3333377208103342588645233f;
+	float C = -.2507196324449547040133221f;
+	float D = .1983421366559079527220503f;
 	float poly = fma(fma(fma(fma(D, t, C), t, B), t, A), t, 1.0f);
 #else
-	float A = -.5000027035498107640250172;
-	float B = .3333281180811569374969424;
+	float A = -.5000027035498107640250172f;
+	float B = .3333281180811569374969424f;
 	float poly = fma(fma(B, t, A), t, 1.0f);
 #endif
 	const float log2 = 0x1.62e430p-1f;

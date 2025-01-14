@@ -87,11 +87,10 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(first)
 {
-	fmath_init();
 	const size_t N = 8;
 	float x[N], y[N];
 	for (size_t i = 0; i < N; i++) {
-		x[i] = i*0.3+1;
+		x[i] = i*0.3f+1.0f;
 		y[i] = 0;
 	}
 	fmath::logf_v(y, x, N);
@@ -104,12 +103,12 @@ CYBOZU_TEST_AUTO(first)
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("fmath::logf_v");
-	putDiff(1, 2, 1e-6, fmath_logf_slow);
-	putDiff(2, 3, 1e-6, fmath_logf_slow);
-	putDiff(0.99, 1.01, 1e-6, fmath_logf_slow);
-	putDiff(1, 1.01, 1e-6, fmath_logf_slow);
-	putDiff(0.99, 1, 1e-6, fmath_logf_slow);
-	g_maxe = putDiff(1e-6, 4, 1e-6, fmath_logf_slow);
+	putDiff(1.0f, 2.0f, 1e-6f, fmath_logf_slow);
+	putDiff(2.0f, 3.0f, 1e-6f, fmath_logf_slow);
+	putDiff(0.99f, 1.01f, 1e-6f, fmath_logf_slow);
+	putDiff(1.0f, 1.01f, 1e-6f, fmath_logf_slow);
+	putDiff(0.99f, 1.0f, 1e-6f, fmath_logf_slow);
+	g_maxe = putDiff(1e-6f, 4.0f, 1e-6f, fmath_logf_slow);
 	printf("g_maxe=%e\n", g_maxe);
 }
 
@@ -144,7 +143,7 @@ CYBOZU_TEST_AUTO(bench)
 	y1.resize(n);
 	const int C = 30000;
 	for (size_t i = 0; i < n; i++) {
-		x[i] = fabs(sin(i / double(n) * 7) * 20 + 1e-8);
+		x[i] = fabs(sin(i / float(n) * 7) * 20 + 1e-8f);
 	}
 	printf("for float x[%zd];\n", n);
 
@@ -162,7 +161,7 @@ CYBOZU_TEST_AUTO(bench)
 
 CYBOZU_TEST_AUTO(limit)
 {
-	float x[] = { -3, 0, FLT_MIN, 1e-8, 1, 1 + FLT_EPSILON, 1 - 1.0/3, 1 - 1e-5, 1 + 1.0/3, 1 + 1e-5, 2, 100, 1e8, FLT_MAX };
+	float x[] = { -3.0f, 0.0f, FLT_MIN, 1.0e-8f, 1.0f, 1.0f + FLT_EPSILON, 1.0f - 1.0f/3, 1.0f - 1e-5f, 1.0f + 1.0f/3, 1.0f + 1e-5f, 2.0f, 100.0f, 1e8f, FLT_MAX };
 	const size_t n = sizeof(x) / sizeof(x[0]);
 	float y0[n];
 	float y1[n];
@@ -191,7 +190,7 @@ void bench()
 
 int main(int argc, char *argv[])
 {
-	fmath_init();
+//	fmath_init();
 	if (argc > 1) {
 		bench();
 		return 0;

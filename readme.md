@@ -62,7 +62,7 @@ Average cycles per 32 elements
 | logf_v   | 25.90 | 244.19 |  9.4x   |
 | expf_v   | 17.52 | 225.42 | 12.9x   |
 
-**Note**: Don't use these functions for small `n` because they are slow.
+**Note**: Don't use these functions for small `n` (< 16) because they are slow.
 
 # License
 
