@@ -512,8 +512,6 @@ class LogGenAVX2(Algo):
   def __init__(self, unrollN, checkSign=False):
     super().__init__(unrollN)
     self.checkSign = checkSign # return -Inf for 0 and NaN for negative
-    self.L = 4 # table bit size
-    self.deg = 4
     tmpRegN = 4
     #if self.checkSign:
     #  tmpRegN += 1
@@ -553,18 +551,6 @@ evalf(s,25);
     putMem('log2_tbl1', 'f32', logTbl1)
     putMem('log2_tbl2', 'f32', logTbl2)
 
-
-  """
-  x = 2^n a (1 <= a < 2)
-  log x = n * log2 + log a
-  L = 4
-  d = (f2u(a) & mask(23)) >> (23 - L)
-  b = T1[d] = approximate of 1/a
-  log b = T2[d]
-  c = ab - 1 is near zero
-  a = (1 + c) / b
-  log a = log(1 + c) - log b
-  """
 
   def vpermpsEmu(self, y, x, tL, tH, tblL, tblH):
     un = genUnrollFunc()
