@@ -116,7 +116,6 @@ float putDiff(float begin, float end, float step, const F& f)
 
 CYBOZU_TEST_AUTO(first)
 {
-	fmath_init();
 	const size_t N = 31;
 	float x[N], y[N+1];
 	const float edge = 100;
@@ -145,11 +144,11 @@ float fmath_expf_slow(float x)
 CYBOZU_TEST_AUTO(setMaxE)
 {
 	puts("expfC");
-	putDiff(-10, 10, 0.5, expfC);
-	putDiff(-30, 30, 1e-5, expfC);
+	putDiff(-10.0f, 10.0f, 0.5f, expfC);
+	putDiff(-30.0f, 30.0f, 1e-5f, expfC);
 	puts("fmath::expf_v");
-	putDiff(-10, 10, 0.5, fmath_expf_slow);
-	g_maxe = putDiff(-30, 30, 1e-5, fmath_expf_slow);
+	putDiff(-10.0f, 10.0f, 0.5f, fmath_expf_slow);
+	g_maxe = putDiff(-30.0f, 30.0f, 1e-5f, fmath_expf_slow);
 }
 
 void checkDiff(const float *x, const float *y, size_t n, bool put = false)
@@ -277,7 +276,7 @@ CYBOZU_TEST_AUTO(bench)
 void limitTest(float f1(float), float f2(float))
 {
 	float tbl[] = { // abcdef
-		0.0f, FLT_MIN, 0.5f, 1.0f, 9.1, 0x1.618148p+6f, 0x1.61814ap+6f, 0x1.61814cp+6f, 0x1.62e42ep+6f, 0x1.62e430p+6f/*exp(x)=inf*/, 0x1.62e432p+6f, FLT_MAX, u2f(0x7f800000), /*Inf*/
+		0.0f, FLT_MIN, 0.5f, 1.0f, 9.1f, 0x1.618148p+6f, 0x1.61814ap+6f, 0x1.61814cp+6f, 0x1.62e42ep+6f, 0x1.62e430p+6f/*exp(x)=inf*/, 0x1.62e432p+6f, FLT_MAX, u2f(0x7f800000), /*Inf*/
 	};
 	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
 		float x = tbl[i];
@@ -320,7 +319,7 @@ void testAll()
 		float y = expf(x);
 		float z = fmath_expf_slow(x);
 		if (f2u(y) != INF && f2u(z) != INF) {
-			check(x, y, z, max_e, max_x, 4.2e-6);
+			check(x, y, z, max_e, max_x, 4.2e-6f);
 		}
 	}
 	printf("max_e=%e max_x=%e\n", max_e, max_x);
@@ -332,7 +331,7 @@ void testAll()
 		float y = expf(x);
 		float z = fmath_expf_slow(x);
 		if (f2u(y) != INF && f2u(z) != INF) {
-			check(x, y, z, max_e, max_x, 1e-6);
+			check(x, y, z, max_e, max_x, 1e-6f);
 		}
 	}
 	printf("max_e=%e max_x=%e\n", max_e, max_x);
@@ -362,6 +361,7 @@ void bench()
 
 int main(int argc, char *argv[])
 {
+	puts(fmath_logf_v == fmath_logf_v_avx512 ? "avx-512" : "avx2");
 	if (argc > 1) {
 		switch (argv[1][0]) {
 		case 'b':

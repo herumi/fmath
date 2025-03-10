@@ -113,6 +113,19 @@ void search()
 	printf("a=%.6a -log(a)=%.6a\n", mina, -log(mina));
 }
 
+/*
+	Search for special floating-point values where the difference between double and float logarithm calculations is minimized
+	(meaning they are exceptionally accurate even with standard precision).
+
+diff|org|search2
+-|-|-
+eq|1598527377 (75.02%)|1596778430 (74.94%)
+le1| 301977206 (14.17%) | 299831197 (14.07%)
+gt1| 230198565 (10.80%)|  234095153 (10.99%)
+le2|   660           |     1617
+gt2|     2618       |        35
+err|       6            |         0
+*/
 void search2()
 {
 	puts("search2");
@@ -123,6 +136,9 @@ void search2()
 		double mind = 1;
 		float v = 1 + j / float(n);
 		float a0 = j < n/2 ? 1/v : 2/v;
+#if 0
+		mina = a0;
+#else
 		for (int i = 0; i < 1000; i++) {
 			float a = u2f(f2u(a0) + i);
 			double b = logl(a);
@@ -142,6 +158,7 @@ void search2()
 				mind = d;
 			}
 		}
+#endif
 		printf("%.6a,\n", mina);
 	}
 	puts("]");
@@ -375,6 +392,7 @@ void fmath_logfC_v(float *y, const float *x, size_t n)
 
 int main()
 {
+	puts(fmath_logf_v == fmath_logf_v_avx512 ? "avx-512" : "avx2");
 //	testNext();
 	printf("half=%e %e\n", 0x1.8p+0, 0x1.78p+0);
 	printf("log2=%.6a\n", log(2.0f));

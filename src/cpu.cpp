@@ -5,7 +5,7 @@
 #include <string.h>
 
 #ifdef __GNUC__
-	#define ATTRIBUTE __attribute__((constructor))
+	#define ATTRIBUTE __attribute__((constructor(1000)))
 #else
 	#define ATTRIBUTE
 #endif
@@ -30,6 +30,6 @@ void ATTRIBUTE fmath_init()
 }
 
 #ifdef _MSC_VER
-#pragma section(".CRT$XCU", read)
-__declspec(allocate(".CRT$XCU")) void(*fmath_init_ptr)() = fmath_init;
+#pragma section(".CRT$XCT", read)
+__declspec(allocate(".CRT$XCT")) void(*fmath_init_ptr)() = fmath_init;
 #endif

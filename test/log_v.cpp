@@ -190,7 +190,7 @@ void bench()
 
 int main(int argc, char *argv[])
 {
-//	fmath_init();
+	puts(fmath_logf_v == fmath_logf_v_avx512 ? "avx-512" : "avx2");
 	if (argc > 1) {
 		bench();
 		return 0;
