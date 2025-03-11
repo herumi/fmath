@@ -553,10 +553,10 @@ vblendvps %ymm11, PRE(log2_f0p5)(%rip), %ymm2, %ymm12
 vmulps %ymm12, %ymm1, %ymm1
 vpermps %ymm3, %ymm7, %ymm9
 vpermps %ymm3, %ymm8, %ymm10
-vfmsub213ps %ymm2, %ymm9, %ymm0
-vfmsub213ps %ymm2, %ymm10, %ymm1
 vpermps %ymm4, %ymm7, %ymm7
 vpermps %ymm4, %ymm8, %ymm8
+vfmsub213ps %ymm2, %ymm9, %ymm0
+vfmsub213ps %ymm2, %ymm10, %ymm1
 vmovaps PRE(log2_D)(%rip), %ymm9
 vmovaps %ymm9, %ymm10
 vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm9
@@ -596,8 +596,8 @@ vaddps %ymm9, %ymm5, %ymm5
 vblendvps %ymm8, PRE(log2_f0p5)(%rip), %ymm2, %ymm9
 vmulps %ymm9, %ymm0, %ymm0
 vpermps %ymm3, %ymm6, %ymm7
-vfmsub213ps %ymm2, %ymm7, %ymm0
 vpermps %ymm4, %ymm6, %ymm6
+vfmsub213ps %ymm2, %ymm7, %ymm0
 vmovaps PRE(log2_D)(%rip), %ymm7
 vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm7
 vfmadd213ps PRE(log2_B)(%rip), %ymm0, %ymm7
@@ -635,8 +635,8 @@ vaddps %ymm9, %ymm5, %ymm5
 vblendvps %ymm8, PRE(log2_f0p5)(%rip), %ymm2, %ymm9
 vmulps %ymm9, %ymm0, %ymm0
 vpermps %ymm3, %ymm6, %ymm7
-vfmsub213ps %ymm2, %ymm7, %ymm0
 vpermps %ymm4, %ymm6, %ymm6
+vfmsub213ps %ymm2, %ymm7, %ymm0
 vmovaps PRE(log2_D)(%rip), %ymm7
 vfmadd213ps PRE(log2_C)(%rip), %ymm0, %ymm7
 vfmadd213ps PRE(log2_B)(%rip), %ymm0, %ymm7
