@@ -557,16 +557,20 @@ evalf(s,25);
         vblendvps(tH, self.one, ptr(rip+'log2_f0p5'), tL)
         vmulps(v0[i], v0[i], tH)
 
-      if self.useGather:
+      if self.useGather: # gather test (unroll=1, 16.8clk -> 34clk, unroll=2, 16clk -> 21clk)
         lea(rax, ptr(rip+'log2_tbl1'))
-        vcmpeqps(tL, tL, tL)
         un(vandps)(v2, v2, ptr(rip+'log2_7'))
         for i in range(n):
+          vpcmpeqd(tL, tL, tL)
           vgatherdps(v3[i], ptr(rax+v2[i]*4), tL)
+        lea(rax, ptr(rip+'log2_tbl2'))
+        for i in range(n):
+          vpcmpeqd(tL, tL, tL)
+          vmovups(tH, v2[i])
+          vgatherdps(v2[i], ptr(rax+tH*4), tL)
       else:
         un(vpermps)(v3, v2, self.tbl1)
-
-      un(vpermps)(v2, v2, self.tbl2)
+        un(vpermps)(v2, v2, self.tbl2)
       un(vfmsub213ps)(v0, v3, self.one)
 
       vmovaps(v3[0], ptr(rip+'log2_D'))
