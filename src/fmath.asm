@@ -614,10 +614,10 @@ vblendvps ymm12, ymm2, ymmword ptr log2_f0p5, ymm11
 vmulps ymm1, ymm1, ymm12
 vpermps ymm9, ymm7, ymm3
 vpermps ymm10, ymm8, ymm3
-vfmsub213ps ymm0, ymm9, ymm2
-vfmsub213ps ymm1, ymm10, ymm2
 vpermps ymm7, ymm7, ymm4
 vpermps ymm8, ymm8, ymm4
+vfmsub213ps ymm0, ymm9, ymm2
+vfmsub213ps ymm1, ymm10, ymm2
 vmovaps ymm9, ymmword ptr log2_D
 vmovaps ymm10, ymm9
 vfmadd213ps ymm9, ymm0, ymmword ptr log2_C
@@ -657,8 +657,8 @@ vaddps ymm5, ymm5, ymm9
 vblendvps ymm9, ymm2, ymmword ptr log2_f0p5, ymm8
 vmulps ymm0, ymm0, ymm9
 vpermps ymm7, ymm6, ymm3
-vfmsub213ps ymm0, ymm7, ymm2
 vpermps ymm6, ymm6, ymm4
+vfmsub213ps ymm0, ymm7, ymm2
 vmovaps ymm7, ymmword ptr log2_D
 vfmadd213ps ymm7, ymm0, ymmword ptr log2_C
 vfmadd213ps ymm7, ymm0, ymmword ptr log2_B
@@ -696,8 +696,8 @@ vaddps ymm5, ymm5, ymm9
 vblendvps ymm9, ymm2, ymmword ptr log2_f0p5, ymm8
 vmulps ymm0, ymm0, ymm9
 vpermps ymm7, ymm6, ymm3
-vfmsub213ps ymm0, ymm7, ymm2
 vpermps ymm6, ymm6, ymm4
+vfmsub213ps ymm0, ymm7, ymm2
 vmovaps ymm7, ymmword ptr log2_D
 vfmadd213ps ymm7, ymm0, ymmword ptr log2_C
 vfmadd213ps ymm7, ymm0, ymmword ptr log2_B
