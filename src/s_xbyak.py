@@ -7,7 +7,7 @@ import struct
 import re
 import argparse
 
-VERSION="0.9.8"
+VERSION="1.1.0"
 
 def getDefaultParser(description='s_xbyak'):
   parser = argparse.ArgumentParser(description=description)
@@ -100,15 +100,20 @@ class Operand:
 
   def __str__(self):
     if self.kind == T_REG:
+      s = '%' if g_gas else ''
       if self.bit == 64:
         tbl = ['rax', 'rcx', 'rdx', 'rbx', 'rsp', 'rbp', 'rsi', 'rdi', 'r8', 'r9', 'r10',  'r11', 'r12', 'r13', 'r14', 'r15']
       elif self.bit == 32:
         tbl = ['eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi', 'r8d', 'r9d', 'r10d',  'r11d', 'r12d', 'r13d', 'r14d', 'r15d']
+      elif self.bit == 16:
+        tbl = ['ax', 'cx', 'dx', 'bx', 'sp', 'bp', 'si', 'di', 'r8w', 'r9w', 'r10w',  'r11w', 'r12w', 'r13w', 'r14w', 'r15w']
       elif self.bit == 8:
+        if self.ext8bit:
+          tbl = ['spl', 'bpl', 'sil', 'dil']
+          return s + tbl[self.idx - 4]
         tbl = ['al', 'cl', 'dl', 'bl', 'ah', 'ch', 'dh', 'bh', 'r8b', 'r9b', 'r10b',  'r11b', 'r12b', 'r13b', 'r14b', 'r15b']
       else:
-        raise Exception('bad bit', self.bit)
-      s = '%' if g_gas else ''
+        raise Exception('bad bit', self.kind, self.bit)
       return s + tbl[self.idx]
 
     # xmm4|k3, k1|k2
@@ -177,8 +182,47 @@ class Operand:
       raise Exception('bad arg', k)
 
 class Reg(Operand):
-  def __init__(self, idx, bit):
+  def __init__(self, idx, bit, ext8bit=False):
     super().__init__(idx, bit, T_REG)
+    if bit == 128:
+      self.kind = T_XMM
+    elif bit == 256:
+      self.kind = T_YMM
+    elif bit == 512:
+      self.kind = T_ZMM
+    self.ext8bit = ext8bit
+
+  def setBit(self, bit):
+    if bit not in [8, 16, 32, 64, 128, 256, 512]:
+      raise Exception('bad bit size', self, bit)
+    if self.bit == bit:
+      return
+    idx = self.idx
+    if self.bit == 8 and (4 <= idx < 8) and not self.ext8bit:
+      raise Exception('bad converting of ah, bh, ch, dh', self)
+    if bit == 8:
+      if idx >= 32:
+        raise Exception('bad 8bit conversion', self, idx)
+      if 4 <= idx < 8:
+        self.ext8bit = True
+    elif bit in [16, 32, 64]:
+      if idx >= 32:
+        raise Exception(f'bad {bit} conversion', idx)
+    elif bit == 128:
+      self.kind = T_XMM
+    elif bit == 256:
+      self.kind = T_YMM
+    elif bit == 512:
+      self.kind = T_ZMM
+    self.bit = bit
+    if bit < 128:
+      self.kind = T_REG
+      self.attr = 0
+
+  def changeBit(self, bit):
+    r = Reg(self.idx, self.bit, self.ext8bit)
+    r.setBit(bit)
+    return r
 
 class Xmm(Reg):
   def __init__(self, idx):
@@ -495,6 +539,11 @@ r13b = Reg(R13, 8)
 r14b = Reg(R14, 8)
 r15b = Reg(R15, 8)
 
+spl = Reg(4, 8, True)
+bpl = Reg(5, 8, True)
+sil = Reg(6, 8, True)
+dil = Reg(7, 8, True)
+
 # define xmm, ymm, zmm registers
 for (p, cstr) in [('x', Xmm), ('y', Ymm), ('z', Zmm)]:
   for idx in range(32):
@@ -542,7 +591,7 @@ def getSimdSize(vType):
   raise Exception('bad vType', vType)
 
 class StackFrame:
-  def __init__(self, pNum, tNum=0, useRDX=False, useRCX=False, stackSizeByte=0, callRet=True, vNum=0, vType=0):
+  def __init__(self, pNum, tNum=0, useRDX=False, useRCX=False, stackSizeByte=0, callRet=True, vNum=0, vType=0, noVzeroUpper=False):
     """
       make a stackframe of a generated function
       pNum : # of function arguments assigned to self.p[pNum]
@@ -552,7 +601,7 @@ class StackFrame:
       stackSizeByte : stack for local variables assigned to rsp[stackSizeByte]
       callRet : automatically restore registers and call ret()
       vNum : # of SIMD registers
-      vType : SIMD type (T_SSE, T_XMM, T_YMM, T_ZMM)
+      vType : SIMD type (T_XMM, T_YMM, T_ZMM)
     """
     self.pos = 0
     self.useRDX = useRDX
@@ -573,17 +622,18 @@ class StackFrame:
     if vNum > 0 and vType == 0:
       raise Exception('specify vType')
     self.vType = vType
+    self.noVzeroUpper = noVzeroUpper
 
-    maxFreeN = 5 if win64ABI else 32
+    maxFreeN = 6 if win64ABI else 32
     self.maxFreeN = maxFreeN
     saveSimdN = max(vNum - maxFreeN, 0)
     if win64ABI:
-      saveSimdN = min(saveSimdN, 11) # save only xmm6-xmm15
+      saveSimdN = min(saveSimdN, 16 - maxFreeN) # save only xmm6-xmm15
     self.saveSimdN = saveSimdN
     simdSize = getSimdSize(vType)
     self.simdSize = simdSize
     for i in range(vNum):
-      if vType in [T_SSE, T_XMM]:
+      if vType == T_XMM:
         self.v.append(Xmm(i))
       elif vType == T_YMM:
         self.v.append(Ymm(i))
@@ -630,7 +680,7 @@ class StackFrame:
         movups(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
       else:
         vmovups(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
-    if vType > 0:
+    if not self.noVzeroUpper and vType in [T_YMM, T_ZMM]:
       vzeroupper()
 
     if self.P > 0:
@@ -832,7 +882,10 @@ def global_(s):
     output(f'_global {s}')
     if not win64ABI:
       output(f'{s}:')
-def extern_(s, size):
+def extern_(s, size='qword'):
+  '''
+  size is used by only masm
+  '''
   if g_gas:
     output(f'.extern PRE({s})')
   elif g_masm:
