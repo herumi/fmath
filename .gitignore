@@ -1,2 +1,8 @@
 CVS
+*.exe
+*.o
+*.d
+*.a
+__pycache__
+
 
