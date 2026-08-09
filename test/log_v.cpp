@@ -141,7 +141,7 @@ CYBOZU_TEST_AUTO(bench)
 	x.resize(n);
 	y0.resize(n);
 	y1.resize(n);
-	const int C = 30000;
+	const int C = 3000;
 	for (size_t i = 0; i < n; i++) {
 		x[i] = fabs(sin(i / float(n) * 7) * 20 + 1e-8f);
 	}

@@ -7,7 +7,7 @@ import struct
 import re
 import argparse
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 
 def getDefaultParser(description='s_xbyak'):
   parser = argparse.ArgumentParser(description=description)
@@ -591,7 +591,7 @@ def getSimdSize(vType):
   raise Exception('bad vType', vType)
 
 class StackFrame:
-  def __init__(self, pNum, tNum=0, useRDX=False, useRCX=False, stackSizeByte=0, callRet=True, vNum=0, vType=0, noVzeroUpper=False):
+  def __init__(self, pNum, tNum=0, useRDX=False, useRCX=False, stackSizeByte=0, callRet=True, vNum=0, vType=0, noVzeroupper=False):
     """
       make a stackframe of a generated function
       pNum : # of function arguments assigned to self.p[pNum]
@@ -601,7 +601,9 @@ class StackFrame:
       stackSizeByte : stack for local variables assigned to rsp[stackSizeByte]
       callRet : automatically restore registers and call ret()
       vNum : # of SIMD registers
-      vType : SIMD type (T_XMM, T_YMM, T_ZMM)
+      vType : SIMD type (T_SSE, T_XMM, T_YMM, T_ZMM)
+              T_SSE declares that only SSE instructions are used (vNum <= 16)
+      noVzeroupper : suppress vzeroupper in close() (T_YMM or T_ZMM required)
     """
     self.pos = 0
     self.useRDX = useRDX
@@ -621,8 +623,16 @@ class StackFrame:
     # restore SIMD registers
     if vNum > 0 and vType == 0:
       raise Exception('specify vType')
+    if vType == T_SSE and vNum > 16:
+      raise Exception('SSE instructions can not access xmm16 or above', vNum)
+    if vType in [T_XMM, T_YMM, T_ZMM] and vNum > 32:
+      raise Exception('too large vNum', vNum)
+    if noVzeroupper and vType not in [T_YMM, T_ZMM]:
+      raise Exception('noVzeroupper requires T_YMM or T_ZMM')
     self.vType = vType
-    self.noVzeroUpper = noVzeroUpper
+    self.noVzeroupper = noVzeroupper
+    # if vzeroupper is emitted, then movaps (one byte shorter) is safe, otherwise use vmovaps to avoid mixing legacy SSE with a dirty upper state
+    self.useVmovaps = vType == T_XMM or (vType in [T_YMM, T_ZMM] and noVzeroupper)
 
     maxFreeN = 6 if win64ABI else 32
     self.maxFreeN = maxFreeN
@@ -630,10 +640,8 @@ class StackFrame:
     if win64ABI:
       saveSimdN = min(saveSimdN, 16 - maxFreeN) # save only xmm6-xmm15
     self.saveSimdN = saveSimdN
-    simdSize = getSimdSize(vType)
-    self.simdSize = simdSize
     for i in range(vNum):
-      if vType == T_XMM:
+      if vType in [T_SSE, T_XMM]:
         self.v.append(Xmm(i))
       elif vType == T_YMM:
         self.v.append(Ymm(i))
@@ -655,10 +663,10 @@ class StackFrame:
 
     # store SIMD registers
     for i in range(saveSimdN):
-      if vType == T_SSE:
-        movups(ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE), Xmm(maxFreeN+i))
+      if self.useVmovaps:
+        vmovaps(ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE), Xmm(maxFreeN+i))
       else:
-        vmovups(ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE), Xmm(maxFreeN+i))
+        movaps(ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE), Xmm(maxFreeN+i))
     for i in range(pNum):
       self.p.append(self.getRegIdx())
     for i in range(tNum):
@@ -671,17 +679,17 @@ class StackFrame:
     if self.isCalledClose:
       return
     self.isCalledClose = True
+    # vzeroupper comes before the restores so that legacy SSE movaps does not run with a dirty upper state
+    if not self.noVzeroupper and self.vType in [T_YMM, T_ZMM]:
+      vzeroupper()
     # restore SIMD registers
     saveSimdN = self.saveSimdN
     maxFreeN = self.maxFreeN
-    vType = self.vType
     for i in range(saveSimdN):
-      if vType == T_SSE:
-        movups(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
+      if self.useVmovaps:
+        vmovaps(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
       else:
-        vmovups(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
-    if not self.noVzeroUpper and vType in [T_YMM, T_ZMM]:
-      vzeroupper()
+        movaps(Xmm(maxFreeN+i), ptr(rsp + self.saveTop + i * XMM_BYTE_SIZE))
 
     if self.P > 0:
       add(rsp, self.P)

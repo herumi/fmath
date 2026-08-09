@@ -63,18 +63,17 @@ _data$x ends
 _text$x segment align(64) execute
 align 16
 fmath_expf_v_avx512 proc export
-sub rsp, 184
-vmovups xmmword ptr [rsp], xmm5
-vmovups xmmword ptr [rsp+16], xmm6
-vmovups xmmword ptr [rsp+32], xmm7
-vmovups xmmword ptr [rsp+48], xmm8
-vmovups xmmword ptr [rsp+64], xmm9
-vmovups xmmword ptr [rsp+80], xmm10
-vmovups xmmword ptr [rsp+96], xmm11
-vmovups xmmword ptr [rsp+112], xmm12
-vmovups xmmword ptr [rsp+128], xmm13
-vmovups xmmword ptr [rsp+144], xmm14
-vmovups xmmword ptr [rsp+160], xmm15
+sub rsp, 168
+movaps xmmword ptr [rsp], xmm6
+movaps xmmword ptr [rsp+16], xmm7
+movaps xmmword ptr [rsp+32], xmm8
+movaps xmmword ptr [rsp+48], xmm9
+movaps xmmword ptr [rsp+64], xmm10
+movaps xmmword ptr [rsp+80], xmm11
+movaps xmmword ptr [rsp+96], xmm12
+movaps xmmword ptr [rsp+112], xmm13
+movaps xmmword ptr [rsp+128], xmm14
+movaps xmmword ptr [rsp+144], xmm15
 mov r10, rcx
 vbroadcastss zmm13, dword ptr log2_e
 vbroadcastss zmm7, dword ptr exp_coef
@@ -218,35 +217,33 @@ vfmadd213ps zmm15, zmm14, zmm7
 vscalefps zmm0, zmm15, zmm0
 vmovups zmmword ptr [r10]{k1}, zmm0
 @L6:
-vmovups xmm5, xmmword ptr [rsp]
-vmovups xmm6, xmmword ptr [rsp+16]
-vmovups xmm7, xmmword ptr [rsp+32]
-vmovups xmm8, xmmword ptr [rsp+48]
-vmovups xmm9, xmmword ptr [rsp+64]
-vmovups xmm10, xmmword ptr [rsp+80]
-vmovups xmm11, xmmword ptr [rsp+96]
-vmovups xmm12, xmmword ptr [rsp+112]
-vmovups xmm13, xmmword ptr [rsp+128]
-vmovups xmm14, xmmword ptr [rsp+144]
-vmovups xmm15, xmmword ptr [rsp+160]
 vzeroupper
-add rsp, 184
+movaps xmm6, xmmword ptr [rsp]
+movaps xmm7, xmmword ptr [rsp+16]
+movaps xmm8, xmmword ptr [rsp+32]
+movaps xmm9, xmmword ptr [rsp+48]
+movaps xmm10, xmmword ptr [rsp+64]
+movaps xmm11, xmmword ptr [rsp+80]
+movaps xmm12, xmmword ptr [rsp+96]
+movaps xmm13, xmmword ptr [rsp+112]
+movaps xmm14, xmmword ptr [rsp+128]
+movaps xmm15, xmmword ptr [rsp+144]
+add rsp, 168
 ret
 fmath_expf_v_avx512 endp
 align 16
 fmath_logf_v_avx512 proc export
-sub rsp, 184
-vmovups xmmword ptr [rsp], xmm5
-vmovups xmmword ptr [rsp+16], xmm6
-vmovups xmmword ptr [rsp+32], xmm7
-vmovups xmmword ptr [rsp+48], xmm8
-vmovups xmmword ptr [rsp+64], xmm9
-vmovups xmmword ptr [rsp+80], xmm10
-vmovups xmmword ptr [rsp+96], xmm11
-vmovups xmmword ptr [rsp+112], xmm12
-vmovups xmmword ptr [rsp+128], xmm13
-vmovups xmmword ptr [rsp+144], xmm14
-vmovups xmmword ptr [rsp+160], xmm15
+sub rsp, 168
+movaps xmmword ptr [rsp], xmm6
+movaps xmmword ptr [rsp+16], xmm7
+movaps xmmword ptr [rsp+32], xmm8
+movaps xmmword ptr [rsp+48], xmm9
+movaps xmmword ptr [rsp+64], xmm10
+movaps xmmword ptr [rsp+80], xmm11
+movaps xmmword ptr [rsp+96], xmm12
+movaps xmmword ptr [rsp+112], xmm13
+movaps xmmword ptr [rsp+128], xmm14
+movaps xmmword ptr [rsp+144], xmm15
 mov r10, rcx
 mov eax, 1065353216
 vpbroadcastd zmm4, eax
@@ -389,35 +386,33 @@ vfmadd132ps zmm9, zmm10, dword bcst log_A4
 vfmadd213ps zmm0, zmm11, zmm9
 vmovups zmmword ptr [r10]{k1}, zmm0
 @L12:
-vmovups xmm5, xmmword ptr [rsp]
-vmovups xmm6, xmmword ptr [rsp+16]
-vmovups xmm7, xmmword ptr [rsp+32]
-vmovups xmm8, xmmword ptr [rsp+48]
-vmovups xmm9, xmmword ptr [rsp+64]
-vmovups xmm10, xmmword ptr [rsp+80]
-vmovups xmm11, xmmword ptr [rsp+96]
-vmovups xmm12, xmmword ptr [rsp+112]
-vmovups xmm13, xmmword ptr [rsp+128]
-vmovups xmm14, xmmword ptr [rsp+144]
-vmovups xmm15, xmmword ptr [rsp+160]
 vzeroupper
-add rsp, 184
+movaps xmm6, xmmword ptr [rsp]
+movaps xmm7, xmmword ptr [rsp+16]
+movaps xmm8, xmmword ptr [rsp+32]
+movaps xmm9, xmmword ptr [rsp+48]
+movaps xmm10, xmmword ptr [rsp+64]
+movaps xmm11, xmmword ptr [rsp+80]
+movaps xmm12, xmmword ptr [rsp+96]
+movaps xmm13, xmmword ptr [rsp+112]
+movaps xmm14, xmmword ptr [rsp+128]
+movaps xmm15, xmmword ptr [rsp+144]
+add rsp, 168
 ret
 fmath_logf_v_avx512 endp
 align 16
 fmath_expf_v_avx2 proc export
-sub rsp, 216
-vmovups xmmword ptr [rsp+32], xmm5
-vmovups xmmword ptr [rsp+48], xmm6
-vmovups xmmword ptr [rsp+64], xmm7
-vmovups xmmword ptr [rsp+80], xmm8
-vmovups xmmword ptr [rsp+96], xmm9
-vmovups xmmword ptr [rsp+112], xmm10
-vmovups xmmword ptr [rsp+128], xmm11
-vmovups xmmword ptr [rsp+144], xmm12
-vmovups xmmword ptr [rsp+160], xmm13
-vmovups xmmword ptr [rsp+176], xmm14
-vmovups xmmword ptr [rsp+192], xmm15
+sub rsp, 200
+movaps xmmword ptr [rsp+32], xmm6
+movaps xmmword ptr [rsp+48], xmm7
+movaps xmmword ptr [rsp+64], xmm8
+movaps xmmword ptr [rsp+80], xmm9
+movaps xmmword ptr [rsp+96], xmm10
+movaps xmmword ptr [rsp+112], xmm11
+movaps xmmword ptr [rsp+128], xmm12
+movaps xmmword ptr [rsp+144], xmm13
+movaps xmmword ptr [rsp+160], xmm14
+movaps xmmword ptr [rsp+176], xmm15
 mov r10, rcx
 mov r11, rdx
 vbroadcastss ymm9, dword ptr log_x_min
@@ -550,32 +545,30 @@ add rdx, 1
 cmp rdx, rcx
 jne @L19
 @L20:
-vmovups xmm5, xmmword ptr [rsp+32]
-vmovups xmm6, xmmword ptr [rsp+48]
-vmovups xmm7, xmmword ptr [rsp+64]
-vmovups xmm8, xmmword ptr [rsp+80]
-vmovups xmm9, xmmword ptr [rsp+96]
-vmovups xmm10, xmmword ptr [rsp+112]
-vmovups xmm11, xmmword ptr [rsp+128]
-vmovups xmm12, xmmword ptr [rsp+144]
-vmovups xmm13, xmmword ptr [rsp+160]
-vmovups xmm14, xmmword ptr [rsp+176]
-vmovups xmm15, xmmword ptr [rsp+192]
 vzeroupper
-add rsp, 216
+movaps xmm6, xmmword ptr [rsp+32]
+movaps xmm7, xmmword ptr [rsp+48]
+movaps xmm8, xmmword ptr [rsp+64]
+movaps xmm9, xmmword ptr [rsp+80]
+movaps xmm10, xmmword ptr [rsp+96]
+movaps xmm11, xmmword ptr [rsp+112]
+movaps xmm12, xmmword ptr [rsp+128]
+movaps xmm13, xmmword ptr [rsp+144]
+movaps xmm14, xmmword ptr [rsp+160]
+movaps xmm15, xmmword ptr [rsp+176]
+add rsp, 200
 ret
 fmath_expf_v_avx2 endp
 align 16
 fmath_logf_v_avx2 proc export
-sub rsp, 168
-vmovups xmmword ptr [rsp+32], xmm5
-vmovups xmmword ptr [rsp+48], xmm6
-vmovups xmmword ptr [rsp+64], xmm7
-vmovups xmmword ptr [rsp+80], xmm8
-vmovups xmmword ptr [rsp+96], xmm9
-vmovups xmmword ptr [rsp+112], xmm10
-vmovups xmmword ptr [rsp+128], xmm11
-vmovups xmmword ptr [rsp+144], xmm12
+sub rsp, 152
+movaps xmmword ptr [rsp+32], xmm6
+movaps xmmword ptr [rsp+48], xmm7
+movaps xmmword ptr [rsp+64], xmm8
+movaps xmmword ptr [rsp+80], xmm9
+movaps xmmword ptr [rsp+96], xmm10
+movaps xmmword ptr [rsp+112], xmm11
+movaps xmmword ptr [rsp+128], xmm12
 mov r10, rcx
 mov r11, rdx
 vmovaps ymm2, ymmword ptr log2_f1
@@ -714,16 +707,15 @@ add rdx, 1
 cmp rdx, rcx
 jne @L27
 @L28:
-vmovups xmm5, xmmword ptr [rsp+32]
-vmovups xmm6, xmmword ptr [rsp+48]
-vmovups xmm7, xmmword ptr [rsp+64]
-vmovups xmm8, xmmword ptr [rsp+80]
-vmovups xmm9, xmmword ptr [rsp+96]
-vmovups xmm10, xmmword ptr [rsp+112]
-vmovups xmm11, xmmword ptr [rsp+128]
-vmovups xmm12, xmmword ptr [rsp+144]
 vzeroupper
-add rsp, 168
+movaps xmm6, xmmword ptr [rsp+32]
+movaps xmm7, xmmword ptr [rsp+48]
+movaps xmm8, xmmword ptr [rsp+64]
+movaps xmm9, xmmword ptr [rsp+80]
+movaps xmm10, xmmword ptr [rsp+96]
+movaps xmm11, xmmword ptr [rsp+112]
+movaps xmm12, xmmword ptr [rsp+128]
+add rsp, 152
 ret
 fmath_logf_v_avx2 endp
 _text$x ends
