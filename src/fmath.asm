@@ -6,7 +6,7 @@ exp_coef:
 dd 3f800000h,3f317218h,3e75fd0bh,3d63578ah,3c1e6362h,3aaf9319h
 align 64
 log_coef:
-dd 0befffff1h,3eaab78ah,0be7d89b8h
+dd 0befffff1h,3eaab75eh,0be7d89beh
 log_A0:
 dd 3f7ece44h
 log_A1:
@@ -20,9 +20,9 @@ dd 3f317218h
 log_f1:
 dd 3f800000h
 log_tbl1:
-dd 3f800000h,3f714349h,3f63937fh,3f579acch,3f4cd4afh,3f430d4fh,3f3a3632h,3f321ac1h,3faab27ah,3fa3d44bh,3f9d8e2fh,3f97b205h,3f924ac6h,3f8d409fh,3f888c06h,3f826cdah
+dd 3f800000h,3f714325h,3f63935ch,3f579ab0h,3f4cd493h,3f430d7ch,3f3a362eh,3f321ad9h,3faab290h,3fa3d442h,3f9d8e21h,3f97b209h,3f924ab4h,3f8d40cch,3f888c66h,3f826c3ch
 log_tbl2:
-dd 0h,3d72da9ch,3df108c5h,3e2fda3bh,3e645854h,3e8b37f6h,3ea2f755h,3eb9c1d5h,0be93627eh,0be7cb7b8h,0be54bb9bh,0be2deba5h,0be08c7deh,0bdc9c3f4h,0bd84611fh,0bc99c2c4h
+dd 0h,3d72dcffh,3df10a00h,3e2fdac0h,3e6458e0h,3e8b3780h,3ea2f760h,3eb9c190h,0be9362c0h,0be7cb780h,0be54bb40h,0be2debc0h,0be08c760h,0bdc9c681h,0bd8466bfh,0bc999c00h
 i127:
 dd 127
 log_x_min:

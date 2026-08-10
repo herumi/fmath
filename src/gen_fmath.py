@@ -345,7 +345,8 @@ class LogGenAVX512(Algo):
     self.setConstRegN(constRegN)
   def data(self):
     align(64)
-    self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556f14p-2f, -0x1.fb1370p-3f")
+    # constants tuned by misc/log_search.cpp (max ulp objective over [FLT_MIN, FLT_MAX])
+    self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556ebcp-2f, -0x1.fb137cp-3f")
 
     putMem('log_coef', 'f32', self.ctbl)
     putMem('log_A0', 'f32', float.fromhex('0x1.fd9c88p-1'))
@@ -357,26 +358,44 @@ class LogGenAVX512(Algo):
 
     invs_table = """
       0x1.0000000p+0f,
-      0x1.e286920p-1f,
-      0x1.c726fe0p-1f,
-      0x1.af35980p-1f,
-      0x1.99a95e0p-1f,
-      0x1.861a9e0p-1f,
-      0x1.746c640p-1f,
-      0x1.6435820p-1f,
-      0x1.5564f40p+0f,
-      0x1.47a8960p+0f,
-      0x1.3b1c5e0p+0f,
-      0x1.2f640a0p+0f,
-      0x1.24958c0p+0f,
-      0x1.1a813e0p+0f,
-      0x1.11180c0p+0f,
-      0x1.04d9b40p+0f,
+      0x1.e2864a0p-1f,
+      0x1.c726b80p-1f,
+      0x1.af35600p-1f,
+      0x1.99a9260p-1f,
+      0x1.861af80p-1f,
+      0x1.746c5c0p-1f,
+      0x1.6435b20p-1f,
+      0x1.5565200p+0f,
+      0x1.47a8840p+0f,
+      0x1.3b1c420p+0f,
+      0x1.2f64120p+0f,
+      0x1.2495680p+0f,
+      0x1.1a81980p+0f,
+      0x1.1118cc0p+0f,
+      0x1.04d8780p+0f,
+    """
+    # explicit values: mostly round(-log(invs_table[i])), but some entries are
+    # perturbed by the search, so they are no longer derived
+    logs_table = """
+      0x0.0000000p+0f,
+      0x1.e5b9fe0p-5f,
+      0x1.e214000p-4f,
+      0x1.5fb5800p-3f,
+      0x1.c8b1c00p-3f,
+      0x1.166f000p-2f,
+      0x1.45eec00p-2f,
+      0x1.7383200p-2f,
+      -0x1.26c5800p-2f,
+      -0x1.f96f000p-3f,
+      -0x1.a976800p-3f,
+      -0x1.5bd7800p-3f,
+      -0x1.118ec00p-3f,
+      -0x1.938d020p-4f,
+      -0x1.08cd7e0p-4f,
+      -0x1.3338000p-6f,
     """
     logTbl1 = parseHexFloat(invs_table)
-    logTbl2 = [0]
-    for v in logTbl1[1:]:
-      logTbl2.append(-math.log(v))
+    logTbl2 = parseHexFloat(logs_table)
 
     putMem('log_tbl1', 'f32', logTbl1)
     putMem('log_tbl2', 'f32', logTbl2)
