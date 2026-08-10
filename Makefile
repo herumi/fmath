@@ -4,7 +4,7 @@ CFLAGS += $(INC_DIR) -O2 -DNDEBUG
 CFLAGS_WARN=-Wall -Wextra -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wfloat-equal -Wpointer-arith
 CFLAGS+=$(CFLAGS_WARN)
 LDFLAGS=-L lib -lfmath
-VPATH=test src
+VPATH=test src misc
 
 SRC=exp_v.cpp log_v.cpp
 
@@ -46,6 +46,10 @@ obj/cpu.o: cpu.cpp include/fmath.h
 
 bin/%.exe: obj/%.o $(LIB)
 	$(CXX) -o $@ $< $(LDFLAGS)
+
+# log_search needs -ffp-contract=off so that only explicit std::fma is fused
+obj/log_search.o: CFLAGS+=-O3 -march=native -ffp-contract=off -fopenmp
+bin/log_search.exe: LDFLAGS+=-fopenmp
 
 clean:
 	$(RM) obj/*.o obj/*.d $(TARGET) bin/*.exe src/*.S
