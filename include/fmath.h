@@ -14,6 +14,7 @@ void fmath_init(); // select AVX-512 functions if it is available (This function
 
 void fmath_expf_v_avx512(float *dst, const float *src, size_t n);
 void fmath_logf_v_avx512(float *dst, const float *src, size_t n);
+void fmath_logf_v_avx512_tq(float *dst, const float *src, size_t n); // t + t^2 q(t) form: smaller max error near x=1, one more op; select with FMATH_LOG=tq
 
 void fmath_expf_v_avx2(float *dst, const float *src, size_t n);
 void fmath_logf_v_avx2(float *dst, const float *src, size_t n);

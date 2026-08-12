@@ -37,6 +37,25 @@ PRE(log_tbl1):
 .long 0x3f800000,0x3f714325,0x3f63935c,0x3f579ab0,0x3f4cd493,0x3f430d7c,0x3f3a362e,0x3f321ad9,0x3faab290,0x3fa3d442,0x3f9d8e21,0x3f97b209,0x3f924ab4,0x3f8d40cc,0x3f888c66,0x3f826c3c
 PRE(log_tbl2):
 .long 0x0,0x3d72dcff,0x3df10a00,0x3e2fdac0,0x3e6458e0,0x3e8b3780,0x3ea2f760,0x3eb9c190,0xbe9362c0,0xbe7cb780,0xbe54bb40,0xbe2debc0,0xbe08c760,0xbdc9c681,0xbd8466bf,0xbc999c00
+.balign 64
+PRE(log_coef_tq):
+.long 0xbefffff1,0x3eaabbde,0xbe7dc247
+PRE(log_A0_tq):
+.long 0x3f7ece44
+PRE(log_A1_tq):
+.long 0x49000000
+PRE(log_A2_tq):
+.long 0x3fbce194
+PRE(log_A3_tq):
+.long 0x3f000000
+PRE(log_A4_tq):
+.long 0x3f317218
+PRE(log_f1_tq):
+.long 0x3f800000
+PRE(log_tbl1_tq):
+.long 0x3f800000,0x3f714325,0x3f63935c,0x3f579ab0,0x3f4cd493,0x3f430d7c,0x3f3a362e,0x3f321ad9,0x3faab290,0x3fa3d442,0x3f9d8e21,0x3f97b209,0x3f9249dd,0x3f8d40cc,0x3f888c66,0x3f826c3c
+PRE(log_tbl2_tq):
+.long 0x0,0x3d72dcff,0x3df10a00,0x3e2fdac0,0x3e6458e0,0x3e8b3780,0x3ea2f760,0x3eb9c190,0xbe9362c0,0xbe7cb780,0xbe54bb40,0xbe2debc0,0xbe08c17f,0xbdc9c681,0xbd8466bf,0xbc999c00
 PRE(i127):
 .long 127
 PRE(log_x_min):
@@ -61,18 +80,18 @@ PRE(log2_f0p5):
 PRE(log2_A):
 .long 0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9,0xbeffffe9
 PRE(log2_B):
-.long 0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e,0x3eaaab3e
+.long 0x3eaaab5a,0x3eaaab5a,0x3eaaab5a,0x3eaaab5a,0x3eaaab5a,0x3eaaab5a,0x3eaaab5a,0x3eaaab5a
 PRE(log2_C):
-.long 0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53,0xbe805e53
+.long 0xbe80782a,0xbe80782a,0xbe80782a,0xbe80782a,0xbe80782a,0xbe80782a,0xbe80782a,0xbe80782a
 PRE(log2_D):
-.long 0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33,0x3e4b1a33
+.long 0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6,0x3e4bf6e6
 PRE(log2_log2):
 .long 0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218,0x3f317218
 .balign 64
 PRE(log2_tbl1):
-.long 0x3f800000,0x3f639220,0x3f4ccccd,0x3f3a2e8c,0x3faaae92,0x3f9d8dbf,0x3f924777,0x3f888507
+.long 0x3f800000,0x3f63922c,0x3f4cccf3,0x3f3a2e8b,0x3faaae90,0x3f9d8ddc,0x3f924794,0x3f888537
 PRE(log2_tbl2):
-.long 0x0,0x3df1151c,0x3e647fbd,0x3ea30c5d,0xbe9356c6,0xbe54b8c3,0xbe08b0b5,0xbd83f82e
+.long 0x0,0x3df114b0,0x3e647eff,0x3ea30c60,0xbe9356c0,0xbe54b980,0xbe08b180,0xbd83fafe
 .text
 .balign 16
 .global PRE(fmath_expf_v_avx512)
@@ -372,6 +391,160 @@ vzeroupper
 ret
 SIZE(fmath_logf_v_avx512)
 .balign 16
+.global PRE(fmath_logf_v_avx512_tq)
+PRE(fmath_logf_v_avx512_tq):
+TYPE(fmath_logf_v_avx512_tq)
+mov $1065353216, %eax
+vpbroadcastd %eax, %zmm4
+vbroadcastss PRE(log_A0_tq)(%rip), %zmm7
+vbroadcastss PRE(log_coef_tq)+8(%rip), %zmm8
+vmovups PRE(log_tbl1_tq)(%rip), %zmm5
+vmovups PRE(log_tbl2_tq)(%rip), %zmm6
+mov %rdx, %rcx
+jmp .L14
+.balign 32
+.L13:
+vmovups (%rsi), %zmm0
+vmovups 64(%rsi), %zmm1
+vmovups 128(%rsi), %zmm2
+vmovups 192(%rsi), %zmm3
+add $256, %rsi
+vgetexpps %zmm0, %zmm9
+vgetexpps %zmm1, %zmm10
+vgetexpps %zmm2, %zmm11
+vgetexpps %zmm3, %zmm12
+vgetmantps $0, %zmm0, %zmm0
+vgetmantps $0, %zmm1, %zmm1
+vgetmantps $0, %zmm2, %zmm2
+vgetmantps $0, %zmm3, %zmm3
+vmovaps %zmm0, %zmm13
+vmovaps %zmm1, %zmm14
+vmovaps %zmm2, %zmm15
+vmovaps %zmm3, %zmm16
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm13
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm14
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm15
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm16
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm0, %k2
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm1, %k3
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm2, %k4
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm3, %k5
+vaddps %zmm4, %zmm9, %zmm9{%k2}
+vaddps %zmm4, %zmm10, %zmm10{%k3}
+vaddps %zmm4, %zmm11, %zmm11{%k4}
+vaddps %zmm4, %zmm12, %zmm12{%k5}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm1, %zmm1{%k3}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm2, %zmm2{%k4}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm3, %zmm3{%k5}
+vpermps %zmm5, %zmm13, %zmm17
+vpermps %zmm5, %zmm14, %zmm18
+vpermps %zmm5, %zmm15, %zmm19
+vpermps %zmm5, %zmm16, %zmm20
+vfmsub213ps %zmm4, %zmm17, %zmm0
+vfmsub213ps %zmm4, %zmm18, %zmm1
+vfmsub213ps %zmm4, %zmm19, %zmm2
+vfmsub213ps %zmm4, %zmm20, %zmm3
+vpermps %zmm6, %zmm13, %zmm13
+vpermps %zmm6, %zmm14, %zmm14
+vpermps %zmm6, %zmm15, %zmm15
+vpermps %zmm6, %zmm16, %zmm16
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm13, %zmm9
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm14, %zmm10
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm15, %zmm11
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm16, %zmm12
+vmovaps %zmm8, %zmm13
+vmovaps %zmm8, %zmm14
+vmovaps %zmm8, %zmm15
+vmovaps %zmm8, %zmm16
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm0, %zmm13
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm1, %zmm14
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm2, %zmm15
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm3, %zmm16
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm0, %zmm13
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm1, %zmm14
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm2, %zmm15
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm3, %zmm16
+vmulps %zmm0, %zmm0, %zmm17
+vmulps %zmm1, %zmm1, %zmm18
+vmulps %zmm2, %zmm2, %zmm19
+vmulps %zmm3, %zmm3, %zmm20
+vfmadd213ps %zmm0, %zmm13, %zmm17
+vfmadd213ps %zmm1, %zmm14, %zmm18
+vfmadd213ps %zmm2, %zmm15, %zmm19
+vfmadd213ps %zmm3, %zmm16, %zmm20
+vaddps %zmm9, %zmm17, %zmm0
+vaddps %zmm10, %zmm18, %zmm1
+vaddps %zmm11, %zmm19, %zmm2
+vaddps %zmm12, %zmm20, %zmm3
+vmovups %zmm0, (%rdi)
+vmovups %zmm1, 64(%rdi)
+vmovups %zmm2, 128(%rdi)
+vmovups %zmm3, 192(%rdi)
+add $256, %rdi
+sub $64, %rdx
+.L14:
+cmp $64, %rdx
+jae .L13
+jmp .L16
+.balign 32
+.L15:
+vmovups (%rsi), %zmm0
+add $64, %rsi
+vgetexpps %zmm0, %zmm9
+vgetmantps $0, %zmm0, %zmm0
+vmovaps %zmm0, %zmm10
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm10
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm0, %k2
+vaddps %zmm4, %zmm9, %zmm9{%k2}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vpermps %zmm5, %zmm10, %zmm11
+vfmsub213ps %zmm4, %zmm11, %zmm0
+vpermps %zmm6, %zmm10, %zmm10
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm10, %zmm9
+vmovaps %zmm8, %zmm10
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm0, %zmm10
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm0, %zmm10
+vmulps %zmm0, %zmm0, %zmm11
+vfmadd213ps %zmm0, %zmm10, %zmm11
+vaddps %zmm9, %zmm11, %zmm0
+vmovups %zmm0, (%rdi)
+add $64, %rdi
+sub $16, %rdx
+.L16:
+cmp $16, %rdx
+jae .L15
+.L17:
+and $15, %ecx
+jz .L18
+mov $1, %eax
+shl %cl, %eax
+sub $1, %eax
+kmovd %eax, %k1
+vmovups (%rsi), %zmm0{%k1}{z}
+vgetexpps %zmm0, %zmm9
+vgetmantps $0, %zmm0, %zmm0
+vmovaps %zmm0, %zmm10
+vfmadd213ps PRE(log_A1_tq)(%rip){1to16}, %zmm7, %zmm10
+vcmpgeps PRE(log_A2_tq)(%rip){1to16}, %zmm0, %k2
+vaddps %zmm4, %zmm9, %zmm9{%k2}
+vmulps PRE(log_A3_tq)(%rip){1to16}, %zmm0, %zmm0{%k2}
+vpermps %zmm5, %zmm10, %zmm11
+vfmsub213ps %zmm4, %zmm11, %zmm0
+vpermps %zmm6, %zmm10, %zmm10
+vfmadd132ps PRE(log_A4_tq)(%rip){1to16}, %zmm10, %zmm9
+vmovaps %zmm8, %zmm10
+vfmadd213ps PRE(log_coef_tq)+4(%rip){1to16}, %zmm0, %zmm10
+vfmadd213ps PRE(log_coef_tq)(%rip){1to16}, %zmm0, %zmm10
+vmulps %zmm0, %zmm0, %zmm11
+vfmadd213ps %zmm0, %zmm10, %zmm11
+vaddps %zmm9, %zmm11, %zmm0
+vmovups %zmm0, (%rdi){%k1}
+.L18:
+vzeroupper
+ret
+SIZE(fmath_logf_v_avx512_tq)
+.balign 16
 .global PRE(fmath_expf_v_avx2)
 PRE(fmath_expf_v_avx2):
 TYPE(fmath_expf_v_avx2)
@@ -385,9 +558,9 @@ vbroadcastss PRE(exp_coef)+12(%rip), %ymm6
 vbroadcastss PRE(exp_coef)+16(%rip), %ymm7
 vbroadcastss PRE(exp_coef)+20(%rip), %ymm8
 mov %r11, %rcx
-jmp .L14
+jmp .L20
 .balign 32
-.L13:
+.L19:
 vmovups (%rsi), %ymm0
 vmovups 32(%rsi), %ymm1
 vmovups 64(%rsi), %ymm2
@@ -441,12 +614,12 @@ vmovups %ymm1, 32(%rdi)
 vmovups %ymm2, 64(%rdi)
 add $96, %rdi
 sub $24, %r11
-.L14:
+.L20:
 cmp $24, %r11
-jae .L13
-jmp .L16
+jae .L19
+jmp .L22
 .balign 32
-.L15:
+.L21:
 vmovups (%rsi), %ymm0
 add $32, %rsi
 vmaxps %ymm9, %ymm0, %ymm0
@@ -468,19 +641,19 @@ vmulps %ymm11, %ymm0, %ymm0
 vmovups %ymm0, (%rdi)
 add $32, %rdi
 sub $8, %r11
-.L16:
+.L22:
 cmp $8, %r11
-jae .L15
-.L17:
+jae .L21
+.L23:
 and $7, %ecx
-jz .L20
+jz .L26
 xor %rdx, %rdx
-.L18:
+.L24:
 mov (%rsi,%rdx,4), %eax
 mov %eax, (%rsp,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
-jne .L18
+jne .L24
 vmovups (%rsp), %ymm0
 vmaxps %ymm9, %ymm0, %ymm0
 vbroadcastss PRE(log2_e)(%rip), %ymm11
@@ -500,13 +673,13 @@ vfmadd213ps %ymm3, %ymm10, %ymm11
 vmulps %ymm11, %ymm0, %ymm0
 vmovups %ymm0, (%rsp)
 xor %rdx, %rdx
-.L19:
+.L25:
 mov (%rsp,%rdx,4), %eax
 mov %eax, (%rdi,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
-jne .L19
-.L20:
+jne .L25
+.L26:
 vzeroupper
 add $40, %rsp
 ret
@@ -521,9 +694,9 @@ vmovaps PRE(log2_f1)(%rip), %ymm2
 vmovaps PRE(log2_tbl1)(%rip), %ymm3
 vmovaps PRE(log2_tbl2)(%rip), %ymm4
 mov %r11, %rcx
-jmp .L22
+jmp .L28
 .balign 32
-.L21:
+.L27:
 vmovups (%rsi), %ymm0
 vmovups 32(%rsi), %ymm1
 add $64, %rsi
@@ -575,12 +748,12 @@ vmovups %ymm0, (%rdi)
 vmovups %ymm1, 32(%rdi)
 add $64, %rdi
 sub $16, %r11
-.L22:
+.L28:
 cmp $16, %r11
-jae .L21
-jmp .L24
+jae .L27
+jmp .L30
 .balign 32
-.L23:
+.L29:
 vmovups (%rsi), %ymm0
 add $32, %rsi
 vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm5
@@ -608,19 +781,19 @@ vfmadd213ps %ymm5, %ymm7, %ymm0
 vmovups %ymm0, (%rdi)
 add $32, %rdi
 sub $8, %r11
-.L24:
+.L30:
 cmp $8, %r11
-jae .L23
-.L25:
+jae .L29
+.L31:
 and $7, %ecx
-jz .L28
+jz .L34
 xor %rdx, %rdx
-.L26:
+.L32:
 mov (%rsi,%rdx,4), %eax
 mov %eax, (%rsp,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
-jne .L26
+jne .L32
 vmovups (%rsp), %ymm0
 vandps PRE(log2_0x7fffffff)(%rip), %ymm0, %ymm5
 vpsrld $23, %ymm5, %ymm5
@@ -646,13 +819,13 @@ vfmadd132ps PRE(log2_log2)(%rip), %ymm6, %ymm5
 vfmadd213ps %ymm5, %ymm7, %ymm0
 vmovups %ymm0, (%rsp)
 xor %rdx, %rdx
-.L27:
+.L33:
 mov (%rsp,%rdx,4), %eax
 mov %eax, (%rdi,%rdx,4)
 add $1, %rdx
 cmp %rcx, %rdx
-jne .L27
-.L28:
+jne .L33
+.L34:
 vzeroupper
 add $40, %rsp
 ret

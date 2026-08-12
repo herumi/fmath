@@ -1,6 +1,7 @@
 #pragma once
 /*
 	bit-exact scalar model of fmath_logf_v_avx512 (LogGenAVX512 in src/gen_fmath.py)
+	and fmath_logf_v_avx2 (LogGenAVX2), for positive normal inputs.
 	Every fma in the kernel is written as an explicit std::fma; this header must be
 	compiled with -ffp-contract=off so no other expression gets fused.
 */
@@ -26,12 +27,17 @@ inline float vgetmantps(float x)
 
 struct Params {
 	// fixed constants
-	float A0; // index scale
-	float A1; // 0x1.p+19 round/bias magic
-	float A2; // mantissa-halving threshold
-	float log2f; // log_A4
+	float A0; // index scale (avx512 only; avx2 has no scale)
+	float A1; // round/bias magic: 0x1.p+19 (avx512) / 0x1.p+20 (avx2 log2_ROUND)
+	float A2; // mantissa-halving threshold (avx2: log2_BOUND)
+	float log2f; // log_A4 / log2_log2
+	// kernel selection
+	bool tq; // false: result = fma(t, poly(t), z) ; true: result = (t + t^2 q(t)) + z
+	bool avx2; // fmath_logf_v_avx2: 8-entry table, degree-5 poly form
+	int tblN; // 16 (avx512) / 8 (avx2)
+	int coefN; // 3 (avx512: c2..c4) / 4 (avx2: c2..c5 = log2_A..D)
 	// searched constants
-	float c2, c3, c4; // log_coef[0..2]
+	float c2, c3, c4, c5; // log_coef (c5 used only when coefN == 4)
 	float tbl1[16]; // invs
 	float tbl2[16]; // ~ -log(tbl1[i])
 };
@@ -44,6 +50,11 @@ inline Params currentParams()
 	p.A1 = 0x1.p+19f;
 	p.A2 = 0x1.79c328p+0f;
 	p.log2f = 0x1.62e430p-1f;
+	p.tq = false;
+	p.avx2 = false;
+	p.tblN = 16;
+	p.coefN = 3;
+	p.c5 = 0.0f;
 	p.c2 = -0x1.ffffe2p-2f;
 	p.c3 = 0x1.556ebcp-2f;
 	p.c4 = -0x1.fb137cp-3f;
@@ -90,11 +101,94 @@ inline Params currentParams()
 	return p;
 }
 
-// table index used by vpermps: low 4 bits of the bit pattern of idxf
+// tq variant: must match the tq constants in gen_fmath.py
+inline Params currentParamsTq()
+{
+	Params p = currentParams();
+	p.tq = true;
+	p.c3 = 0x1.5577bcp-2f;
+	p.c4 = -0x1.fb848ep-3f;
+	// the only table entry that differs from the poly-form tables
+	p.tbl1[12] = 0x1.2493bap+0f;
+	p.tbl2[12] = -0x1.1182fep-3f;
+	return p;
+}
+
+// current constants of the AVX2 kernel (LogGenAVX2 in gen_fmath.py)
+inline Params currentParamsAVX2()
+{
+	Params p;
+	p.A0 = 0.0f; // unused: the avx2 index has no scale
+	p.A1 = 0x1.p+20f; // log2_ROUND = 2^(23-3)
+	p.A2 = 0x1.7p+0f; // log2_BOUND = 1 + 7/16
+	p.log2f = 0x1.62e430p-1f;
+	p.tq = false;
+	p.avx2 = true;
+	p.tblN = 8;
+	p.coefN = 4;
+	// log2_A, log2_B, log2_C, log2_D (tuned by log_search.cpp)
+	p.c2 = -0x1.ffffd2p-2f;
+	p.c3 = 0x1.5556b4p-2f;
+	p.c4 = -0x1.00f054p-2f;
+	p.c5 = 0x1.97edccp-3f;
+	const float tbl1[8] = { // invs_tableAVX2_L3
+		0x1.000000p+0f,
+		0x1.c72458p-1f,
+		0x1.9999e6p-1f,
+		0x1.745d16p-1f,
+		0x1.555d20p+0f,
+		0x1.3b1bb8p+0f,
+		0x1.248f28p+0f,
+		0x1.110a6ep+0f,
+	};
+	for (int i = 0; i < 8; i++) {
+		p.tbl1[i] = tbl1[i];
+		// gen_fmath.py derives tbl2 as float(-log(tbl1[i]))
+		p.tbl2[i] = i == 0 ? 0.0f : (float)-std::log((double)tbl1[i]);
+	}
+	for (int i = 8; i < 16; i++) {
+		p.tbl1[i] = 0;
+		p.tbl2[i] = 0;
+	}
+	return p;
+}
+
+// Horner evaluation of the polynomial part, one std::fma per instruction
+inline float polyOf(const Params& p, float t)
+{
+	float poly = p.coefN == 4 ? std::fma(p.c5, t, p.c4) : p.c4;
+	poly = std::fma(poly, t, p.c3);
+	poly = std::fma(poly, t, p.c2);
+	return std::fma(poly, t, 1.0f);
+}
+
+/*
+	per-mantissa part of the kernel as (tOut, polyOut) with
+	result = fma(tOut, polyOut, z) for both forms:
+	poly form: tOut = t, polyOut = poly(t)
+	tq form:   tOut = w = fma(t*t, q(t), t), polyOut = 1
+	(fma(w, 1, z) rounds the exact sum w + z once, so it is bitwise
+	identical to the kernel's vaddps)
+*/
+inline void tPoly(const Params& p, float mant, float invs, float& tOut, float& polyOut)
+{
+	float t = std::fma(mant, invs, -1.0f); // vfmsub213ps
+	if (p.tq) {
+		float q = std::fma(std::fma(p.c4, t, p.c3), t, p.c2); // 2 vfmadd213ps
+		tOut = std::fma(t * t, q, t); // vmulps + vfmadd213ps
+		polyOut = 1.0f;
+	} else {
+		tOut = t;
+		polyOut = polyOf(p, t);
+	}
+}
+
+// table index used by vpermps: low bits of the bit pattern of idxf
 inline uint32_t tblIdx(const Params& p, float mant)
 {
-	float idxf = std::fma(mant, p.A0, p.A1);
-	return f2u(idxf) & 15;
+	float idxf = p.avx2 ? mant + p.A1 // vaddps
+		: std::fma(mant, p.A0, p.A1); // vfmadd213ps
+	return f2u(idxf) & (uint32_t)(p.tblN - 1);
 }
 
 inline float logModel(const Params& p, float x)
@@ -106,11 +200,10 @@ inline float logModel(const Params& p, float x)
 		expo += 1.0f; // vaddps (exact)
 		mant *= 0.5f; // vmulps (exact)
 	}
-	float t = std::fma(mant, p.tbl1[d], -1.0f); // vfmsub213ps
-	float poly = std::fma(p.c4, t, p.c3); // vfmadd213ps
-	poly = std::fma(poly, t, p.c2); // vfmadd213ps
-	poly = std::fma(poly, t, 1.0f); // vfmadd213ps
+	float t, poly;
+	tPoly(p, mant, p.tbl1[d], t, poly);
 	float z = std::fma(expo, p.log2f, p.tbl2[d]); // vfmadd132ps
+	if (p.tq) return t + z; // vaddps (t holds w here)
 	return std::fma(t, poly, z); // vfmadd213ps
 }
 

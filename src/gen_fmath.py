@@ -336,26 +336,40 @@ class ExpGenAVX2(Algo):
 # log_v(float *dst, const float *src, size_t n);
 # updated by https://lpha-z.hatenablog.com/entry/2023/09/03/231500
 class LogGenAVX512(Algo):
-  def __init__(self, unrollN, checkSign=False):
+  # form='poly' : result = fma(t, poly(t), z) with poly = 1 + c2 t + c3 t^2 + c4 t^3
+  # form='tq'   : result = (t + t^2 q(t)) + z with q = c2 + c3 t + c4 t^2
+  #   same approximation degree, but the rounding error of q scales with t^2,
+  #   so the ~1 ulp floor of the poly form near x = 1 (z = 0) disappears
+  def __init__(self, unrollN, form='poly', checkSign=False):
     super().__init__(unrollN)
+    assert form in ('poly', 'tq')
+    self.form = form
+    self.suf = '' if form == 'poly' else '_tq'
     self.checkSign = checkSign # return -Inf for 0 and NaN for negative
     tmpRegN = 4
-    constRegN = 5 # tbl1, tbl2, t, one, c3
+    constRegN = 5 # tbl1, tbl2, t, one, cTop
     self.setTmpRegN(tmpRegN*unrollN)
     self.setConstRegN(constRegN)
+  def lbl(self, name):
+    return name + self.suf
   def data(self):
     align(64)
     # constants tuned by misc/log_search.cpp (max ulp objective over [FLT_MIN, FLT_MAX])
-    self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556ebcp-2f, -0x1.fb137cp-3f")
+    if self.form == 'poly':
+      self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.556ebcp-2f, -0x1.fb137cp-3f")
+    else:
+      # (c2, c3, c4) for q(t) = c2 + c3 t + c4 t^2
+      self.ctbl = parseHexFloat("-0x1.ffffe2p-2f, 0x1.5577bcp-2f, -0x1.fb848ep-3f")
 
-    putMem('log_coef', 'f32', self.ctbl)
-    putMem('log_A0', 'f32', float.fromhex('0x1.fd9c88p-1'))
-    putMem('log_A1', 'f32', float.fromhex('0x1.p+19'))
-    putMem('log_A2', 'f32', float.fromhex('0x1.79c328p+0'))
-    putMem('log_A3', 'f32', 0.5)
-    putMem('log_A4', 'f32', float.fromhex('0x1.62e430p-1'))
-    putMem('log_f1', 'f32', 1.0)
+    putMem(self.lbl('log_coef'), 'f32', self.ctbl)
+    putMem(self.lbl('log_A0'), 'f32', float.fromhex('0x1.fd9c88p-1'))
+    putMem(self.lbl('log_A1'), 'f32', float.fromhex('0x1.p+19'))
+    putMem(self.lbl('log_A2'), 'f32', float.fromhex('0x1.79c328p+0'))
+    putMem(self.lbl('log_A3'), 'f32', 0.5)
+    putMem(self.lbl('log_A4'), 'f32', float.fromhex('0x1.62e430p-1'))
+    putMem(self.lbl('log_f1'), 'f32', 1.0)
 
+    # both forms currently share the same searched tables (tq to be re-searched)
     invs_table = """
       0x1.0000000p+0f,
       0x1.e2864a0p-1f,
@@ -396,9 +410,13 @@ class LogGenAVX512(Algo):
     """
     logTbl1 = parseHexFloat(invs_table)
     logTbl2 = parseHexFloat(logs_table)
+    if self.form == 'tq':
+      # the tq search moved only this entry away from the poly-form tables
+      logTbl1[12] = float.fromhex('0x1.2493ba0p+0')
+      logTbl2[12] = float.fromhex('-0x1.1182fe0p-3')
 
-    putMem('log_tbl1', 'f32', logTbl1)
-    putMem('log_tbl2', 'f32', logTbl2)
+    putMem(self.lbl('log_tbl1'), 'f32', logTbl1)
+    putMem(self.lbl('log_tbl2'), 'f32', logTbl2)
 
 
   """
@@ -428,26 +446,35 @@ class LogGenAVX512(Algo):
       un(vgetexpps)(v1, v0) # expo
       un(vgetmantps)(v0, v0, 0) # mant
       un(vmovaps)(v2, v0)
-      un(vfmadd213ps)(v2, self.A0, ptr_b(rip+'log_A1')) # idxf
-      un(vcmpgeps)(vk, v0, ptr_b(rip+'log_A2'))
+      un(vfmadd213ps)(v2, self.A0, ptr_b(rip+self.lbl('log_A1'))) # idxf
+      un(vcmpgeps)(vk, v0, ptr_b(rip+self.lbl('log_A2')))
       un(vaddps)(zipOr(v1, vk), v1, self.one)
-      un(vmulps)(zipOr(v0, vk), v0, ptr_b(rip+'log_A3'))
+      un(vmulps)(zipOr(v0, vk), v0, ptr_b(rip+self.lbl('log_A3')))
 
       un(vpermps)(v3, v2, self.tbl1) # invs
       un(vfmsub213ps)(v0, v3, self.one) # t
       un(vpermps)(v2, v2, self.tbl2) # logs
 
-      un(vmovaps)(v3, self.c3)
-      un(vfmadd213ps)(v3, v0, ptr_b(rip+'log_coef'+1*4)) # poly = c4 * v0 + c3
-      un(vfmadd213ps)(v3, v0, ptr_b(rip+'log_coef'+0*4)) # poly = poly * v0 + c2
-      un(vfmadd213ps)(v3, v0, self.one) # poly = poly * v0 + 1
-      un(vfmadd132ps)(v1, v2, ptr_b(rip+'log_A4')) # expo * A4 + v2
-      un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
+      if self.form == 'poly':
+        un(vmovaps)(v3, self.cTop) # c4
+        un(vfmadd213ps)(v3, v0, ptr_b(rip+self.lbl('log_coef')+1*4)) # poly = c4 * v0 + c3
+        un(vfmadd213ps)(v3, v0, ptr_b(rip+self.lbl('log_coef')+0*4)) # poly = poly * v0 + c2
+        un(vfmadd213ps)(v3, v0, self.one) # poly = poly * v0 + 1
+        un(vfmadd132ps)(v1, v2, ptr_b(rip+self.lbl('log_A4'))) # z = expo * A4 + logs
+        un(vfmadd213ps)(v0, v3, v1) # v0 = t * poly + z
+      else:
+        un(vfmadd132ps)(v1, v2, ptr_b(rip+self.lbl('log_A4'))) # z = expo * A4 + logs (frees v2)
+        un(vmovaps)(v2, self.cTop) # c4
+        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.lbl('log_coef')+1*4)) # q = c4 * v0 + c3
+        un(vfmadd213ps)(v2, v0, ptr_b(rip+self.lbl('log_coef')+0*4)) # q = q * v0 + c2
+        un(vmulps)(v3, v0, v0) # u = t * t
+        un(vfmadd213ps)(v3, v2, v0) # w = u * q + t
+        un(vaddps)(v0, v3, v1) # v0 = w + z
 
   def code(self):
     unrollN = self.unrollN
     align(16)
-    with FuncProc('fmath_logf_v_avx512'):
+    with FuncProc('fmath_logf_v_avx512' + self.suf):
       with StackFrame(3, 0, useRCX=True, vNum=self.getTotalRegN(), vType=T_ZMM) as sf:
         self.regManager = RegManager(sf.v)
         dst = sf.p[0]
@@ -458,26 +485,27 @@ class LogGenAVX512(Algo):
         self.tbl1 = self.regManager.allocReg1()
         self.tbl2 = self.regManager.allocReg1()
         self.A0 = self.regManager.allocReg1()
-        self.c3 = self.regManager.allocReg1()
+        self.cTop = self.regManager.allocReg1()
 
         setFloat(self.one, 1.0)
-        vbroadcastss(self.A0, ptr(rip+'log_A0'))
-        vbroadcastss(self.c3, ptr(rip+'log_coef'+2*4))
-        vmovups(self.tbl1, ptr(rip+'log_tbl1'))
-        vmovups(self.tbl2, ptr(rip+'log_tbl2'))
+        vbroadcastss(self.A0, ptr(rip+self.lbl('log_A0')))
+        vbroadcastss(self.cTop, ptr(rip+self.lbl('log_coef')+(len(self.ctbl)-1)*4))
+        vmovups(self.tbl1, ptr(rip+self.lbl('log_tbl1')))
+        vmovups(self.tbl2, ptr(rip+self.lbl('log_tbl2')))
 
         LoopGen(self.logCore, dst, src, n, unrollN, v0)
 
-# generated by search2() in test/log_misc.cpp
+# tuned by misc/log_search.cpp (search --avx2); originally generated by
+# search2() in test/log_misc.cpp
 invs_table = """
 0x1.000000p+0,
-0x1.c72440p-1,
-0x1.99999ap-1,
-0x1.745d18p-1,
-0x1.555d24p+0,
-0x1.3b1b7ep+0,
-0x1.248eeep+0,
-0x1.110a0ep+0,
+0x1.c72458p-1,
+0x1.9999e6p-1,
+0x1.745d16p-1,
+0x1.555d20p+0,
+0x1.3b1bb8p+0,
+0x1.248f28p+0,
+0x1.110a6ep+0,
 """
 
 # j < n/2 ? 1/v : 2/v where v = 1 + j/n
@@ -517,17 +545,23 @@ class LogGenAVX2(Algo):
     putMem('log2_f1', 'f32', 1, N)
     putMem('log2_f0p5', 'f32', 0.5, N)
     """
+seed values (L2-optimal, by Maple):
 f:=x->x+a*x^2+b*x^3+c*x^4+d*x^5;
 g:=int((f(x)-log(1+x))^2,x=-0.5/9..0.5/8);
 sols:= solve({diff(g,a)=0,diff(g,b)=0,diff(g,c)=0,diff(g,d)=0},{a,b,c,d});
 Digits:=100;
 s:=eval(sols);
 evalf(s,25);
+  a = -.4999993134703166062199020
+  b =  .3333377208103342588645233
+  c = -.2507196324449547040133221
+  d =  .1983421366559079527220503
+then tuned by misc/log_search.cpp (search --avx2)
     """
-    putMem('log2_A', 'f32', -.4999993134703166062199020, N)
-    putMem('log2_B', 'f32',  .3333377208103342588645233, N)
-    putMem('log2_C', 'f32', -.2507196324449547040133221, N)
-    putMem('log2_D', 'f32',  .1983421366559079527220503, N)
+    putMem('log2_A', 'f32', float.fromhex('-0x1.ffffd2p-2'), N)
+    putMem('log2_B', 'f32', float.fromhex('0x1.5556b4p-2'), N)
+    putMem('log2_C', 'f32', float.fromhex('-0x1.00f054p-2'), N)
+    putMem('log2_D', 'f32', float.fromhex('0x1.97edccp-3'), N)
     putMem('log2_log2', 'f32', float.fromhex('0x1.62e430p-1'), N)
 
     logTbl1 = invs_tableAVX2_L3
@@ -665,16 +699,19 @@ def main():
   segment('data')
   exp512 = ExpGenAVX512(param.exp_unrollN)
   log512 = LogGenAVX512(param.log_unrollN)
+  log512tq = LogGenAVX512(param.log_unrollN, form='tq')
   exp2 = ExpGenAVX2(3)
   log2 = LogGenAVX2(2)
   exp512.data()
   log512.data()
+  log512tq.data()
   exp2.data()
   log2.data()
 
   segment('text')
   exp512.code()
   log512.code()
+  log512tq.code()
   exp2.code()
   log2.code()
 

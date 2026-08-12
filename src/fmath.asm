@@ -23,6 +23,25 @@ log_tbl1:
 dd 3f800000h,3f714325h,3f63935ch,3f579ab0h,3f4cd493h,3f430d7ch,3f3a362eh,3f321ad9h,3faab290h,3fa3d442h,3f9d8e21h,3f97b209h,3f924ab4h,3f8d40cch,3f888c66h,3f826c3ch
 log_tbl2:
 dd 0h,3d72dcffh,3df10a00h,3e2fdac0h,3e6458e0h,3e8b3780h,3ea2f760h,3eb9c190h,0be9362c0h,0be7cb780h,0be54bb40h,0be2debc0h,0be08c760h,0bdc9c681h,0bd8466bfh,0bc999c00h
+align 64
+log_coef_tq:
+dd 0befffff1h,3eaabbdeh,0be7dc247h
+log_A0_tq:
+dd 3f7ece44h
+log_A1_tq:
+dd 49000000h
+log_A2_tq:
+dd 3fbce194h
+log_A3_tq:
+dd 3f000000h
+log_A4_tq:
+dd 3f317218h
+log_f1_tq:
+dd 3f800000h
+log_tbl1_tq:
+dd 3f800000h,3f714325h,3f63935ch,3f579ab0h,3f4cd493h,3f430d7ch,3f3a362eh,3f321ad9h,3faab290h,3fa3d442h,3f9d8e21h,3f97b209h,3f9249ddh,3f8d40cch,3f888c66h,3f826c3ch
+log_tbl2_tq:
+dd 0h,3d72dcffh,3df10a00h,3e2fdac0h,3e6458e0h,3e8b3780h,3ea2f760h,3eb9c190h,0be9362c0h,0be7cb780h,0be54bb40h,0be2debc0h,0be08c17fh,0bdc9c681h,0bd8466bfh,0bc999c00h
 i127:
 dd 127
 log_x_min:
@@ -47,18 +66,18 @@ dd 3f000000h,3f000000h,3f000000h,3f000000h,3f000000h,3f000000h,3f000000h,3f00000
 log2_A:
 dd 0beffffe9h,0beffffe9h,0beffffe9h,0beffffe9h,0beffffe9h,0beffffe9h,0beffffe9h,0beffffe9h
 log2_B:
-dd 3eaaab3eh,3eaaab3eh,3eaaab3eh,3eaaab3eh,3eaaab3eh,3eaaab3eh,3eaaab3eh,3eaaab3eh
+dd 3eaaab5ah,3eaaab5ah,3eaaab5ah,3eaaab5ah,3eaaab5ah,3eaaab5ah,3eaaab5ah,3eaaab5ah
 log2_C:
-dd 0be805e53h,0be805e53h,0be805e53h,0be805e53h,0be805e53h,0be805e53h,0be805e53h,0be805e53h
+dd 0be80782ah,0be80782ah,0be80782ah,0be80782ah,0be80782ah,0be80782ah,0be80782ah,0be80782ah
 log2_D:
-dd 3e4b1a33h,3e4b1a33h,3e4b1a33h,3e4b1a33h,3e4b1a33h,3e4b1a33h,3e4b1a33h,3e4b1a33h
+dd 3e4bf6e6h,3e4bf6e6h,3e4bf6e6h,3e4bf6e6h,3e4bf6e6h,3e4bf6e6h,3e4bf6e6h,3e4bf6e6h
 log2_log2:
 dd 3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h,3f317218h
 align 64
 log2_tbl1:
-dd 3f800000h,3f639220h,3f4ccccdh,3f3a2e8ch,3faaae92h,3f9d8dbfh,3f924777h,3f888507h
+dd 3f800000h,3f63922ch,3f4cccf3h,3f3a2e8bh,3faaae90h,3f9d8ddch,3f924794h,3f888537h
 log2_tbl2:
-dd 0h,3df1151ch,3e647fbdh,3ea30c5dh,0be9356c6h,0be54b8c3h,0be08b0b5h,0bd83f82eh
+dd 0h,3df114b0h,3e647effh,3ea30c60h,0be9356c0h,0be54b980h,0be08b180h,0bd83fafeh
 _data$x ends
 _text$x segment align(64) execute
 align 16
@@ -401,6 +420,181 @@ add rsp, 168
 ret
 fmath_logf_v_avx512 endp
 align 16
+fmath_logf_v_avx512_tq proc export
+sub rsp, 168
+movaps xmmword ptr [rsp], xmm6
+movaps xmmword ptr [rsp+16], xmm7
+movaps xmmword ptr [rsp+32], xmm8
+movaps xmmword ptr [rsp+48], xmm9
+movaps xmmword ptr [rsp+64], xmm10
+movaps xmmword ptr [rsp+80], xmm11
+movaps xmmword ptr [rsp+96], xmm12
+movaps xmmword ptr [rsp+112], xmm13
+movaps xmmword ptr [rsp+128], xmm14
+movaps xmmword ptr [rsp+144], xmm15
+mov r10, rcx
+mov eax, 1065353216
+vpbroadcastd zmm4, eax
+vbroadcastss zmm7, dword ptr log_A0_tq
+vbroadcastss zmm8, dword ptr log_coef_tq+8
+vmovups zmm5, zmmword ptr log_tbl1_tq
+vmovups zmm6, zmmword ptr log_tbl2_tq
+mov rcx, r8
+jmp @L14
+align 32
+@L13:
+vmovups zmm0, zmmword ptr [rdx]
+vmovups zmm1, zmmword ptr [rdx+64]
+vmovups zmm2, zmmword ptr [rdx+128]
+vmovups zmm3, zmmword ptr [rdx+192]
+add rdx, 256
+vgetexpps zmm9, zmm0
+vgetexpps zmm10, zmm1
+vgetexpps zmm11, zmm2
+vgetexpps zmm12, zmm3
+vgetmantps zmm0, zmm0, 0
+vgetmantps zmm1, zmm1, 0
+vgetmantps zmm2, zmm2, 0
+vgetmantps zmm3, zmm3, 0
+vmovaps zmm13, zmm0
+vmovaps zmm14, zmm1
+vmovaps zmm15, zmm2
+vmovaps zmm16, zmm3
+vfmadd213ps zmm13, zmm7, dword bcst log_A1_tq
+vfmadd213ps zmm14, zmm7, dword bcst log_A1_tq
+vfmadd213ps zmm15, zmm7, dword bcst log_A1_tq
+vfmadd213ps zmm16, zmm7, dword bcst log_A1_tq
+vcmpgeps k2, zmm0, dword bcst log_A2_tq
+vcmpgeps k3, zmm1, dword bcst log_A2_tq
+vcmpgeps k4, zmm2, dword bcst log_A2_tq
+vcmpgeps k5, zmm3, dword bcst log_A2_tq
+vaddps zmm9{k2}, zmm9, zmm4
+vaddps zmm10{k3}, zmm10, zmm4
+vaddps zmm11{k4}, zmm11, zmm4
+vaddps zmm12{k5}, zmm12, zmm4
+vmulps zmm0{k2}, zmm0, dword bcst log_A3_tq
+vmulps zmm1{k3}, zmm1, dword bcst log_A3_tq
+vmulps zmm2{k4}, zmm2, dword bcst log_A3_tq
+vmulps zmm3{k5}, zmm3, dword bcst log_A3_tq
+vpermps zmm17, zmm13, zmm5
+vpermps zmm18, zmm14, zmm5
+vpermps zmm19, zmm15, zmm5
+vpermps zmm20, zmm16, zmm5
+vfmsub213ps zmm0, zmm17, zmm4
+vfmsub213ps zmm1, zmm18, zmm4
+vfmsub213ps zmm2, zmm19, zmm4
+vfmsub213ps zmm3, zmm20, zmm4
+vpermps zmm13, zmm13, zmm6
+vpermps zmm14, zmm14, zmm6
+vpermps zmm15, zmm15, zmm6
+vpermps zmm16, zmm16, zmm6
+vfmadd132ps zmm9, zmm13, dword bcst log_A4_tq
+vfmadd132ps zmm10, zmm14, dword bcst log_A4_tq
+vfmadd132ps zmm11, zmm15, dword bcst log_A4_tq
+vfmadd132ps zmm12, zmm16, dword bcst log_A4_tq
+vmovaps zmm13, zmm8
+vmovaps zmm14, zmm8
+vmovaps zmm15, zmm8
+vmovaps zmm16, zmm8
+vfmadd213ps zmm13, zmm0, dword bcst log_coef_tq+4
+vfmadd213ps zmm14, zmm1, dword bcst log_coef_tq+4
+vfmadd213ps zmm15, zmm2, dword bcst log_coef_tq+4
+vfmadd213ps zmm16, zmm3, dword bcst log_coef_tq+4
+vfmadd213ps zmm13, zmm0, dword bcst log_coef_tq
+vfmadd213ps zmm14, zmm1, dword bcst log_coef_tq
+vfmadd213ps zmm15, zmm2, dword bcst log_coef_tq
+vfmadd213ps zmm16, zmm3, dword bcst log_coef_tq
+vmulps zmm17, zmm0, zmm0
+vmulps zmm18, zmm1, zmm1
+vmulps zmm19, zmm2, zmm2
+vmulps zmm20, zmm3, zmm3
+vfmadd213ps zmm17, zmm13, zmm0
+vfmadd213ps zmm18, zmm14, zmm1
+vfmadd213ps zmm19, zmm15, zmm2
+vfmadd213ps zmm20, zmm16, zmm3
+vaddps zmm0, zmm17, zmm9
+vaddps zmm1, zmm18, zmm10
+vaddps zmm2, zmm19, zmm11
+vaddps zmm3, zmm20, zmm12
+vmovups zmmword ptr [r10], zmm0
+vmovups zmmword ptr [r10+64], zmm1
+vmovups zmmword ptr [r10+128], zmm2
+vmovups zmmword ptr [r10+192], zmm3
+add r10, 256
+sub r8, 64
+@L14:
+cmp r8, 64
+jae @L13
+jmp @L16
+align 32
+@L15:
+vmovups zmm0, zmmword ptr [rdx]
+add rdx, 64
+vgetexpps zmm9, zmm0
+vgetmantps zmm0, zmm0, 0
+vmovaps zmm10, zmm0
+vfmadd213ps zmm10, zmm7, dword bcst log_A1_tq
+vcmpgeps k2, zmm0, dword bcst log_A2_tq
+vaddps zmm9{k2}, zmm9, zmm4
+vmulps zmm0{k2}, zmm0, dword bcst log_A3_tq
+vpermps zmm11, zmm10, zmm5
+vfmsub213ps zmm0, zmm11, zmm4
+vpermps zmm10, zmm10, zmm6
+vfmadd132ps zmm9, zmm10, dword bcst log_A4_tq
+vmovaps zmm10, zmm8
+vfmadd213ps zmm10, zmm0, dword bcst log_coef_tq+4
+vfmadd213ps zmm10, zmm0, dword bcst log_coef_tq
+vmulps zmm11, zmm0, zmm0
+vfmadd213ps zmm11, zmm10, zmm0
+vaddps zmm0, zmm11, zmm9
+vmovups zmmword ptr [r10], zmm0
+add r10, 64
+sub r8, 16
+@L16:
+cmp r8, 16
+jae @L15
+@L17:
+and ecx, 15
+jz @L18
+mov eax, 1
+shl eax, cl
+sub eax, 1
+kmovd k1, eax
+vmovups zmm0{k1}{z}, zmmword ptr [rdx]
+vgetexpps zmm9, zmm0
+vgetmantps zmm0, zmm0, 0
+vmovaps zmm10, zmm0
+vfmadd213ps zmm10, zmm7, dword bcst log_A1_tq
+vcmpgeps k2, zmm0, dword bcst log_A2_tq
+vaddps zmm9{k2}, zmm9, zmm4
+vmulps zmm0{k2}, zmm0, dword bcst log_A3_tq
+vpermps zmm11, zmm10, zmm5
+vfmsub213ps zmm0, zmm11, zmm4
+vpermps zmm10, zmm10, zmm6
+vfmadd132ps zmm9, zmm10, dword bcst log_A4_tq
+vmovaps zmm10, zmm8
+vfmadd213ps zmm10, zmm0, dword bcst log_coef_tq+4
+vfmadd213ps zmm10, zmm0, dword bcst log_coef_tq
+vmulps zmm11, zmm0, zmm0
+vfmadd213ps zmm11, zmm10, zmm0
+vaddps zmm0, zmm11, zmm9
+vmovups zmmword ptr [r10]{k1}, zmm0
+@L18:
+vzeroupper
+movaps xmm6, xmmword ptr [rsp]
+movaps xmm7, xmmword ptr [rsp+16]
+movaps xmm8, xmmword ptr [rsp+32]
+movaps xmm9, xmmword ptr [rsp+48]
+movaps xmm10, xmmword ptr [rsp+64]
+movaps xmm11, xmmword ptr [rsp+80]
+movaps xmm12, xmmword ptr [rsp+96]
+movaps xmm13, xmmword ptr [rsp+112]
+movaps xmm14, xmmword ptr [rsp+128]
+movaps xmm15, xmmword ptr [rsp+144]
+add rsp, 168
+ret
+fmath_logf_v_avx512_tq endp
+align 16
 fmath_expf_v_avx2 proc export
 sub rsp, 200
 movaps xmmword ptr [rsp+32], xmm6
@@ -423,9 +617,9 @@ vbroadcastss ymm6, dword ptr exp_coef+12
 vbroadcastss ymm7, dword ptr exp_coef+16
 vbroadcastss ymm8, dword ptr exp_coef+20
 mov rcx, r8
-jmp @L14
+jmp @L20
 align 32
-@L13:
+@L19:
 vmovups ymm0, ymmword ptr [r11]
 vmovups ymm1, ymmword ptr [r11+32]
 vmovups ymm2, ymmword ptr [r11+64]
@@ -479,12 +673,12 @@ vmovups ymmword ptr [r10+32], ymm1
 vmovups ymmword ptr [r10+64], ymm2
 add r10, 96
 sub r8, 24
-@L14:
+@L20:
 cmp r8, 24
-jae @L13
-jmp @L16
+jae @L19
+jmp @L22
 align 32
-@L15:
+@L21:
 vmovups ymm0, ymmword ptr [r11]
 add r11, 32
 vmaxps ymm0, ymm0, ymm9
@@ -506,19 +700,19 @@ vmulps ymm0, ymm0, ymm11
 vmovups ymmword ptr [r10], ymm0
 add r10, 32
 sub r8, 8
-@L16:
+@L22:
 cmp r8, 8
-jae @L15
-@L17:
+jae @L21
+@L23:
 and ecx, 7
-jz @L20
+jz @L26
 xor rdx, rdx
-@L18:
+@L24:
 mov eax, [r11+rdx*4]
 mov [rsp+rdx*4], eax
 add rdx, 1
 cmp rdx, rcx
-jne @L18
+jne @L24
 vmovups ymm0, ymmword ptr [rsp]
 vmaxps ymm0, ymm0, ymm9
 vbroadcastss ymm11, dword ptr log2_e
@@ -538,13 +732,13 @@ vfmadd213ps ymm11, ymm10, ymm3
 vmulps ymm0, ymm0, ymm11
 vmovups ymmword ptr [rsp], ymm0
 xor rdx, rdx
-@L19:
+@L25:
 mov eax, [rsp+rdx*4]
 mov [r10+rdx*4], eax
 add rdx, 1
 cmp rdx, rcx
-jne @L19
-@L20:
+jne @L25
+@L26:
 vzeroupper
 movaps xmm6, xmmword ptr [rsp+32]
 movaps xmm7, xmmword ptr [rsp+48]
@@ -575,9 +769,9 @@ vmovaps ymm2, ymmword ptr log2_f1
 vmovaps ymm3, ymmword ptr log2_tbl1
 vmovaps ymm4, ymmword ptr log2_tbl2
 mov rcx, r8
-jmp @L22
+jmp @L28
 align 32
-@L21:
+@L27:
 vmovups ymm0, ymmword ptr [r11]
 vmovups ymm1, ymmword ptr [r11+32]
 add r11, 64
@@ -629,12 +823,12 @@ vmovups ymmword ptr [r10], ymm0
 vmovups ymmword ptr [r10+32], ymm1
 add r10, 64
 sub r8, 16
-@L22:
+@L28:
 cmp r8, 16
-jae @L21
-jmp @L24
+jae @L27
+jmp @L30
 align 32
-@L23:
+@L29:
 vmovups ymm0, ymmword ptr [r11]
 add r11, 32
 vandps ymm5, ymm0, ymmword ptr log2_0x7fffffff
@@ -662,19 +856,19 @@ vfmadd213ps ymm0, ymm7, ymm5
 vmovups ymmword ptr [r10], ymm0
 add r10, 32
 sub r8, 8
-@L24:
+@L30:
 cmp r8, 8
-jae @L23
-@L25:
+jae @L29
+@L31:
 and ecx, 7
-jz @L28
+jz @L34
 xor rdx, rdx
-@L26:
+@L32:
 mov eax, [r11+rdx*4]
 mov [rsp+rdx*4], eax
 add rdx, 1
 cmp rdx, rcx
-jne @L26
+jne @L32
 vmovups ymm0, ymmword ptr [rsp]
 vandps ymm5, ymm0, ymmword ptr log2_0x7fffffff
 vpsrld ymm5, ymm5, 23
@@ -700,13 +894,13 @@ vfmadd132ps ymm5, ymm6, ymmword ptr log2_log2
 vfmadd213ps ymm0, ymm7, ymm5
 vmovups ymmword ptr [rsp], ymm0
 xor rdx, rdx
-@L27:
+@L33:
 mov eax, [rsp+rdx*4]
 mov [r10+rdx*4], eax
 add rdx, 1
 cmp rdx, rcx
-jne @L27
-@L28:
+jne @L33
+@L34:
 vzeroupper
 movaps xmm6, xmmword ptr [rsp+32]
 movaps xmm7, xmmword ptr [rsp+48]

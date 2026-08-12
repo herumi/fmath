@@ -23,7 +23,12 @@ void ATTRIBUTE fmath_init()
 	using namespace Xbyak::util;
 	if (cpu.has(Cpu::tAVX512F|Cpu::tAVX512DQ)) {
 		fmath_expf_v = fmath_expf_v_avx512;
-		fmath_logf_v = fmath_logf_v_avx512;
+		const char *lg = getenv("FMATH_LOG");
+		if (lg && strcmp(lg, "tq") == 0) {
+			fmath_logf_v = fmath_logf_v_avx512_tq;
+		} else {
+			fmath_logf_v = fmath_logf_v_avx512;
+		}
 	}
 }
 
